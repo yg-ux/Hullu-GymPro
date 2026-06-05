@@ -81,7 +81,7 @@ export default function SubscriptionPage() {
         </button>
         <div>
           <h1 className="text-2xl font-bold text-white">Subscription</h1>
-          <p className="text-gray-400">Manage your GymPro plan</p>
+          <p className="text-gray-400">Manage your Hullu Gyms plan</p>
         </div>
       </div>
 
@@ -160,7 +160,7 @@ export default function SubscriptionPage() {
               <h3 className="font-semibold text-white mb-1">Action Required</h3>
               <p className="text-gray-400">
                 {subscription?.status === 'trial_expired'
-                  ? "Your free trial has ended. Subscribe to a plan to continue using GymPro."
+                  ? "Your free trial has ended. Subscribe to a plan to continue using Hullu Gyms."
                   : "Your subscription has expired. Renew now to avoid losing access to your data."
                 }
               </p>

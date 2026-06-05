@@ -29,14 +29,17 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 
+// Plan requirements: free < starter < pro
+const PLAN_ORDER = ['free', 'starter', 'pro'];
+
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Check In', href: '/check-in', icon: LogIn },
   { name: 'Check Out', href: '/check-out', icon: LogOutIcon },
   { name: 'Customers', href: '/customers', icon: Users },
-  { name: 'Staff', href: '/staff', icon: UserCog },
-  { name: 'Reports', href: '/reports', icon: BarChart3 },
-  { name: 'Revenue', href: '/revenue', icon: TrendingUp },
+  { name: 'Staff', href: '/staff', icon: UserCog, requiresPlan: 'starter' },
+  { name: 'Reports', href: '/reports', icon: BarChart3, requiresPlan: 'pro' },
+  { name: 'Revenue', href: '/revenue', icon: TrendingUp, requiresPlan: 'pro' },
 ];
 
 export default function Layout() {
@@ -51,11 +54,27 @@ export default function Layout() {
     return saved !== null ? JSON.parse(saved) : true;
   });
 
-  // Apply theme class
+  // Apply theme class and color theme
   useEffect(() => {
     localStorage.setItem('darkMode', JSON.stringify(darkMode));
     document.documentElement.classList.toggle('light-mode', !darkMode);
-  }, [darkMode]);
+    
+    // Apply color theme as CSS variables
+    const colorTheme = gym?.color_theme || 'default';
+    const themeColors = {
+      default: { primary: '#3b82f6', primaryDark: '#2563eb', accent: '#60a5fa' },
+      emerald: { primary: '#10b981', primaryDark: '#059669', accent: '#34d399' },
+      purple: { primary: '#a855f7', primaryDark: '#9333ea', accent: '#c084fc' },
+      red: { primary: '#ef4444', primaryDark: '#dc2626', accent: '#f87171' },
+      amber: { primary: '#f59e0b', primaryDark: '#d97706', accent: '#fbbf24' },
+      cyan: { primary: '#06b6d4', primaryDark: '#0891b2', accent: '#22d3ee' },
+    };
+    const colors = themeColors[colorTheme] || themeColors.default;
+    
+    document.documentElement.style.setProperty('--gym-500', colors.primary);
+    document.documentElement.style.setProperty('--gym-600', colors.primaryDark);
+    document.documentElement.style.setProperty('--gym-400', colors.accent);
+  }, [darkMode, gym?.color_theme]);
 
   const handleLogout = () => {
     logout();
@@ -125,8 +144,8 @@ export default function Layout() {
                 <Dumbbell className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold gradient-text">{gym?.name || 'GymPro'}</h1>
-                <p className="text-xs text-gray-400 truncate max-w-[140px]">Powered by GymPro</p>
+                <h1 className="text-lg font-bold gradient-text">{gym?.name || 'Hullu Gyms'}</h1>
+                <p className="text-xs text-gray-400 truncate max-w-[140px]">by Hullu Gyms</p>
               </div>
             </div>
             <button 
@@ -327,15 +346,43 @@ function SidebarContent({ onNavigate }) {
   const { gym, subscription } = useAuth();
   const location = useLocation();
   
+  const currentPlan = gym?.subscription_plan?.toLowerCase() || 'free';
+  const currentPlanIndex = PLAN_ORDER.indexOf(currentPlan);
+
+  const hasAccess = (requiredPlan) => {
+    if (!requiredPlan) return true;
+    const requiredIndex = PLAN_ORDER.indexOf(requiredPlan);
+    return currentPlanIndex >= requiredIndex;
+  };
+
+  const getPlanBadge = (requiredPlan) => {
+    if (!requiredPlan) return null;
+    if (currentPlan === 'pro' && requiredPlan === 'pro') {
+      return <span className="ml-auto text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full">Pro</span>;
+    }
+    if (hasAccess(requiredPlan)) {
+      return <span className="ml-auto text-xs px-2 py-0.5 bg-gym-500/20 text-gym-400 rounded-full capitalize">{requiredPlan}+</span>;
+    }
+    return <span className="ml-auto text-xs px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full">Locked</span>;
+  };
+
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-dark-100 to-dark-200 border-r border-gray-800/50">
       {/* Logo */}
       <div className="flex items-center gap-3 h-16 px-6 border-b border-gray-800/50 bg-gradient-to-r from-dark-100 to-dark-200">
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-gym-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-gym-500/30 animate-pulse-glow">
+        <div className={clsx(
+          "w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg animate-pulse-glow",
+          gym?.color_theme === 'emerald' && "bg-gradient-to-br from-emerald-500 to-emerald-600",
+          gym?.color_theme === 'purple' && "bg-gradient-to-br from-purple-500 to-purple-600",
+          gym?.color_theme === 'red' && "bg-gradient-to-br from-red-500 to-red-600",
+          gym?.color_theme === 'amber' && "bg-gradient-to-br from-amber-500 to-amber-600",
+          gym?.color_theme === 'cyan' && "bg-gradient-to-br from-cyan-500 to-cyan-600",
+          (!gym?.color_theme || gym?.color_theme === 'default') && "bg-gradient-to-br from-gym-500 via-purple-500 to-pink-500"
+        )}>
           <Dumbbell className="w-7 h-7 text-white" />
         </div>
         <div>
-          <h1 className="text-xl font-bold gradient-text">GymPro</h1>
+          <h1 className="text-xl font-bold gradient-text">Hullu Gyms</h1>
           <p className="text-xs text-gray-400 truncate max-w-[160px]">{gym?.name || 'Your Gym'}</p>
         </div>
       </div>
@@ -344,26 +391,34 @@ function SidebarContent({ onNavigate }) {
       <nav className="flex-1 px-3 py-4 space-y-2">
         {navigation.map((item) => {
           const isActive = location.pathname === item.href;
+          const access = hasAccess(item.requiresPlan);
           
           return (
             <NavLink
               key={item.name}
-              to={item.href}
+              to={access ? item.href : '/subscription'}
               onClick={onNavigate}
               className={clsx(
                 "flex items-center gap-3 px-4 py-3.5 rounded-xl font-medium transition-all duration-300 group",
                 isActive 
                   ? "bg-gradient-to-r from-gym-600/30 to-purple-600/30 text-gym-400 shadow-lg shadow-gym-500/10 border border-gym-500/20" 
-                  : "text-gray-400 hover:text-white hover:bg-dark-100 border border-transparent"
+                  : !access
+                    ? "text-gray-500 cursor-not-allowed opacity-60"
+                    : "text-gray-400 hover:text-white hover:bg-dark-100 border border-transparent"
               )}
             >
               <div className={clsx(
                 "p-2 rounded-lg transition-all duration-300",
-                isActive ? "bg-gym-500/20" : "bg-dark-300 group-hover:bg-dark-200"
+                isActive ? "bg-gym-500/20" : !access ? "bg-dark-300" : "bg-dark-300 group-hover:bg-dark-200"
               )}>
-                <item.icon className="w-5 h-5" />
+                {access ? (
+                  <item.icon className="w-5 h-5" />
+                ) : (
+                  <Lock className="w-5 h-5" />
+                )}
               </div>
               {item.name}
+              {getPlanBadge(item.requiresPlan)}
               {isActive && (
                 <div className="ml-auto w-2 h-2 rounded-full bg-gym-400 animate-pulse" />
               )}
@@ -402,7 +457,7 @@ function SidebarContent({ onNavigate }) {
       {/* Footer */}
       <div className="p-4 border-t border-gray-800/50">
         <div className="text-xs text-gray-500 text-center">
-          <span className="gradient-text font-semibold">{gym?.name || 'Your Gym'}</span> powered by <span className="gradient-text font-semibold">GymPro</span>
+          <span className="gradient-text font-semibold">{gym?.name || 'Your Gym'}</span> by <span className="gradient-text font-semibold">Hullu Gyms</span>
           <br />
           © 2024 All rights reserved
         </div>

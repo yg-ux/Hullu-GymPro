@@ -263,7 +263,7 @@ export default function Dashboard() {
           )}
           <div>
             <h1 className="text-3xl font-bold text-white">
-              Welcome back! <span className={`bg-gradient-to-r from-${theme.accent}-400 to-${theme.accent}-500 bg-clip-text text-transparent`}>{gym?.name || 'GymPro'}</span>
+              Welcome back! <span className={`bg-gradient-to-r from-${theme.accent}-400 to-${theme.accent}-500 bg-clip-text text-transparent`}>{gym?.name || 'Hullu Gyms'}</span>
             </h1>
             <p className="text-gray-400 mt-1">Here's what's happening at {gym?.name || 'your gym'} today.</p>
           </div>

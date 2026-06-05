@@ -217,6 +217,17 @@ router.post('/', authenticateToken, (req, res) => {
       return res.status(400).json({ error: 'Customer name is required' });
     }
 
+    // Check member limit
+    const gym = getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
+    const maxMembers = gym.max_members || 10;
+    const totalCustomers = gym.total_customers || 0;
+
+    if (totalCustomers >= maxMembers) {
+      return res.status(403).json({ 
+        error: `Member limit reached (${totalCustomers}/${maxMembers}). Upgrade your plan to add more members.` 
+      });
+    }
+
     const customerId = uuidv4();
     const today = new Date();
     const membershipStart = today.toISOString().split('T')[0];
@@ -231,6 +242,9 @@ router.post('/', authenticateToken, (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)
     `, [customerId, gymId, name, phone || null, email || null, photoUrl, membership_type, membershipStart, membershipEnd, emergency_contact || null, notes || null]);
 
+    // Increment total_customers counter
+    runQuery('UPDATE gyms SET total_customers = total_customers + 1 WHERE id = ?', [gymId]);
+
     // If amount is provided, record payment
     if (amount && parseFloat(amount) > 0) {
       const paymentId = uuidv4();
@@ -242,7 +256,11 @@ router.post('/', authenticateToken, (req, res) => {
 
     const customer = getOne('SELECT * FROM customers WHERE id = ?', [customerId]);
 
-    res.status(201).json(customer);
+    res.status(201).json({
+      ...customer,
+      member_limit: maxMembers,
+      total_customers: totalCustomers + 1
+    });
   } catch (error) {
     console.error('Create customer error:', error);
     res.status(500).json({ error: 'Failed to create customer' });
@@ -311,18 +329,22 @@ router.delete('/:id', authenticateToken, (req, res) => {
       return res.status(404).json({ error: 'Customer not found' });
     }
 
-    if (customer.photo) {
-      const photoPath = path.join(__dirname, '../..', customer.photo);
-      if (fs.existsSync(photoPath)) {
-        fs.unlinkSync(photoPath);
-      }
-    }
+    // Note: We do NOT decrement total_customers here
+    // Deleted customers still count towards the member limit
 
     runQuery('DELETE FROM payments WHERE customer_id = ? AND gym_id = ?', [req.params.id, gymId]);
     runQuery('DELETE FROM attendance WHERE customer_id = ? AND gym_id = ?', [req.params.id, gymId]);
     runQuery('DELETE FROM customers WHERE id = ? AND gym_id = ?', [req.params.id, gymId]);
 
-    res.json({ message: 'Customer deleted successfully' });
+    // Get updated counts for response
+    const gym = getOne('SELECT total_customers, max_members FROM gyms WHERE id = ?', [gymId]);
+
+    res.json({ 
+      message: 'Customer deleted successfully',
+      note: 'Deleted customers still count towards your member limit',
+      total_customers: gym?.total_customers || 0,
+      max_members: gym?.max_members || 10
+    });
   } catch (error) {
     console.error('Delete customer error:', error);
     res.status(500).json({ error: 'Failed to delete customer' });

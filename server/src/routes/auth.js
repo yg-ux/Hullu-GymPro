@@ -89,10 +89,10 @@ router.post('/register', async (req, res) => {
     trialEnd.setDate(trialEnd.getDate() + TRIAL_DAYS);
 
     const gymInsertSql = `
-      INSERT INTO gyms (id, name, slug, email, phone, subscription_status, subscription_plan, subscription_start, subscription_end, color_theme, logo)
-      VALUES (?, ?, ?, ?, ?, 'trial', 'starter', ?, ?, ?, ?)
+      INSERT INTO gyms (id, name, slug, email, phone, subscription_status, subscription_plan, subscription_start, subscription_end, color_theme, logo, max_members)
+      VALUES (?, ?, ?, ?, ?, 'active', 'free', ?, ?, ?, ?, 10)
     `;
-    const gymParams = [gymId, gymName, slug, email, phone || null, today.toISOString().split('T')[0], trialEnd.toISOString().split('T')[0], colorTheme || 'default', logo || null];
+    const gymParams = [gymId, gymName, slug, email, phone || null, today.toISOString().split('T')[0], today.toISOString().split('T')[0], colorTheme || 'default', logo || null];
     
     runQuery(gymInsertSql, gymParams);
 
@@ -111,7 +111,7 @@ router.post('/register', async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    const subscription = checkSubscription({ subscription_status: 'trial', subscription_start: today.toISOString(), subscription_end: trialEnd.toISOString() });
+    const subscription = checkSubscription({ subscription_status: 'active', subscription_start: today.toISOString(), subscription_end: today.toISOString() });
 
     res.status(201).json({
       token,
@@ -122,8 +122,9 @@ router.post('/register', async (req, res) => {
         email,
         color_theme: colorTheme || 'default',
         logo: logo || null,
-        subscription_status: 'trial',
-        subscription_plan: 'starter'
+        subscription_status: 'active',
+        subscription_plan: 'free',
+        max_members: 10
       },
       user: {
         id: userId,
@@ -131,7 +132,7 @@ router.post('/register', async (req, res) => {
         role: 'owner'
       },
       subscription,
-      message: `Trial started! You have ${TRIAL_DAYS} days free.`
+      message: `Welcome! Your free plan includes up to 10 members.`
     });
   } catch (error) {
     console.error('Registration error:', error.message);
@@ -142,29 +143,29 @@ router.post('/register', async (req, res) => {
 // Get features based on subscription plan
 function getFeatures(plan) {
   const features = {
-    starter: {
-      revenue_tab: false,
+    free: {
+      max_members: 10,
       sms_reminders: false,
-      qr_checkin: false,
-      max_staff: 0,
-      reports: 'none'
+      staff_management: false,
+      reports_tab: false,
+      revenue_tab: false
+    },
+    starter: {
+      max_members: 100,
+      sms_reminders: true,
+      staff_management: true,
+      reports_tab: false,
+      revenue_tab: false
     },
     pro: {
-      revenue_tab: true,
+      max_members: -1, // unlimited
       sms_reminders: true,
-      qr_checkin: true,
-      max_staff: 3,
-      reports: 'monthly'
-    },
-    enterprise: {
-      revenue_tab: true,
-      sms_reminders: true,
-      qr_checkin: true,
-      max_staff: -1, // unlimited
-      reports: 'custom'
+      staff_management: true,
+      reports_tab: true,
+      revenue_tab: true
     }
   };
-  return features[plan] || features.starter;
+  return features[plan] || features.free;
 }
 
 // Login
@@ -279,17 +280,31 @@ router.get('/plans', (req, res) => {
   try {
     const plans = [
       {
+        id: 'free',
+        name: 'Free',
+        price: 0,
+        currency: 'ETB',
+        period: 'forever',
+        max_members: 10,
+        features: [
+          'Up to 10 members',
+          'Basic customer management',
+          'Payment tracking',
+          'Check-in/out system'
+        ]
+      },
+      {
         id: 'starter',
         name: 'Starter',
-        price: 3000,
+        price: 1600,
         currency: 'ETB',
         period: 'month',
         max_members: 100,
         features: [
           'Up to 100 members',
-          'Customer management',
-          'Payment tracking',
-          'Basic reports',
+          'Everything in Free',
+          'Staff management',
+          'SMS reminders',
           'Email support'
         ]
       },
@@ -299,30 +314,14 @@ router.get('/plans', (req, res) => {
         price: 5000,
         currency: 'ETB',
         period: 'month',
-        max_members: 500,
-        features: [
-          'Up to 500 members',
-          'Everything in Starter',
-          'SMS reminders',
-          'Advanced analytics',
-          'Priority support',
-          'Custom branding'
-        ]
-      },
-      {
-        id: 'enterprise',
-        name: 'Enterprise',
-        price: 10000,
-        currency: 'ETB',
-        period: 'month',
         max_members: -1, // unlimited
         features: [
           'Unlimited members',
-          'Everything in Pro',
-          'Multi-location support',
-          'API access',
-          'Dedicated support',
-          'Custom integrations'
+          'Everything in Starter',
+          'Reports & Analytics',
+          'Revenue tracking',
+          'Priority support',
+          'SMS reminders'
         ]
       }
     ];
@@ -334,54 +333,68 @@ router.get('/plans', (req, res) => {
   }
 });
 
-// Update gym subscription (simulated - in real app would integrate with payment)
+// Update gym subscription (submit request to admin)
 router.post('/subscribe', authenticateToken, (req, res) => {
   try {
-    const { plan_id } = req.body;
+    const { plan_id, amount_paid, payment_proof, payment_method } = req.body;
 
     const plans = {
-      'starter': { price: 3000, max_members: 100 },
-      'pro': { price: 5000, max_members: 500 },
-      'enterprise': { price: 10000, max_members: -1 }
+      'free': { price: 0, max_members: 10 },
+      'starter': { price: 1600, max_members: 100 },
+      'pro': { price: 5000, max_members: -1 }
     };
 
     if (!plans[plan_id]) {
       return res.status(400).json({ error: 'Invalid plan' });
     }
 
-    const plan = plans[plan_id];
-    const today = new Date();
-    const nextMonth = new Date(today);
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    // Check if there's already a pending request
+    const existingRequest = getOne(`
+      SELECT * FROM subscription_requests 
+      WHERE gym_id = ? AND status = 'pending'
+    `, [req.user.gym_id]);
 
+    if (existingRequest) {
+      return res.status(400).json({ error: 'You already have a pending subscription request' });
+    }
+
+    // For free plan, activate immediately
+    if (plan_id === 'free') {
+      runQuery(`
+        UPDATE gyms SET
+          subscription_status = 'active',
+          subscription_plan = 'free',
+          max_members = 10,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `, [req.user.gym_id]);
+
+      const gym = getOne('SELECT * FROM gyms WHERE id = ?', [req.user.gym_id]);
+      return res.json({
+        message: 'Free plan activated successfully',
+        gym: {
+          subscription_status: gym.subscription_status,
+          subscription_plan: 'free',
+          max_members: 10
+        }
+      });
+    }
+
+    // For paid plans, create a subscription request
+    const requestId = uuidv4();
     runQuery(`
-      UPDATE gyms SET
-        subscription_status = 'active',
-        subscription_plan = ?,
-        subscription_start = ?,
-        subscription_end = ?,
-        max_members = ?,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `, [plan_id, today.toISOString().split('T')[0], nextMonth.toISOString().split('T')[0], plan.max_members, req.user.gym_id]);
-
-    const gym = getOne('SELECT * FROM gyms WHERE id = ?', [req.user.gym_id]);
-    const subscription = checkSubscription(gym);
+      INSERT INTO subscription_requests (id, gym_id, requested_plan, amount_paid, payment_proof, payment_method, status)
+      VALUES (?, ?, ?, ?, ?, ?, 'pending')
+    `, [requestId, req.user.gym_id, plan_id, amount_paid || plans[plan_id].price, payment_proof, payment_method]);
 
     res.json({
-      message: 'Subscription updated successfully',
-      gym: {
-        subscription_status: gym.subscription_status,
-        subscription_plan: plan_id,
-        subscription_start: today.toISOString().split('T')[0],
-        subscription_end: nextMonth.toISOString().split('T')[0],
-        max_members: plan.max_members
-      },
-      subscription
+      message: 'Subscription request submitted. You will be notified once reviewed by admin.',
+      request_id: requestId,
+      status: 'pending'
     });
   } catch (error) {
     console.error('Subscribe error:', error);
-    res.status(500).json({ error: 'Failed to update subscription' });
+    res.status(500).json({ error: 'Failed to submit subscription request' });
   }
 });
 

@@ -46,22 +46,22 @@ export async function initDatabase() {
         address TEXT,
         logo TEXT,
         color_theme TEXT DEFAULT 'default',
-        subscription_status TEXT DEFAULT 'trial',
-        subscription_plan TEXT DEFAULT 'starter',
+        subscription_status TEXT DEFAULT 'active',
+        subscription_plan TEXT DEFAULT 'free',
         subscription_start TEXT,
         subscription_end TEXT,
-        max_members INTEGER DEFAULT 100,
+        max_members INTEGER DEFAULT 10,
+        total_customers INTEGER DEFAULT 0,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    // Add color_theme column if it doesn't exist (for existing databases)
-    try {
-      db.run("ALTER TABLE gyms ADD COLUMN color_theme TEXT DEFAULT 'default'");
-    } catch (e) {
-      // Column already exists, ignore
-    }
+    // Add missing columns if they don't exist (for existing databases)
+    try { db.run("ALTER TABLE gyms ADD COLUMN color_theme TEXT DEFAULT 'default'"); } catch (e) {}
+    try { db.run("ALTER TABLE gyms ADD COLUMN total_customers INTEGER DEFAULT 0"); } catch (e) {}
+    try { db.run("ALTER TABLE gyms ADD COLUMN subscription_status TEXT DEFAULT 'active'"); } catch (e) {}
+    try { db.run("ALTER TABLE gyms ADD COLUMN subscription_plan TEXT DEFAULT 'free'"); } catch (e) {}
 
     db.run(`
       CREATE TABLE IF NOT EXISTS gym_users (
