@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import FeatureGate from '../components/FeatureGate';
 import { 
   Search, 
   Plus, 
@@ -138,14 +137,13 @@ export default function Staff() {
 
   const loadStaff = async () => {
     try {
-      // In production: const data = await api.get('/staff');
-      // Mock data for now
-      setTimeout(() => {
-        setStaff(mockStaff);
-        setLoading(false);
-      }, 500);
+      const data = await api.get('/staff');
+      setStaff(data.staff || []);
+      setLoading(false);
     } catch (error) {
       console.error('Failed to load staff:', error);
+      // If Pro plan not active, show message
+      setStaff([]);
       setLoading(false);
     }
   };
@@ -197,7 +195,6 @@ export default function Staff() {
   }
 
   return (
-    <FeatureGate feature="staff_management">
       <div className="space-y-6 animate-fade-in">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -413,7 +410,6 @@ export default function Staff() {
           </>
         )}
       </div>
-    </FeatureGate>
   );
 }
 

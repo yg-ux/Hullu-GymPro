@@ -34,9 +34,9 @@ const navigation = [
   { name: 'Check In', href: '/check-in', icon: LogIn },
   { name: 'Check Out', href: '/check-out', icon: LogOutIcon },
   { name: 'Customers', href: '/customers', icon: Users },
-  { name: 'Staff', href: '/staff', icon: UserCog, requiresPlan: 'pro' },
-  { name: 'Reports', href: '/reports', icon: BarChart3, requiresPlan: 'pro' },
-  { name: 'Revenue', href: '/revenue', icon: TrendingUp, requiresPlan: 'pro' },
+  { name: 'Staff', href: '/staff', icon: UserCog },
+  { name: 'Reports', href: '/reports', icon: BarChart3 },
+  { name: 'Revenue', href: '/revenue', icon: TrendingUp },
 ];
 
 export default function Layout() {
@@ -344,46 +344,26 @@ function SidebarContent({ onNavigate }) {
       <nav className="flex-1 px-3 py-4 space-y-2">
         {navigation.map((item) => {
           const isActive = location.pathname === item.href;
-          const currentPlan = gym?.subscription_plan?.toLowerCase() || 'starter';
-          const requiredPlan = item.requiresPlan?.toLowerCase() || 'starter';
-          const PLAN_ORDER = ['starter', 'pro', 'enterprise'];
-          const hasAccess = PLAN_ORDER.indexOf(currentPlan) >= PLAN_ORDER.indexOf(requiredPlan);
           
           return (
             <NavLink
               key={item.name}
-              to={hasAccess ? item.href : '/subscription'}
+              to={item.href}
               onClick={onNavigate}
               className={clsx(
                 "flex items-center gap-3 px-4 py-3.5 rounded-xl font-medium transition-all duration-300 group",
                 isActive 
                   ? "bg-gradient-to-r from-gym-600/30 to-purple-600/30 text-gym-400 shadow-lg shadow-gym-500/10 border border-gym-500/20" 
-                  : !hasAccess
-                    ? "text-gray-500 cursor-not-allowed opacity-60"
-                    : "text-gray-400 hover:text-white hover:bg-dark-100 border border-transparent"
+                  : "text-gray-400 hover:text-white hover:bg-dark-100 border border-transparent"
               )}
             >
               <div className={clsx(
                 "p-2 rounded-lg transition-all duration-300",
                 isActive ? "bg-gym-500/20" : "bg-dark-300 group-hover:bg-dark-200"
               )}>
-                {hasAccess ? (
-                  <item.icon className="w-5 h-5" />
-                ) : (
-                  <Lock className="w-5 h-5" />
-                )}
+                <item.icon className="w-5 h-5" />
               </div>
               {item.name}
-              {item.requiresPlan && !hasAccess && (
-                <span className="ml-auto text-xs px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full">
-                  Pro+
-                </span>
-              )}
-              {item.requiresPlan && hasAccess && (
-                <span className="ml-auto text-xs px-2 py-0.5 bg-gym-500/20 text-gym-400 rounded-full">
-                  Pro+
-                </span>
-              )}
               {isActive && (
                 <div className="ml-auto w-2 h-2 rounded-full bg-gym-400 animate-pulse" />
               )}

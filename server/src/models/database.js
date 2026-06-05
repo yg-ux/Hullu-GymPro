@@ -194,6 +194,43 @@ export async function initDatabase() {
       )
     `);
 
+    // Subscription upgrade requests
+    db.run(`
+      CREATE TABLE IF NOT EXISTS subscription_requests (
+        id TEXT PRIMARY KEY,
+        gym_id TEXT NOT NULL,
+        requested_plan TEXT NOT NULL,
+        amount_paid REAL,
+        payment_proof TEXT,
+        payment_method TEXT,
+        status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'declined')),
+        admin_notes TEXT,
+        reviewed_by TEXT,
+        reviewed_at TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
+      )
+    `);
+
+    // Admin users table (separate from gym users)
+    db.run(`
+      CREATE TABLE IF NOT EXISTS admins (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        name TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Add default admin if not exists
+    const existingAdmin = db.exec("SELECT * FROM admins WHERE email = 'admin@hullugyms.com'");
+    if (existingAdmin.length === 0 || existingAdmin[0].values.length === 0) {
+      const adminId = uuidv4();
+      const hashedPassword = bcrypt.hashSync('admin123', 10);
+      db.run("INSERT INTO admins (id, email, password, name) VALUES (?, ?, ?, ?)", [adminId, 'admin@hullugyms.com', hashedPassword, 'System Admin']);
+    }
+
     // QR codes for member access
     db.run(`
       CREATE TABLE IF NOT EXISTS qr_codes (

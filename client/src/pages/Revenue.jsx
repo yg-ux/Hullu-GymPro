@@ -487,74 +487,29 @@ export default function Revenue() {
   const loadStats = async () => {
     try {
       const data = await api.get('/stats/revenue');
-      setStats(data);
+      setStats(data || {
+        total_revenue: 0,
+        this_month: 0,
+        this_week: 0,
+        today: 0,
+        payment_methods: [],
+        top_customers: [],
+        recent_transactions: [],
+        monthly_trend: [],
+        forecast: {}
+      });
     } catch (error) {
       console.error('Failed to load revenue stats:', error);
-      // Use mock data for demo
       setStats({
-        total_revenue: 245000,
-        this_month: 42500,
-        this_week: 8750,
-        today: 1250,
-        payment_methods: [
-          { payment_method: 'cash', count: 45, total: 95000 },
-          { payment_method: 'card', count: 32, total: 85000 },
-          { payment_method: 'mobile', count: 28, total: 65000 },
-        ],
-        top_customers: [
-          { id: 1, name: 'Abebe Kebede', total_spent: 12500, payment_count: 8 },
-          { id: 2, name: 'Tigist Haile', total_spent: 9800, payment_count: 6 },
-          { id: 3, name: 'John Smith', total_spent: 7500, payment_count: 5 },
-          { id: 4, name: 'Aster Demissie', total_spent: 6200, payment_count: 4 },
-          { id: 5, name: 'Mohammed Ali', total_spent: 5800, payment_count: 4 },
-        ],
-        recent_transactions: [
-          { id: 1, customer_id: 1, customer_name: 'Abebe Kebede', amount: 1500, payment_date: new Date().toISOString(), payment_method: 'cash' },
-          { id: 2, customer_id: 2, customer_name: 'Tigist Haile', amount: 2000, payment_date: new Date(Date.now() - 86400000).toISOString(), payment_method: 'card' },
-          { id: 3, customer_id: 3, customer_name: 'John Smith', amount: 1800, payment_date: new Date(Date.now() - 172800000).toISOString(), payment_method: 'mobile' },
-          { id: 4, customer_id: 4, customer_name: 'Aster Demissie', amount: 1500, payment_date: new Date(Date.now() - 259200000).toISOString(), payment_method: 'cash' },
-          { id: 5, customer_id: 5, customer_name: 'Mohammed Ali', amount: 2000, payment_date: new Date(Date.now() - 345600000).toISOString(), payment_method: 'card' },
-        ],
-        monthly_trend: [
-          { month: '2025-07', label: 'Jul', total: 18500, count: 12 },
-          { month: '2025-08', label: 'Aug', total: 21000, count: 14 },
-          { month: '2025-09', label: 'Sep', total: 19800, count: 13 },
-          { month: '2025-10', label: 'Oct', total: 24500, count: 16 },
-          { month: '2025-11', label: 'Nov', total: 23200, count: 15 },
-          { month: '2025-12', label: 'Dec', total: 28500, count: 18 },
-          { month: '2026-01', label: 'Jan', total: 26800, count: 17 },
-          { month: '2026-02', label: 'Feb', total: 31200, count: 20 },
-          { month: '2026-03', label: 'Mar', total: 29500, count: 19 },
-          { month: '2026-04', label: 'Apr', total: 35800, count: 22 },
-          { month: '2026-05', label: 'May', total: 42500, count: 25 },
-        ],
-        forecast: {
-          predicted_revenue: 46500,
-          growth_rate: 8.5,
-          projected_payments: 28,
-        },
-        trends: {
-          daily: [
-            { label: 'Mon', total: 1200 },
-            { label: 'Tue', total: 1800 },
-            { label: 'Wed', total: 1500 },
-            { label: 'Thu', total: 2200 },
-            { label: 'Fri', total: 2800 },
-            { label: 'Sat', total: 3200 },
-            { label: 'Sun', total: 2400 },
-          ],
-          weekly: [
-            { label: 'Week 1', total: 8500 },
-            { label: 'Week 2', total: 9200 },
-            { label: 'Week 3', total: 7800 },
-            { label: 'Week 4', total: 10200 },
-          ],
-          yearly: [
-            { label: '2024', total: 185000 },
-            { label: '2025', total: 245000 },
-            { label: '2026', total: 165000 },
-          ],
-        },
+        total_revenue: 0,
+        this_month: 0,
+        this_week: 0,
+        today: 0,
+        payment_methods: [],
+        top_customers: [],
+        recent_transactions: [],
+        monthly_trend: [],
+        forecast: {}
       });
     } finally {
       setLoading(false);

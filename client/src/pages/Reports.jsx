@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, formatDate, formatCurrency, getMembershipLabel } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import FeatureGate from '../components/FeatureGate';
 import {
   FileText,
   Download,
@@ -32,11 +31,7 @@ import {
 import clsx from 'clsx';
 
 export default function Reports() {
-  return (
-    <FeatureGate feature="advanced_analytics">
-      <ReportsContent />
-    </FeatureGate>
-  );
+  return <ReportsContent />;
 }
 
 function ReportsContent() {

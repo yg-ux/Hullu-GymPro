@@ -15,6 +15,8 @@ import Reports from './pages/Reports';
 import Revenue from './pages/Revenue';
 import Staff from './pages/Staff';
 import AddStaff from './pages/AddStaff';
+import AdminLogin from './pages/AdminLogin';
+import AdminDashboard from './pages/AdminDashboard';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -43,6 +45,8 @@ function App() {
       {/* Public routes */}
       <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Landing />} />
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
+      <Route path="/admin-login" element={<AdminLogin />} />
+      <Route path="/admin-dashboard" element={<AdminDashboard />} />
       
       {/* Protected routes */}
       <Route path="/" element={
