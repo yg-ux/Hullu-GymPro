@@ -76,7 +76,14 @@ router.post('/register', async (req, res) => {
 
     // Create gym
     const gymId = uuidv4();
-    const slug = gymName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+    let slug = gymName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+    
+    // Make slug unique if it already exists
+    let existingSlug = getOne('SELECT id FROM gyms WHERE slug = ?', [slug]);
+    if (existingSlug) {
+      slug = `${slug}-${Date.now().toString(36)}`;
+    }
+    
     const today = new Date();
     const trialEnd = new Date(today);
     trialEnd.setDate(trialEnd.getDate() + TRIAL_DAYS);
