@@ -56,6 +56,13 @@ export async function initDatabase() {
       )
     `);
 
+    // Add color_theme column if it doesn't exist (for existing databases)
+    try {
+      db.run("ALTER TABLE gyms ADD COLUMN color_theme TEXT DEFAULT 'default'");
+    } catch (e) {
+      // Column already exists, ignore
+    }
+
     db.run(`
       CREATE TABLE IF NOT EXISTS gym_users (
         id TEXT PRIMARY KEY,
