@@ -1,0 +1,739 @@
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { api, getStatusColor, formatDate, formatDateTime, getMembershipLabel, MEMBERSHIP_TYPES, formatCurrency, getMembershipPrice } from '../utils/api';
+import {
+  ArrowLeft, 
+  Edit2, 
+  Trash2, 
+  X,
+  Camera,
+  Phone,
+  Mail,
+  Calendar,
+  CreditCard,
+  Clock,
+  User,
+  AlertTriangle,
+  LogIn,
+  LogOut,
+  FileText,
+  CheckCircle,
+  Wifi,
+  WifiOff
+} from 'lucide-react';
+import clsx from 'clsx';
+
+export default function CustomerDetail() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [customer, setCustomer] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [showPhoto, setShowPhoto] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showExtendModal, setShowExtendModal] = useState(false);
+  const [photoFullscreen, setPhotoFullscreen] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [error, setError] = useState('');
+  
+  // Delete form state
+  const [deleteCode, setDeleteCode] = useState('');
+  
+  // Extend form state
+  const [extendMembershipType, setExtendMembershipType] = useState('1_month');
+  const [extendPaymentMethod, setExtendPaymentMethod] = useState('cash');
+  const [customAmount, setCustomAmount] = useState('');
+  
+  useEffect(() => {
+    loadCustomer();
+  }, [id]);
+
+  const loadCustomer = async () => {
+    try {
+      const data = await api.get(`/customers/${id}`);
+      setCustomer(data);
+      setExtendMembershipType(data.membership_type);
+    } catch (error) {
+      console.error('Failed to load customer:', error);
+      navigate('/customers');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCheckIn = async () => {
+    try {
+      setActionLoading(true);
+      setError('');
+      await api.post(`/customers/${id}/check-in`);
+      await loadCustomer();
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCheckOut = async () => {
+    try {
+      setActionLoading(true);
+      setError('');
+      await api.post(`/customers/${id}/check-out`);
+      await loadCustomer();
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleExtend = async (e) => {
+    e.preventDefault();
+    try {
+      setActionLoading(true);
+      setError('');
+      const amount = parseInt(customAmount) || 0;
+      await api.post('/payments', {
+        customer_id: id,
+        amount: amount,
+        payment_method: extendPaymentMethod,
+        membership_type: extendMembershipType,
+      });
+      await loadCustomer();
+      setShowExtendModal(false);
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async (e) => {
+    e.preventDefault();
+    try {
+      setActionLoading(true);
+      await api.delete(`/customers/${id}`, { delete_code: deleteCode });
+      navigate('/customers');
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gym-500" />
+      </div>
+    );
+  }
+
+  if (!customer) return null;
+
+  // Check if currently checked in
+  const currentAttendance = customer.attendance?.find(a => !a.check_out);
+  const isCheckedIn = !!currentAttendance;
+
+  // Separate check-ins and check-outs for display
+  const attendanceHistory = customer.attendance || [];
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Link to="/customers" className="btn-ghost p-2">
+          <ArrowLeft className="w-5 h-5" />
+        </Link>
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold text-white">{customer.name}</h1>
+          <p className="text-gray-400">Customer Details</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link to={`/customers/${id}/edit`} className="btn-secondary inline-flex items-center gap-2">
+            <Edit2 className="w-4 h-4" />
+            Edit
+          </Link>
+          <button 
+            onClick={() => setShowDeleteModal(true)}
+            className="btn-danger inline-flex items-center gap-2"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete
+          </button>
+        </div>
+      </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+          <AlertTriangle className="w-5 h-5 text-red-400" />
+          <span className="text-red-400">{error}</span>
+          <button onClick={() => setError('')} className="ml-auto">
+            <X className="w-5 h-5 text-red-400" />
+          </button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Info */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Profile Card */}
+          <div className="card p-6">
+            <div className="flex flex-col sm:flex-row gap-6">
+              {/* Photo */}
+              <div className="flex flex-col items-center">
+                <div 
+                  className="relative cursor-pointer group"
+                  onClick={() => customer.photo && setPhotoFullscreen(true)}
+                >
+                  {customer.photo ? (
+                    <img
+                      src={customer.photo}
+                      alt={customer.name}
+                      className="w-32 h-32 rounded-2xl object-cover border-2 border-gray-700"
+                    />
+                  ) : (
+                    <div className="w-32 h-32 rounded-2xl bg-gradient-to-br from-gym-500 to-gym-700 flex items-center justify-center text-4xl font-bold text-white">
+                      {customer.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  {customer.photo && (
+                    <div className="absolute inset-0 bg-black/50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <Camera className="w-8 h-8 text-white" />
+                    </div>
+                  )}
+                </div>
+                <span className={clsx('status-badge mt-3', getStatusColor(customer.status))}>
+                  {customer.status === 'expiring' ? 'Expiring Soon' : customer.status.charAt(0).toUpperCase() + customer.status.slice(1)}
+                </span>
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <InfoItem icon={Phone} label="Phone" value={customer.phone || 'Not provided'} />
+                <InfoItem icon={Mail} label="Email" value={customer.email || 'Not provided'} />
+                <InfoItem icon={Calendar} label="Member Since" value={formatDate(customer.membership_start)} />
+                <InfoItem icon={Calendar} label="Membership Ends" value={formatDate(customer.membership_end)} highlight={customer.status === 'expiring'} />
+                <InfoItem icon={CreditCard} label="Membership Type" value={getMembershipLabel(customer.membership_type)} />
+                {customer.emergency_contact && (
+                  <InfoItem icon={Phone} label="Emergency Contact" value={customer.emergency_contact} />
+                )}
+              </div>
+            </div>
+
+            {customer.notes && (
+              <div className="mt-6 pt-6 border-t border-gray-800">
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm font-medium text-gray-400">Notes</span>
+                </div>
+                <p className="text-gray-300">{customer.notes}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Membership Progress */}
+          <div className="card p-6">
+            <h2 className="text-lg font-semibold text-white mb-4">Membership Progress</h2>
+            
+            <div className="mb-4">
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-gray-400">Days Remaining</span>
+                <span className={clsx(
+                  "font-bold text-xl",
+                  customer.days_until_expiry > 7 && "text-green-400",
+                  customer.days_until_expiry > 0 && customer.days_until_expiry <= 7 && "text-yellow-400",
+                  customer.days_until_expiry <= 0 && "text-red-400"
+                )}>
+                  {customer.days_until_expiry > 0 ? customer.days_until_expiry : 0} days
+                </span>
+              </div>
+              
+              <div className="relative h-4 bg-dark-300 rounded-full overflow-hidden">
+                {(() => {
+                  const start = new Date(customer.membership_start);
+                  const end = new Date(customer.membership_end);
+                  const now = new Date();
+                  const total = end - start;
+                  const elapsed = now - start;
+                  const progress = Math.min(Math.max((elapsed / total) * 100, 0), 100);
+                  
+                  return (
+                    <>
+                      <div 
+                        className={clsx(
+                          "absolute left-0 top-0 h-full rounded-full transition-all",
+                          customer.status === 'active' && "bg-gradient-to-r from-green-500 to-green-400",
+                          customer.status === 'expiring' && "bg-gradient-to-r from-yellow-500 to-yellow-400",
+                          customer.status === 'expired' && "bg-gradient-to-r from-red-500 to-red-400"
+                        )}
+                        style={{ width: `${Math.min(progress, 100)}%` }}
+                      />
+                    </>
+                  );
+                })()}
+              </div>
+              
+              <div className="flex justify-between text-xs text-gray-500 mt-2">
+                <span>Started: {formatDate(customer.membership_start)}</span>
+                <span>Ends: {formatDate(customer.membership_end)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Check-in / Check-out Section */}
+          <div className="card p-6">
+            <h2 className="text-lg font-semibold text-white mb-4">Attendance Today</h2>
+            
+            <div className="flex flex-col sm:flex-row gap-4">
+              {/* Current Status */}
+              <div className={clsx(
+                "flex-1 p-4 rounded-xl border-2",
+                isCheckedIn 
+                  ? "bg-green-500/10 border-green-500/50" 
+                  : "bg-gray-500/10 border-gray-500/50"
+              )}>
+                <div className="flex items-center gap-3 mb-2">
+                  {isCheckedIn ? (
+                    <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                      <Wifi className="w-5 h-5 text-green-400" />
+                    </div>
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gray-500/20 flex items-center justify-center">
+                      <WifiOff className="w-5 h-5 text-gray-400" />
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-medium text-white">
+                      {isCheckedIn ? 'Currently Checked In' : 'Not Checked In'}
+                    </p>
+                    {isCheckedIn && currentAttendance && (
+                      <p className="text-sm text-green-400">
+                        Since {new Date(currentAttendance.check_in).toLocaleTimeString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-2">
+                {isCheckedIn ? (
+                  <button 
+                    onClick={handleCheckOut}
+                    disabled={actionLoading}
+                    className="btn-secondary h-full flex items-center justify-center gap-2"
+                  >
+                    {actionLoading ? (
+                      <span className="animate-spin">⏳</span>
+                    ) : (
+                      <>
+                        <LogOut className="w-5 h-5" />
+                        Check Out
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <button 
+                    onClick={handleCheckIn}
+                    disabled={actionLoading}
+                    className="btn-primary h-full flex items-center justify-center gap-2"
+                  >
+                    {actionLoading ? (
+                      <span className="animate-spin">⏳</span>
+                    ) : (
+                      <>
+                        <LogIn className="w-5 h-5" />
+                        Check In
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Attendance History */}
+            {attendanceHistory.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-sm font-medium text-gray-400 mb-3">Recent Attendance</h3>
+                <div className="space-y-2">
+                  {attendanceHistory.slice(0, 5).map((log, index) => (
+                    <div 
+                      key={log.id}
+                      className="flex items-center justify-between p-3 bg-dark-200 rounded-lg"
+                    >
+                      <div className="flex items-center gap-3">
+                        {/* Date */}
+                        <div className="text-center px-3 py-1 bg-dark-300 rounded-lg">
+                          <p className="text-xs text-gray-400">
+                            {new Date(log.check_in).toLocaleDateString('en-US', { weekday: 'short' })}
+                          </p>
+                          <p className="text-lg font-bold text-white">
+                            {new Date(log.check_in).getDate()}
+                          </p>
+                        </div>
+                        
+                        {/* Check-in Time */}
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <LogIn className="w-4 h-4 text-green-400" />
+                            <span className="text-sm text-gray-300">
+                              {new Date(log.check_in).toLocaleTimeString('en-US', { 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              })}
+                            </span>
+                          </div>
+                          
+                          {/* Check-out Time (Separate) */}
+                          {log.check_out ? (
+                            <div className="flex items-center gap-2 mt-1">
+                              <LogOut className="w-4 h-4 text-red-400" />
+                              <span className="text-sm text-gray-400">
+                                {new Date(log.check_out).toLocaleTimeString('en-US', { 
+                                  hour: '2-digit', 
+                                  minute: '2-digit' 
+                                })}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 mt-1">
+                              <Clock className="w-4 h-4 text-yellow-400" />
+                              <span className="text-sm text-yellow-400">Still in gym</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Duration */}
+                      {log.check_out && (
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500">Duration</p>
+                          <p className="text-sm text-gray-300">
+                            {Math.round((new Date(log.check_out) - new Date(log.check_in)) / (1000 * 60))} min
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Check-in/Check-out History */}
+          <div className="card p-6">
+            <h2 className="text-lg font-semibold text-white mb-4">Check-in/Check-out History</h2>
+            {customer.attendance && customer.attendance.length > 0 ? (
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {customer.attendance.slice(0, 10).map((log) => (
+                  <div 
+                    key={log.id}
+                    className="flex items-center gap-3 p-3 bg-dark-200 rounded-lg"
+                  >
+                    <div className={clsx(
+                      "w-8 h-8 rounded-full flex items-center justify-center",
+                      log.check_out ? "bg-red-500/20" : "bg-green-500/20"
+                    )}>
+                      {log.check_out ? (
+                        <LogOut className="w-4 h-4 text-red-400" />
+                      ) : (
+                        <LogIn className="w-4 h-4 text-green-400" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-white text-sm">
+                        {log.check_out ? 'Checked out' : 'Checked in'}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {formatDateTime(log.check_in)}
+                        {log.check_out && ` - ${formatDateTime(log.check_out)}`}
+                      </p>
+                    </div>
+                    {log.check_in && log.check_out && (
+                      <span className="text-xs text-gray-500">
+                        {Math.round((new Date(log.check_out) - new Date(log.check_in)) / 60000)}min
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No attendance history</p>
+              </div>
+            )}
+</div>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Quick Actions */}
+          <div className="card p-6">
+            <h2 className="text-lg font-semibold text-white mb-4">Quick Actions</h2>
+            <div className="space-y-3">
+              <button
+                onClick={() => setShowExtendModal(true)}
+                className="btn-primary w-full justify-center bg-green-600 hover:bg-green-700 border-green-600"
+              >
+                <Calendar className="w-5 h-5" />
+                Extend Membership
+              </button>
+            </div>
+          </div>
+
+          {/* Membership Info */}
+          <div className="card p-6">
+            <h2 className="text-lg font-semibold text-white mb-4">Membership Summary</h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400">Plan</span>
+                <span className="text-white font-medium">{getMembershipLabel(customer.membership_type)}</span>
+              </div>
+              {customer.max_visits_per_week > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Weekly Visits</span>
+                  <span className="text-yellow-400 font-medium">
+                    {customer.visits_this_week || 0} / {customer.max_visits_per_week}
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400">Status</span>
+                <span className={clsx(
+                  customer.status === 'active' && "text-green-400",
+                  customer.status === 'expiring' && "text-yellow-400",
+                  customer.status === 'expired' && "text-red-400"
+                )}>
+                  {customer.status === 'expiring' ? 'Expiring Soon' : customer.status.charAt(0).toUpperCase() + customer.status.slice(1)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400">Days Left</span>
+                <span className={clsx(
+                  "font-bold text-lg",
+                  customer.days_until_expiry > 7 && "text-green-400",
+                  customer.days_until_expiry > 0 && customer.days_until_expiry <= 7 && "text-yellow-400",
+                  customer.days_until_expiry <= 0 && "text-red-400"
+                )}>
+                  {customer.days_until_expiry > 0 ? customer.days_until_expiry : 0}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400">Total Paid</span>
+                <span className="text-gym-400 font-medium">
+                  {formatCurrency(customer.payments?.reduce((sum, p) => sum + p.amount, 0) || 0)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Photo Fullscreen Modal */}
+      {photoFullscreen && customer.photo && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setPhotoFullscreen(false)}
+        >
+          <button 
+            className="absolute top-4 right-4 p-2 text-white hover:text-gray-300 transition-colors"
+            onClick={() => setPhotoFullscreen(false)}
+          >
+            <X className="w-8 h-8" />
+          </button>
+          <img
+            src={customer.photo}
+            alt={customer.name}
+            className="max-w-full max-h-full object-contain rounded-lg animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
+      {/* Extend Modal */}
+      {showExtendModal && (
+        <Modal onClose={() => setShowExtendModal(false)} title="Extend Membership">
+          <form onSubmit={handleExtend} className="space-y-4">
+            {/* Membership Status Badge */}
+            <div className={clsx(
+              "p-4 rounded-xl border-2 text-center",
+              customer.status === 'active' && "bg-green-500/10 border-green-500/50",
+              customer.status === 'expiring' && "bg-yellow-500/10 border-yellow-500/50",
+              customer.status === 'expired' && "bg-red-500/10 border-red-500/50"
+            )}>
+              <p className={clsx(
+                "text-2xl font-bold",
+                customer.status === 'active' && "text-green-400",
+                customer.status === 'expiring' && "text-yellow-400",
+                customer.status === 'expired' && "text-red-400"
+              )}>
+                {customer.status === 'expiring' ? 'Expiring Soon' : customer.status.charAt(0).toUpperCase() + customer.status.slice(1)}
+              </p>
+              <p className="text-gray-400 text-sm mt-1">
+                {customer.days_until_expiry > 0 ? `${customer.days_until_expiry} days remaining` : 'Expired'}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Membership Duration</label>
+              <select
+                value={extendMembershipType}
+                onChange={(e) => setExtendMembershipType(e.target.value)}
+                className="input-field"
+              >
+                {MEMBERSHIP_TYPES.map(type => (
+                  <option key={type.value} value={type.value}>
+                    {type.label}
+                    {type.max_visits_per_week ? ` (${type.max_visits_per_week} visits/week max)` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="p-4 bg-dark-200 rounded-lg space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400">Duration</span>
+                <span className="text-white font-medium">
+                  {MEMBERSHIP_TYPES.find(t => t.value === extendMembershipType)?.days || 30} days
+                  {MEMBERSHIP_TYPES.find(t => t.value === extendMembershipType)?.max_visits_per_week 
+                    ? ` (${MEMBERSHIP_TYPES.find(t => t.value === extendMembershipType)?.max_visits_per_week}x/week)` 
+                    : ''}
+                </span>
+              </div>
+              {MEMBERSHIP_TYPES.find(t => t.value === extendMembershipType)?.max_visits_per_week && (
+                <div className="flex justify-between items-center pt-2 border-t border-gray-700">
+                  <span className="text-yellow-400 text-sm">Limited visits per week</span>
+                  <span className="text-yellow-400 text-sm">
+                    {MEMBERSHIP_TYPES.find(t => t.value === extendMembershipType)?.max_visits_per_week} max
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-2 border-t border-gray-700">
+                <span className="text-gray-400">New End Date</span>
+                <span className="text-white font-medium">
+                  {(() => {
+                    const currentEnd = new Date(customer.membership_end);
+                    const today = new Date();
+                    const startDate = currentEnd > today ? customer.membership_end : today.toISOString().split('T')[0];
+                    const days = MEMBERSHIP_TYPES.find(t => t.value === extendMembershipType)?.days || 30;
+                    const newEnd = new Date(new Date(startDate).getTime() + days * 24 * 60 * 60 * 1000);
+                    return formatDate(newEnd.toISOString().split('T')[0]);
+                  })()}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Payment Amount (ETB)</label>
+              <input
+                type="number"
+                value={customAmount}
+                onChange={(e) => setCustomAmount(e.target.value)}
+                placeholder="Enter amount"
+                className="input-field"
+                min="0"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Payment Method</label>
+              <select
+                value={extendPaymentMethod}
+                onChange={(e) => setExtendPaymentMethod(e.target.value)}
+                className="input-field"
+              >
+                <option value="cash">Cash</option>
+                <option value="card">Card</option>
+                <option value="mobile_money">Mobile Money</option>
+              </select>
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <button type="button" onClick={() => setShowExtendModal(false)} className="btn-secondary flex-1">
+                Cancel
+              </button>
+              <button type="submit" disabled={actionLoading} className="btn-primary flex-1 bg-green-600 hover:bg-green-700 border-green-600">
+                {actionLoading ? 'Processing...' : 'Pay & Extend'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Delete Modal */}
+      {showDeleteModal && (
+        <Modal onClose={() => setShowDeleteModal(false)} title="Delete Customer">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+              <AlertTriangle className="w-6 h-6 text-red-400" />
+              <div>
+                <p className="text-red-400 font-medium">Warning!</p>
+                <p className="text-sm text-gray-400">
+                  This will permanently delete {customer.name} and all their records.
+                </p>
+              </div>
+            </div>
+            <form onSubmit={handleDelete} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Security Code</label>
+                <input
+                  type="password"
+                  value={deleteCode}
+                  onChange={(e) => setDeleteCode(e.target.value)}
+                  className="input-field"
+                  placeholder="Enter security code"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">Default code: DELETE123</p>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setShowDeleteModal(false)} className="btn-secondary flex-1">
+                  Cancel
+                </button>
+                <button type="submit" disabled={actionLoading} className="btn-danger flex-1">
+                  {actionLoading ? 'Deleting...' : 'Delete Customer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function InfoItem({ icon: Icon, label, value, highlight }) {
+  return (
+    <div className="flex items-start gap-3">
+      <Icon className={clsx("w-5 h-5 mt-0.5", highlight ? "text-yellow-400" : "text-gray-400")} />
+      <div>
+        <p className="text-xs text-gray-500 uppercase tracking-wide">{label}</p>
+        <p className={clsx(
+          "text-sm",
+          highlight ? "text-yellow-400 font-medium" : "text-white"
+        )}>
+          {value}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function Modal({ children, onClose, title }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-dark-100 rounded-2xl border border-gray-800 w-full max-w-md p-6 animate-scale-in shadow-2xl">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold text-white">{title}</h2>
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,352 @@
+version: 1
+plan:
+  name: 'GymPro SaaS Full Feature Build'
+  max_concurrency: 6
+  max_consecutive_failures: 2
+  max_cycles: 15
+  message_to_user: 'Building the full GymPro SaaS platform with Revenue tab, modern UI, check-in system, staff management, and feature gating by subscription tier.'
+  verifier_config:
+    default_verifiers: [verifier]
+    audit_sample_rate: 0.0
+
+tasks:
+  # ========== BACKEND TRACK ==========
+  - id: backend-schema
+    title: 'Update database schema for full feature set'
+    prompt: |
+      Update the database schema in D:\Hullu Ceramics\Gym\server\src\models\database.js to support the full SaaS feature set.
+
+      Add these tables AFTER existing ones (keep all existing tables):
+
+      1. **revenue_tracking** table:
+         - id, gym_id, amount, type (payment/refund), source (registration/renewal/manual), payment_method, customer_id (nullable), created_at
+
+      2. **sms_logs** table (for future SMS integration):
+         - id, gym_id, customer_id (nullable), phone, message_type, message, status, sent_at, created_at
+
+      3. **activity_log** table:
+         - id, gym_id, user_id, action_type, entity_type, entity_id, details (JSON), created_at
+
+      4. **qr_codes** table:
+         - id, gym_id, customer_id, code, qr_image, is_active, created_at
+
+      5. **reports** table (for Pro+ monthly PDFs):
+         - id, gym_id, type, period_start, period_end, file_path, generated_at, created_at
+
+      Keep existing tables. Use proper foreign keys. Update saveDatabase() and helper functions.
+    assigned_to: developer
+    verified_by: [code-reviewer]
+    verify_prompt:
+      code-reviewer: 'Verify the schema migrations are safe, all FK constraints are correct, and existing data wont break. Check sql.js compatibility.'
+
+  - id: backend-apis
+    title: 'Create backend API endpoints for all new features'
+    prompt: |
+      Create new route files in D:\Hullu Ceramics\Gym\server\src\routes\ for:
+
+      1. **revenue.js** - Revenue analytics endpoints:
+         - GET /api/revenue/summary - daily/weekly/monthly/yearly totals
+         - GET /api/revenue/chart - data for charts (revenue over time)
+         - GET /api/revenue/by-method - breakdown by payment method
+         - GET /api/revenue/top-customers - top paying customers
+         - GET /api/revenue/forecast - simple trend forecast
+
+      2. **staff.js** - Staff management (Pro+):
+         - GET /api/staff - list all staff for gym
+         - POST /api/staff - add new staff member
+         - PUT /api/staff/:id - update staff
+         - DELETE /api/staff/:id - remove staff
+         - POST /api/staff/:id/reset-password - reset staff password
+         - Staff roles: admin, manager, trainer, receptionist
+         - Pro plan: max 3 staff, Enterprise: unlimited
+
+      3. **attendance.js** - Enhanced check-in system:
+         - GET /api/attendance/today - todays attendance
+         - POST /api/attendance/check-in - check in customer by phone or ID
+         - POST /api/attendance/check-out - check out customer
+         - GET /api/attendance/history/:customerId - customer history
+         - GET /api/attendance/stats - daily/weekly stats
+
+      4. **qr.js** - QR code system (Pro+):
+         - GET /api/qr/:customerId - get/generate customer QR code
+         - POST /api/qr/scan - scan QR and auto check-in
+         - Generate QR using qrcode npm package (base64 data URL)
+
+      5. **reports.js** - Report generation (Pro+):
+         - GET /api/reports/monthly - generate monthly PDF report
+         - GET /api/reports/customers - customer list export
+         - Use pdfkit for PDF generation
+
+      6. Update auth.js:
+         - Add features object to /api/auth/me and /api/auth/login responses:
+           - revenue_tab: true for Pro+, false for Starter
+           - sms_reminders: true for Pro+
+           - qr_checkin: true for Pro+
+           - max_staff: 0 for Starter, 3 for Pro, unlimited for Enterprise
+           - reports: none for Starter, monthly for Pro, custom for Enterprise
+
+      All endpoints must use authenticateToken middleware and filter by req.user.gym_id.
+    assigned_to: developer
+    depends_on: [backend-schema]
+    verified_by: [code-reviewer, tester]
+    verify_prompt:
+      code-reviewer: 'Review API security, JWT usage, SQL injection prevention, and proper error handling.'
+      tester: 'Test all new endpoints with curl commands. Verify authentication works.'
+
+  # ========== FRONTEND TRACK ==========
+  - id: revenue-tab
+    title: 'Build Revenue analytics tab'
+    prompt: |
+      Create a new Revenue page in D:\Hullu Ceramics\Gym\client\src\pages\Revenue.jsx
+
+      The page should include:
+
+      1. **Summary Cards** (top row):
+         - Total Revenue (all time)
+         - This Month
+         - This Week
+         - Today
+         - With animated counter effect
+
+      2. **Revenue Chart**:
+         - Line/area chart showing revenue over time
+         - Toggle: Daily / Weekly / Monthly / Yearly
+         - Use recharts library (already installed or add it)
+
+      3. **Payment Methods Breakdown**:
+         - Pie chart or bar chart by method (cash/card/mobile)
+
+      4. **Top Customers**:
+         - List of top paying customers with total spent
+         - Avatar, name, total amount
+
+      5. **Recent Transactions**:
+         - List of latest payments
+         - Customer name, amount, method, date
+         - Click to view customer
+
+      6. **Forecast Card**:
+         - Simple next month prediction based on trends
+
+      Design requirements:
+      - Glassmorphism cards with subtle gradients
+      - Animated numbers on load
+      - Dark theme matching existing app
+      - Responsive grid layout
+      - Empty states with illustrations
+
+      Add route to App.jsx: /revenue
+      Add to navigation in Layout.jsx (conditionally show based on plan)
+    assigned_to: developer
+    depends_on: [backend-apis]
+    verified_by: [code-reviewer]
+    verify_prompt:
+      code-reviewer: 'Verify the revenue page loads without errors, charts render correctly, and data matches API.'
+
+  - id: checkin-system
+    title: 'Build Check-in/Check-out system'
+    prompt: |
+      Create a dedicated check-in page and enhance the attendance experience:
+
+      1. **CheckIn.jsx** page at D:\Hullu Ceramics\Gym\client\src\pages\CheckIn.jsx:
+         - Large search bar for phone number (auto-focus)
+         - Show matching customer results as you type
+         - One-click check-in button for found customer
+         - "Customer not found?" quick add link
+         - Show recent check-ins today
+
+      2. **CheckOut.jsx** at D:\Hullu Ceramics\Gym\client\src\pages\CheckOut.jsx:
+         - List of currently checked-in customers
+         - One-click checkout for each
+
+      3. **QRCheckIn.jsx** (Pro+ only) at D:\Hullu Ceramics\Gym\client\src\pages\QRCheckIn.jsx:
+         - Display QR code for selected customer (for reception tablet)
+         - Full-screen QR display option
+         - "Scan" button to open camera for self-service check-in
+
+      4. **Customer QR Card** component:
+         - Add to CustomerDetail page
+         - Show customers QR code
+         - Download QR as image
+         - Print option
+
+      5. Update Layout.jsx navigation:
+         - Add Check In and Check Out nav items
+         - QR Check In (Pro+ only)
+
+      Design:
+      - Large touch-friendly buttons
+      - High contrast for gym floor visibility
+      - Fast, minimal clicks to complete action
+      - Sound feedback option on check-in
+    assigned_to: developer
+    verified_by: [code-reviewer]
+    verify_prompt:
+      code-reviewer: 'Verify check-in flow works end-to-end, QR codes generate and display correctly.'
+
+  - id: staff-management
+    title: 'Build Staff Management (Pro+)'
+    prompt: |
+      Create staff management pages:
+
+      1. **Staff.jsx** at D:\Hullu Ceramics\Gym\client\src\pages\Staff.jsx:
+         - List all staff members with role badges
+         - Avatar, name, email, role, status, last login
+         - Add new staff button
+         - Edit/Delete actions (with confirmation)
+         - Show feature locked message for Starter plan
+
+      2. **AddStaff.jsx** at D:\Hullu Ceramics\Gym\client\src\pages\AddStaff.jsx:
+         - Form: name, email, phone, role (dropdown), password
+         - Roles: Admin (full access), Manager (no billing), Trainer (customers only), Receptionist (check-in only)
+         - Auto-generate temp password option
+         - Send credentials via email option (simulated)
+
+      3. **FeatureGate component** at D:\Hullu Ceramics\Gym\client\src\components\FeatureGate.jsx:
+         - Wrap Pro+ features
+         - Props: feature name, fallback UI
+         - Show upgrade prompt when feature is locked
+         - Use subscription plan from AuthContext
+
+      4. Update App.jsx routes:
+         - /staff
+         - /staff/new
+         - /staff/:id/edit
+
+      5. Update Layout.jsx:
+         - Add Staff nav item (show only for Pro+)
+         - Show plan badge in sidebar
+    assigned_to: developer
+    verified_by: [code-reviewer]
+    verify_prompt:
+      code-reviewer: 'Verify staff roles work correctly, Starter plan cannot access staff features.'
+
+  - id: ui-overhaul
+    title: 'UI/UX overhaul - Modern design with animations'
+    prompt: |
+      Update the visual design across the app for a premium SaaS feel:
+
+      1. **Update index.css** with enhanced styles:
+         - Gradient backgrounds for hero sections
+         - Glassmorphism effects on cards (more prominent)
+         - Subtle animations (fade-in, slide-up on mount)
+         - Animated gradient borders on focus states
+         - Custom hover effects with scale and glow
+         - Better shadows and depth
+
+      2. **Update Layout.jsx**:
+         - Add dark/light mode toggle (persist to localStorage)
+         - Show activity feed/notifications dropdown
+         - Better mobile responsive design
+         - Animated hamburger menu
+         - Plan badge with tier colors (Starter=gray, Pro=blue, Enterprise=purple)
+
+      3. **Update Dashboard.jsx**:
+         - Animated counter cards
+         - Better chart styling with gradients
+         - Activity timeline/feed
+         - Quick action buttons
+         - Customer of the day highlight
+         - Animated check-in progress ring
+
+      4. **Update Customers.jsx**:
+         - Grid/List view toggle (persist preference)
+         - Better customer cards with photo
+         - Quick actions on hover (check-in, view, edit)
+         - Bulk selection for actions
+         - Smart sorting: Active → Expiring → Expired → Inactive
+
+      5. **Create reusable components**:
+         - AnimatedCounter.jsx - numbers that animate up
+         - GlassCard.jsx - reusable glassmorphism card
+         - GradientButton.jsx - buttons with gradient effects
+         - StatCard.jsx - dashboard stat cards with icon
+         - ActivityFeed.jsx - timeline component
+
+      6. **Add animations**:
+         - Use CSS animations and Tailwind animate utilities
+         - Animate on scroll for cards
+         - Stagger animations for lists
+    assigned_to: developer
+    verified_by: [code-reviewer]
+    verify_prompt:
+      code-reviewer: 'Verify all pages load correctly, animations perform well, no layout breaks.'
+
+  - id: reports-page
+    title: 'Build Reports page (Pro+)'
+    prompt: |
+      Create a reports and exports page:
+
+      1. **Reports.jsx** at D:\Hullu Ceramics\Gym\client\src\pages\Reports.jsx:
+         - Monthly summary reports (Pro+)
+         - Member statistics
+         - Revenue breakdown
+         - Attendance trends
+         - Export options (PDF, CSV)
+
+      2. **Integrate pdfkit client-side or use backend** for PDF generation:
+         - Monthly report with charts
+         - Customer list export
+         - Payment history export
+
+      3. Show upgrade prompt for Starter plan users
+    assigned_to: developer
+    verified_by: [code-reviewer]
+    verify_prompt:
+      code-reviewer: 'Verify reports generate correctly and download works.'
+
+  # ========== INTEGRATION & TESTING ==========
+  - id: integration-test
+    title: 'Integration testing - verify all features work together'
+    prompt: |
+      Run end-to-end verification:
+
+      1. Start both servers:
+         - Backend: cd D:\Hullu Ceramics\Gym\server && npm start (port 3000)
+         - Frontend: cd D:\Hullu Ceramics\Gym\client && npm run dev (port 5173)
+
+      2. Test registration flow:
+         - Go to http://localhost:5173
+         - Click "Start Free Trial"
+         - Fill in details and register
+         - Verify login works
+
+      3. Test dashboard:
+         - Dashboard loads with stats
+         - No console errors
+
+      4. Test customer flow:
+         - Add a customer
+         - Upload photo
+         - View customer detail
+         - Edit customer
+
+      5. Test check-in:
+         - Go to Check In page
+         - Search customer by phone
+         - Check in successfully
+         - Go to Check Out and checkout
+
+      6. Test revenue tab (after subscribing to Pro):
+         - Navigate to Revenue
+         - Verify charts load
+         - Check all sections
+
+      7. Verify feature gating:
+         - Starter plan: should NOT see Staff, QR Check-in, full Reports
+         - Check Layout navigation
+
+      Report any errors found.
+    role: verify-as-task
+    assigned_to: tester
+    depends_on: [revenue-tab, checkin-system, staff-management, ui-overhaul]
+    verify_prompt: 'Run the full test suite above. Report pass/fail for each step with any errors.'
+
+# Agent definitions
+agents:
+  - name: developer
+    description: General purpose developer for full-stack implementation
+  - name: code-reviewer
+    description: Reviews code for security, quality, and best practices
+  - name: tester
+    description: Runs tests and verifies functionality

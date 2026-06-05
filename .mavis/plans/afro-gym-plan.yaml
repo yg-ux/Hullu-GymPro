@@ -1,0 +1,91 @@
+﻿version: 1
+plan:
+  name: Afro Gym Customer Management System
+  max_concurrency: 3
+  max_cycles: 15
+
+tasks:
+  - id: backend-setup
+    title: Build Backend API and Database
+    prompt: |
+      Build a complete gym management system for Afro Gym at D:\Hullu Ceramics\Gym
+      
+      Tech Stack: Node.js + Express + SQLite + React + Tailwind
+      
+      1. Create server folder with:
+         - Express API with JWT auth
+         - SQLite database (customers, payments, users tables)
+         - Photo upload support (local storage)
+         - All CRUD endpoints for customers and payments
+      
+      2. Features required:
+         - Login system with password hashing (bcrypt)
+         - Add customers with photo upload, name, phone, membership type
+         - Membership types: 1 month, 2 months, 3 months, 6 months, 1 year (dropdown)
+         - Track payments and auto-calculate new expiration date
+         - Customer status: Active, Expiring Soon (7 days), Expired, Inactive
+         - Smart sorting: Active paying members first, then by expiration date
+         - Delete requires security code (use "DELETE123" as security code)
+         - Full-screen photo view on click
+      
+      3. Default admin: username=admin, password=AfroGym2024!
+      
+      Create comprehensive backend with proper error handling, validation, and documentation.
+    assigned_to: developer
+    verified_by: code-reviewer
+    verify_prompt: Verify API works, test all endpoints, confirm auth and photo upload work
+
+  - id: frontend-setup
+    title: Build React Frontend with Modern UI
+    prompt: |
+      Build the React frontend for Afro Gym at D:\Hullu Ceramics\Gym\client
+      
+      Use Vite + React + Tailwind CSS
+      
+      Pages required:
+      1. Login page - clean professional design
+      2. Dashboard - summary cards, stats, recent activity
+      3. Customer List - grid/list views, search, filters, sorting
+      4. Customer Detail - full-screen photo modal, payment history, edit/delete
+      5. Add/Edit Customer - photo upload, form validation, membership dropdown
+      6. Payment Modal - record payment, auto-calculate expiration
+      
+      Design requirements:
+      - Dark energetic gym theme
+      - Status badges with colors (green=active, yellow=expiring, red=expired)
+      - Smooth animations, responsive layout
+      - Different layouts for customer listing as requested
+      - Large dataset handling with pagination
+      - Loading states and error handling
+      - Toast notifications
+      
+      Connect to backend at http://localhost:3000/api
+    depends_on: [backend-setup]
+    assigned_to: developer
+    verified_by: code-reviewer
+    verify_prompt: Test login, CRUD, photo upload, payments. Verify all UI interactions work
+
+  - id: final-testing
+    title: Integration Testing and Polish
+    prompt: |
+      Complete integration testing for Afro Gym system.
+      
+      Test all critical paths:
+      - Auth flow (login/logout)
+      - Customer CRUD with photo upload
+      - Payment recording and auto-expiration calculation
+      - Delete with security code
+      - Customer filtering and sorting
+      - Large dataset performance
+      
+      Fix any bugs found. Ensure:
+      - No console errors
+      - Responsive on mobile/desktop
+      - Fast performance
+      - All features work as designed
+      
+      Create README.md with setup instructions and default credentials.
+    depends_on: [frontend-setup]
+    assigned_to: tester
+    verified_by: code-reviewer
+    verify_prompt: Run tests, verify all paths work, report remaining issues

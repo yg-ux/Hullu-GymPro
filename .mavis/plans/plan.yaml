@@ -1,0 +1,258 @@
+﻿version: 1
+plan:
+  name: "Afro Gym Customer Management System"
+  max_concurrency: 3
+  max_consecutive_failures: 2
+  max_cycles: 20
+  auto_reject_retries: 2
+
+tasks:
+  - id: design-doc
+    title: "System Design & Database Schema"
+    prompt: |
+      Design a comprehensive gym management system for "Afro Gym" with the following requirements:
+
+      1. **Authentication System**
+         - Secure login with username/password
+         - Role-based access (Admin can add/edit/delete users, regular staff can only view)
+         - Session management with JWT tokens
+         - Password hashing with bcrypt
+
+      2. **Customer Management**
+         - Full CRUD operations (Create, Read, Update, Delete)
+         - Fields: photo (upload from computer), name, phone number, membership type
+         - Membership dropdown: 1 month, 2 months, 3 months, 6 months, 1 year
+         - Membership start date and expiration date
+         - Status tracking: Active, Expiring Soon (within 7 days), Expired, Inactive
+         - Notes field for special conditions or preferences
+
+      3. **Payment Tracking**
+         - Record payments with amount, date, and payment method (Cash, Card, Mobile Money)
+         - Auto-calculate new expiration when payment is made
+         - Payment history per customer
+         - Revenue tracking and reporting
+
+      4. **Smart Customer Arrangement**
+         - Dashboard view with customer segments:
+           - Active Members (currently paying, workouts in last 30 days)
+           - Expiring Soon (membership ends within 7 days)
+           - Expired (membership ended)
+           - Inactive (no workout activity for 30+ days after expiration)
+         - Search and filter capabilities
+         - Sort by: name, expiration date, last payment, membership type
+
+      5. **Advanced Features**
+         - Full-screen photo view on click
+         - Delete confirmation with security code
+         - Bulk operations (extend membership, send reminders)
+         - Attendance tracking (optional check-in/check-out)
+         - Notes and special requirements per member
+         - Export data to Excel
+         - Dark/Light theme support
+
+      Create a comprehensive design document including:
+      - Database schema (SQLite with proper relationships)
+      - API endpoints specification
+      - UI component inventory
+      - User flow diagrams (as text description)
+      
+      Use modern tech stack:
+      - Backend: Node.js with Express
+      - Frontend: React with Vite
+      - Database: SQLite (local file for simplicity)
+      - Styling: Tailwind CSS
+      - File storage: Local filesystem with proper organization
+
+      Output the design to: afro-gym-design.md
+    assigned_to: developer
+    verified_by: code-reviewer
+    verify_prompt: "Review the design for completeness, security considerations, and feasibility. Check that all user requirements are addressed."
+
+  - id: backend-impl
+    title: "Build Backend API & Database"
+    prompt: |
+      Implement the backend for Afro Gym based on the design document (afro-gym-design.md).
+
+      Key components to build:
+      1. **Database Setup**
+         - SQLite database with proper schema
+         - Tables: users, customers, payments, attendance_logs
+         - Proper indexes for performance with large customer base
+         - Data seeding for initial admin user
+
+      2. **Authentication**
+         - Login endpoint with JWT tokens
+         - Middleware for protected routes
+         - Password hashing with bcrypt
+         - Session validation
+
+      3. **Customer API**
+         - CRUD endpoints for customers
+         - Photo upload handling (store locally, serve statically)
+         - Search and filter endpoints
+         - Bulk update endpoints
+
+      4. **Payment API**
+         - Record payment and auto-update expiration
+         - Payment history retrieval
+         - Revenue reporting
+
+      5. **Security Features**
+         - Delete requires security code
+         - Input validation and sanitization
+         - CORS configuration for frontend
+
+      Use the workspace directory: D:\Hullu Ceramics\Gym
+      Create the backend in a `server` folder with:
+      - package.json
+      - src/ folder with modular structure
+      - Proper error handling
+      - API documentation in README
+
+      Default admin credentials to create:
+      - Username: admin
+      - Password: AfroGym2024!
+    depends_on: [design-doc]
+    assigned_to: developer
+    verified_by: code-reviewer
+    verify_prompt: "Verify the backend works: test all endpoints, check security, verify photo upload, confirm payment calculations are correct."
+
+  - id: frontend-impl
+    title: "Build React Frontend with Modern UI"
+    prompt: |
+      Build the frontend for Afro Gym based on the design document (afro-gym-design.md).
+
+      Use React with Vite and Tailwind CSS. Create in: D:\Hullu Ceramics\Gym\client
+
+      Key pages and components:
+
+      1. **Login Page**
+         - Clean, professional design
+         - Username and password fields
+         - Error handling for invalid credentials
+         - Loading states
+
+      2. **Dashboard (Home)**
+         - Summary cards: Total customers, Active, Expiring soon, Expired
+         - Quick stats and charts
+         - Recent activity feed
+         - Quick action buttons
+
+      3. **Customer List View**
+         - Grid and list view toggle (different layouts as requested)
+         - Customer cards with photo, name, status badge
+         - Search bar with filters
+         - Sort options
+         - Pagination for large datasets
+
+      4. **Customer Detail View**
+         - Full-screen photo modal on click
+         - All customer information
+         - Payment history timeline
+         - Edit and delete buttons
+         - Extend membership quick action
+
+      5. **Add/Edit Customer Form**
+         - Photo upload with preview
+         - Form validation
+         - Membership type dropdown (1mo, 2mo, 3mo, 6mo, 1yr)
+         - Save and cancel buttons
+
+      6. **Payment Recording**
+         - Modal for recording payment
+         - Amount input
+         - Payment method selection
+         - Auto-calculate new expiration date
+         - Receipt generation option
+
+      7. **Delete Confirmation**
+         - Security code input before delete
+         - Warning message
+         - Cancel and confirm buttons
+
+      8. **Settings**
+         - Theme toggle (dark/light)
+         - Admin user management
+         - System settings
+
+      Design requirements:
+      - Color scheme: Dark energetic theme with accent colors (think gym energy)
+      - Smooth animations and transitions
+      - Responsive design
+      - Loading skeletons
+      - Toast notifications
+      - Modal dialogs with backdrop blur
+
+      Use modern UI patterns:
+      - Cards with hover effects
+      - Status badges with colors
+      - Progress bars for membership tracking
+      - Avatar placeholders when no photo
+      - Smooth scroll and lazy loading
+    depends_on: [backend-impl]
+    assigned_to: developer
+    verified_by: code-reviewer
+    verify_prompt: "Verify the frontend works correctly: test login, CRUD operations, photo upload, payment recording, and all UI interactions."
+
+  - id: integration-test
+    title: "Integration Testing & Bug Fixes"
+    prompt: |
+      Perform comprehensive integration testing of the Afro Gym system.
+
+      Test the following scenarios:
+      1. Authentication flow (login, logout, session timeout)
+      2. Customer CRUD (add, view, edit, delete with security code)
+      3. Photo upload and display
+      4. Payment recording and expiration auto-calculation
+      5. Customer arrangement and filtering
+      6. Large dataset handling (pagination, search performance)
+      7. Edge cases: empty states, error handling, network failures
+
+      Fix any bugs found and document the fixes.
+      
+      Ensure the system is production-ready with:
+      - All features working as designed
+      - No console errors
+      - Responsive on mobile and desktop
+      - Fast performance with large customer base
+    depends_on: [frontend-impl]
+    assigned_to: tester
+    verified_by: code-reviewer
+    verify_prompt: "Run the full test suite and verify all critical paths work. Report any remaining issues."
+
+  - id: deployment-setup
+    title: "Documentation & Deployment Guide"
+    prompt: |
+      Create comprehensive documentation and deployment setup for Afro Gym.
+
+      Create:
+      1. README.md with:
+         - Project overview
+         - Features list
+         - Installation instructions
+         - How to run (development and production)
+         - Default credentials
+         - Folder structure explanation
+
+      2. QUICK_START.md with:
+         - Step-by-step setup guide
+         - First time login instructions
+         - How to add your first customer
+
+      3. Admin guide in docs/ folder:
+         - User management
+         - Customer management
+         - Payment tracking
+         - Reports and exports
+         - Troubleshooting
+
+      4. Package.json scripts for:
+         - npm run dev (start development)
+         - npm run build (production build)
+         - npm start (production server)
+
+      Ensure the system can be started with simple commands after following the setup guide.
+    depends_on: [integration-test]
+    assigned_to: developer
+    verified_by: ~
+    verify_skip_reason: "Documentation review by user during setup"

@@ -1,0 +1,145 @@
+version: 1
+plan:
+  name: 'GymPro Hullu Gym Fixes'
+  max_concurrency: 4
+  max_consecutive_failures: 2
+  max_cycles: 5
+  message_to_user: 'Fixing the branding, plan switching, check-in search, dashboard, and payment flow issues you reported.'
+  verifier_config:
+    default_verifiers: [code-reviewer]
+    audit_sample_rate: 0.0
+
+tasks:
+  - id: branding-fix
+    title: 'Remove Afro Gym branding - change to Hullu Gym'
+    prompt: |
+      Search and replace ALL "Afro Gym" references with "Hullu Gym" and "GymPro" with "GymPro" (keep that) in D:\Hullu Ceramics\Gym\client\src\
+
+      Files to check:
+      - Layout.jsx
+      - Dashboard.jsx
+      - Landing.jsx
+      - SubscriptionPage.jsx
+      - Reports.jsx
+      - Any other files containing "Afro"
+
+      Replace:
+      - "Afro Gym" → "Hullu Gym"
+      - "AfroGym2024!" → "HulluGym2024!"
+      - Keep "GymPro" as is (it's the product name)
+      - Update copyright text if needed
+    assigned_to: developer
+    verified_by: [code-reviewer]
+    verify_prompt: 'Verify no "Afro Gym" text remains in the codebase. Search for "Afro" and "GymPro" strings.'
+
+  - id: plan-switching-fix
+    title: 'Fix plan switching - show Pro+ features when upgraded'
+    prompt: |
+      Fix the plan switching feature in D:\Hullu Ceramics\Gym\client\src\pages\SubscriptionPage.jsx
+
+      When a user upgrades from Starter to Pro/Enterprise:
+      1. Update the auth context to reflect the new plan immediately
+      2. The Layout should re-render with new nav items (Staff, Reports, Revenue)
+      3. FeatureGate components should now show the Pro+ features
+
+      The issue is likely that AuthContext doesn't refresh when subscription changes.
+      Add a function to refresh auth state after subscription update, or update localStorage.
+    assigned_to: developer
+    verified_by: [code-reviewer]
+    verify_prompt: 'Verify that upgrading subscription shows new menu items immediately without page refresh.'
+
+  - id: checkin-search-fix
+    title: 'Fix check-in/out phone search not working'
+    prompt: |
+      Debug and fix phone number search in D:\Hullu Ceramics\Gym\client\src\pages\CheckIn.jsx
+
+      The search should:
+      1. Make API call to /api/customers?phone=xxx or similar endpoint
+      2. Filter by phone number (partial match, not exact)
+      3. Show matching customers in dropdown
+      4. Click to select and check in
+
+      Also check:
+      - CheckOut.jsx for similar phone search
+      - Ensure the API supports phone search endpoint
+
+      Fix the backend if needed in D:\Hullu Ceramics\Gym\server\src\routes\customers.js
+    assigned_to: developer
+    verified_by: [code-reviewer]
+    verify_prompt: 'Verify phone search returns matching customers when typing in check-in page.'
+
+  - id: dashboard-activity
+    title: 'Dashboard activity feed - show real data'
+    prompt: |
+      Update D:\Hullu Ceramics\Gym\client\src\pages\Dashboard.jsx to show REAL data in the Activity Feed section instead of mock data.
+
+      Fetch real data from:
+      - Recent customers (GET /api/customers?limit=5&sort=created_at)
+      - Recent payments (GET /api/payments?limit=5)
+      - Check-in stats (GET /api/attendance/today or similar)
+
+      Replace the mock activity items with actual API calls.
+      Show: customer names, payment amounts, check-in times.
+    assigned_to: developer
+    verified_by: [code-reviewer]
+    verify_prompt: 'Verify dashboard shows actual customer names and real timestamps, not "Customer 1" etc.'
+
+  - id: customer-edit-fix
+    title: 'Customer update - remove payment/extend from edit form'
+    prompt: |
+      Fix D:\Hullu Ceramics\Gym\client\src\pages\AddCustomer.jsx
+
+      When editing a customer (edit mode):
+      1. Remove the payment amount field - it should NOT be editable
+      2. Remove the "Extend Membership" button from edit form
+      3. The edit form should ONLY update: name, phone, photo, notes
+      4. Membership dates should NOT be modifiable in edit mode
+      5. Show a message: "To extend membership, go to customer detail and click Extend"
+
+      The customer detail page should have a separate "Extend Membership" button that handles payments.
+    assigned_to: developer
+    verified_by: [code-reviewer]
+    verify_prompt: 'Verify edit form does NOT have payment field or extend button. Edit should only save name/phone/notes.'
+
+  - id: remove-qr
+    title: 'Remove QR code feature'
+    prompt: |
+      Remove QR code related code from D:\Hullu Ceramics\Gym\:
+
+      1. Delete: client\src\components\CustomerQRCode.jsx
+      2. Delete: client\src\pages\QRCheckIn.jsx
+      3. Remove QRCheckIn import from App.jsx
+      4. Remove QR navigation from Layout.jsx
+      5. Remove /qr-check-in route from App.jsx
+
+      Search for "QRCode", "qr", "QR" references and remove all QR-related UI.
+    assigned_to: developer
+    verified_by: [code-reviewer]
+    verify_prompt: 'Verify no QR-related components or routes exist in the codebase.'
+
+  - id: payment-flow-simplify
+    title: 'Simplify payment flow - one button Extend Membership'
+    prompt: |
+      Fix the payment/extend confusion in D:\Hullu Ceramics\Gym\client\src\pages\CustomerDetail.jsx
+
+      The flow should be:
+      1. Show current membership status prominently (Active/Expiring/Expired)
+      2. One button: "Extend Membership" (green, prominent)
+      3. When clicked → show Extend form with:
+         - Membership type dropdown (1 month, 2 months, etc.)
+         - Amount (calculated based on type)
+         - Payment method
+         - Pay button
+      4. After payment → automatically extend membership_end date
+      5. Remove any separate "Record Payment" button if it exists
+
+      The Extend form should handle payment AND extend in one flow.
+    assigned_to: developer
+    verified_by: [code-reviewer]
+    verify_prompt: 'Verify one "Extend Membership" button opens payment form, and after payment membership is extended.'
+
+agents:
+  - name: developer
+    description: General purpose developer for fixes
+  - name: code-reviewer
+    description: Reviews code for security and quality
