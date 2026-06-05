@@ -1,45 +1,9 @@
 import express from 'express';
-import multer from 'multer';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
-import fs from 'fs';
-import { runQuery, getOne, getAll, saveDatabase } from '../models/database.js';
+import { runQuery, getOne, getAll } from '../models/database.js';
 import { authenticateToken } from './auth.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const router = express.Router();
-
-// Configure multer for photo uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../../uploads/customers');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `customer-${uuidv4()}${ext}`);
-  }
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|webp/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-    if (extname && mimetype) {
-      return cb(null, true);
-    }
-    cb(new Error('Only image files are allowed'));
-  }
-});
 
 // Helper to get week start date (Monday)
 function getWeekStart(date = new Date()) {
@@ -244,9 +208,9 @@ router.get('/:id', authenticateToken, (req, res) => {
 });
 
 // Create customer
-router.post('/', authenticateToken, upload.single('photo'), (req, res) => {
+router.post('/', authenticateToken, (req, res) => {
   try {
-    const { name, phone, email, membership_type = '1_month', amount, emergency_contact, notes } = req.body;
+    const { name, phone, email, membership_type = '1_month', amount, emergency_contact, notes, photo } = req.body;
     const gymId = req.user.gym_id;
 
     if (!name) {
@@ -260,12 +224,12 @@ router.post('/', authenticateToken, upload.single('photo'), (req, res) => {
     const membershipEnd = new Date(today.getTime() + duration * 24 * 60 * 60 * 1000)
       .toISOString().split('T')[0];
 
-    const photoPath = req.file ? `/uploads/customers/${req.file.filename}` : null;
+    const photoUrl = photo || null;
 
     runQuery(`
       INSERT INTO customers (id, gym_id, name, phone, email, photo, membership_type, membership_start, membership_end, status, emergency_contact, notes)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)
-    `, [customerId, gymId, name, phone || null, email || null, photoPath, membership_type, membershipStart, membershipEnd, emergency_contact || null, notes || null]);
+    `, [customerId, gymId, name, phone || null, email || null, photoUrl, membership_type, membershipStart, membershipEnd, emergency_contact || null, notes || null]);
 
     // If amount is provided, record payment
     if (amount && parseFloat(amount) > 0) {
@@ -286,9 +250,9 @@ router.post('/', authenticateToken, upload.single('photo'), (req, res) => {
 });
 
 // Update customer
-router.put('/:id', authenticateToken, upload.single('photo'), (req, res) => {
+router.put('/:id', authenticateToken, (req, res) => {
   try {
-    const { name, phone, email, membership_type, membership_start, membership_end, emergency_contact, notes, status } = req.body;
+    const { name, phone, email, membership_type, membership_start, membership_end, emergency_contact, notes, status, photo } = req.body;
 
     const existingCustomer = getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [req.params.id, req.user.gym_id]);
 
@@ -308,19 +272,7 @@ router.put('/:id', authenticateToken, upload.single('photo'), (req, res) => {
     if (emergency_contact !== undefined) { updates.push('emergency_contact = ?'); values.push(emergency_contact || null); }
     if (notes !== undefined) { updates.push('notes = ?'); values.push(notes || null); }
     if (status !== undefined) { updates.push('status = ?'); values.push(status); }
-
-    let photoPath = existingCustomer.photo;
-    if (req.file) {
-      if (existingCustomer.photo) {
-        const oldPhotoPath = path.join(__dirname, '../..', existingCustomer.photo);
-        if (fs.existsSync(oldPhotoPath)) {
-          fs.unlinkSync(oldPhotoPath);
-        }
-      }
-      photoPath = `/uploads/customers/${req.file.filename}`;
-      updates.push('photo = ?');
-      values.push(photoPath);
-    }
+    if (photo !== undefined) { updates.push('photo = ?'); values.push(photo); }
 
     if (updates.length > 0) {
       updates.push('updated_at = CURRENT_TIMESTAMP');

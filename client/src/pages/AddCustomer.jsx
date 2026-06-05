@@ -98,37 +98,35 @@ export default function AddCustomer() {
     setLoading(true);
 
     try {
-      const submitData = new FormData();
-      
-      // Add basic info - fields allowed in edit mode: name, phone, email, emergency_contact, notes, photo
-      submitData.append('name', formData.name);
-      if (formData.phone) submitData.append('phone', formData.phone);
-      if (formData.email) submitData.append('email', formData.email);
-      if (formData.emergency_contact) submitData.append('emergency_contact', formData.emergency_contact);
-      if (formData.notes) submitData.append('notes', formData.notes);
-      
-      if (photo) {
-        submitData.append('photo', photo);
+      // Convert photo to base64 if it's a file
+      let photoData = null;
+      if (photo && photo instanceof File) {
+        photoData = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(photo);
+        });
+      } else if (photoPreview && !photo) {
+        photoData = photoPreview;
       }
 
+      const submitData = {
+        name: formData.name,
+        phone: formData.phone || null,
+        email: formData.email || null,
+        emergency_contact: formData.emergency_contact || null,
+        notes: formData.notes || null,
+        photo: photoData,
+      };
+
       if (isEditing) {
-        // Only update basic info - membership/payment cannot be changed here
         await api.put(`/customers/${id}`, submitData);
         setSuccess('Customer updated successfully!');
       } else {
-        // Creating new customer
+        submitData.membership_type = formData.membership_type;
+        submitData.amount = formData.amount;
         const customer = await api.post('/customers', submitData);
-        
-        // If amount is provided, also record initial payment
-        if (formData.amount && parseFloat(formData.amount) > 0) {
-          await api.post('/payments', {
-            customer_id: customer.id,
-            amount: parseFloat(formData.amount),
-            payment_method: 'cash',
-            membership_type: formData.membership_type,
-            notes: 'Initial registration payment'
-          });
-        }
         
         setSuccess('Customer added successfully!');
       }
