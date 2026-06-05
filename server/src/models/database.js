@@ -45,6 +45,7 @@ export async function initDatabase() {
         phone TEXT,
         address TEXT,
         logo TEXT,
+        color_theme TEXT DEFAULT 'default',
         subscription_status TEXT DEFAULT 'trial',
         subscription_plan TEXT DEFAULT 'starter',
         subscription_start TEXT,

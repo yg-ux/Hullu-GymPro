@@ -63,9 +63,9 @@ function checkSubscription(gym) {
 router.post('/register', async (req, res) => {
   console.log('📝 Registration request received:', req.body);
   try {
-    const { gymName, ownerName, email, phone, password } = req.body;
+    const { gymName, ownerName, email, phone, password, colorTheme, logo } = req.body;
 
-    console.log('📋 Extracted fields:', { gymName, ownerName, email, phone: !!phone, password: !!password });
+    console.log('📋 Extracted fields:', { gymName, ownerName, email, phone: !!phone, password: !!password, colorTheme, logo: !!logo });
 
     if (!gymName || !ownerName || !email || !password) {
       console.log('❌ Validation failed: missing fields');
@@ -90,10 +90,10 @@ router.post('/register', async (req, res) => {
     trialEnd.setDate(trialEnd.getDate() + TRIAL_DAYS);
 
     const gymInsertSql = `
-      INSERT INTO gyms (id, name, slug, email, phone, subscription_status, subscription_plan, subscription_start, subscription_end)
-      VALUES (?, ?, ?, ?, ?, 'trial', 'starter', ?, ?)
+      INSERT INTO gyms (id, name, slug, email, phone, subscription_status, subscription_plan, subscription_start, subscription_end, color_theme, logo)
+      VALUES (?, ?, ?, ?, ?, 'trial', 'starter', ?, ?, ?, ?)
     `;
-    const gymParams = [gymId, gymName, slug, email, phone || null, today.toISOString().split('T')[0], trialEnd.toISOString().split('T')[0]];
+    const gymParams = [gymId, gymName, slug, email, phone || null, today.toISOString().split('T')[0], trialEnd.toISOString().split('T')[0], colorTheme || 'default', logo || null];
     console.log('Gym insert params:', { gymId, gymName, slug, email, phone, trialEnd: trialEnd.toISOString().split('T')[0] });
     
     runQuery(gymInsertSql, gymParams);
