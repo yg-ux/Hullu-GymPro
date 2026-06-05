@@ -72,9 +72,9 @@ export default function AddCustomer() {
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Limit to 500KB for base64 storage
-      if (file.size > 500 * 1024) {
-        setError('Photo too large. Please use an image under 500KB.');
+      // Limit to 1MB for base64 storage
+      if (file.size > 1024 * 1024) {
+        setError('Photo too large. Please use an image under 1MB.');
         return;
       }
       
