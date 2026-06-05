@@ -120,6 +120,8 @@ router.post('/register', async (req, res) => {
         name: gymName,
         slug,
         email,
+        color_theme: colorTheme || 'default',
+        logo: logo || null,
         subscription_status: 'trial',
         subscription_plan: 'starter'
       },

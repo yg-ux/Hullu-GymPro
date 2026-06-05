@@ -24,9 +24,20 @@ import {
   Target,
   Award,
   ChevronRight,
-  CheckCircle
+  CheckCircle,
+  Dumbbell
 } from 'lucide-react';
 import clsx from 'clsx';
+
+// Color theme mapping
+const COLOR_THEMES = {
+  default: { gradient: 'from-blue-500 to-blue-700', accent: 'blue', primary: 'blue-500' },
+  emerald: { gradient: 'from-emerald-500 to-emerald-700', accent: 'emerald', primary: 'emerald-500' },
+  purple: { gradient: 'from-purple-500 to-purple-700', accent: 'purple', primary: 'purple-500' },
+  red: { gradient: 'from-red-500 to-red-700', accent: 'red', primary: 'red-500' },
+  amber: { gradient: 'from-amber-500 to-amber-700', accent: 'amber', primary: 'amber-500' },
+  cyan: { gradient: 'from-cyan-500 to-cyan-700', accent: 'cyan', primary: 'cyan-500' },
+};
 
 // Animated Counter Hook
 function useAnimatedCounter(endValue, duration = 1000, delay = 0) {
@@ -229,22 +240,40 @@ export default function Dashboard() {
   // Customer of the day (random active customer with recent check-in)
   const customerOfDay = stats?.recent_payments?.[0];
 
+  // Get theme colors
+  const theme = COLOR_THEMES[gym?.color_theme] || COLOR_THEMES.default;
+  
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-white">
-            Welcome back! <span className="gradient-text">{gym?.name || 'GymPro'}</span>
-          </h1>
-          <p className="text-gray-400 mt-1">Here's what's happening at {gym?.name || 'your gym'} today.</p>
+        <div className="flex items-center gap-4">
+          {/* Gym Logo */}
+          {gym?.logo ? (
+            <img 
+              src={gym.logo} 
+              alt={gym.name} 
+              className="w-14 h-14 rounded-2xl object-cover border-2 shadow-lg"
+              style={{ borderColor: `var(--${theme.accent}-500, #3b82f6)` }}
+            />
+          ) : (
+            <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${theme.gradient} flex items-center justify-center shadow-lg`}>
+              <Dumbbell className="w-8 h-8 text-white" />
+            </div>
+          )}
+          <div>
+            <h1 className="text-3xl font-bold text-white">
+              Welcome back! <span className={`bg-gradient-to-r from-${theme.accent}-400 to-${theme.accent}-500 bg-clip-text text-transparent`}>{gym?.name || 'GymPro'}</span>
+            </h1>
+            <p className="text-gray-400 mt-1">Here's what's happening at {gym?.name || 'your gym'} today.</p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <Link to="/customers" className="btn-secondary inline-flex items-center gap-2">
             <Users className="w-4 h-4" />
             View All Customers
           </Link>
-          <Link to="/customers/new" className="gradient-primary btn-primary inline-flex items-center gap-2 shadow-lg shadow-gym-500/30 hover:shadow-gym-500/50">
+          <Link to="/customers/new" className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all" style={{ backgroundImage: `linear-gradient(to right, var(--${theme.accent}-500, #3b82f6), var(--${theme.accent}-600, #2563eb))` }}>
             <Plus className="w-5 h-5" />
             Add Customer
           </Link>
