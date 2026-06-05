@@ -61,28 +61,20 @@ function checkSubscription(gym) {
 
 // Register a new gym
 router.post('/register', async (req, res) => {
-  console.log('📝 Registration request received:', req.body);
   try {
     const { gymName, ownerName, email, phone, password, colorTheme, logo } = req.body;
 
-    console.log('📋 Extracted fields:', { gymName, ownerName, email, phone: !!phone, password: !!password, colorTheme, logo: !!logo });
-
     if (!gymName || !ownerName || !email || !password) {
-      console.log('❌ Validation failed: missing fields');
       return res.status(400).json({ error: 'All fields are required' });
     }
 
     // Check if email already exists
-    console.log('🔍 Checking for existing user...');
     const existingUser = getOne('SELECT * FROM gym_users WHERE username = ?', [email]);
     if (existingUser) {
-      console.log('❌ Email already registered');
       return res.status(400).json({ error: 'Email already registered' });
     }
-    console.log('✅ No existing user found');
 
     // Create gym
-    console.log('🏢 Creating gym...');
     const gymId = uuidv4();
     const slug = gymName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
     const today = new Date();
@@ -94,10 +86,8 @@ router.post('/register', async (req, res) => {
       VALUES (?, ?, ?, ?, ?, 'trial', 'starter', ?, ?, ?, ?)
     `;
     const gymParams = [gymId, gymName, slug, email, phone || null, today.toISOString().split('T')[0], trialEnd.toISOString().split('T')[0], colorTheme || 'default', logo || null];
-    console.log('Gym insert params:', { gymId, gymName, slug, email, phone, trialEnd: trialEnd.toISOString().split('T')[0] });
     
     runQuery(gymInsertSql, gymParams);
-    console.log('✅ Gym created successfully');
 
     // Create admin user for the gym
     const userId = uuidv4();
@@ -135,11 +125,8 @@ router.post('/register', async (req, res) => {
       message: `Trial started! You have ${TRIAL_DAYS} days free.`
     });
   } catch (error) {
-    console.error('❌ Registration error:', error);
-    console.error('Stack trace:', error.stack);
-    const errorResponse = { error: 'Registration failed', details: error.message, stack: error.stack };
-    console.log('Sending error response:', JSON.stringify(errorResponse));
-    res.status(500).json(errorResponse);
+    console.error('Registration error:', error.message);
+    res.status(500).json({ error: 'Registration failed: ' + error.message });
   }
 });
 
