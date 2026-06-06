@@ -38,6 +38,27 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Direct SMS update endpoint - for updating demo gym
+app.post('/api/update-demo-sms', async (req, res) => {
+  const { secret } = req.body;
+  if (secret !== 'ADMIN123' && secret !== process.env.ADMIN_SECRET && secret !== 'SEED123') {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  
+  try {
+    const { getDb, saveDatabase } = await import('./models/database.js');
+    const db = getDb();
+    
+    db.run("UPDATE gyms SET sms_enabled = 1, sms_api_key = '3VhJLbbr4NYviZDFB1EclyKo6AlMUj6m' WHERE email = 'demo@afrofitness.com'");
+    saveDatabase();
+    
+    res.json({ success: true, message: 'SMS updated for demo gym' });
+  } catch (error) {
+    console.error('Update SMS error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Scheduled SMS reminders endpoint (call daily via cron)
 app.post('/api/cron/sms-reminders', async (req, res) => {
   const { secret } = req.body;
