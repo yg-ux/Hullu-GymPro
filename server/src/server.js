@@ -11,6 +11,7 @@ import attendanceRoutes from './routes/attendance.js';
 import qrRoutes from './routes/qr.js';
 import reportsRoutes from './routes/reports.js';
 import adminRoutes from './routes/admin.js';
+import { reminderService } from './services/reminderService.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -35,6 +36,23 @@ app.use('/api/admin', adminRoutes);
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Scheduled SMS reminders endpoint (call daily via cron)
+app.post('/api/cron/sms-reminders', async (req, res) => {
+  const { secret } = req.body;
+  
+  if (secret !== process.env.CRON_SECRET && secret !== 'CRON123') {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    await reminderService.runAllChecks();
+    res.json({ success: true, message: 'SMS reminders processed' });
+  } catch (error) {
+    console.error('Cron SMS reminders failed:', error);
+    res.status(500).json({ error: 'Failed to process reminders' });
+  }
 });
 
 // Test registration endpoint (for debugging)

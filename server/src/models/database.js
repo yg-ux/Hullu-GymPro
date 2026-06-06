@@ -62,6 +62,9 @@ export async function initDatabase() {
     try { db.run("ALTER TABLE gyms ADD COLUMN total_customers INTEGER DEFAULT 0"); } catch (e) {}
     try { db.run("ALTER TABLE gyms ADD COLUMN subscription_status TEXT DEFAULT 'active'"); } catch (e) {}
     try { db.run("ALTER TABLE gyms ADD COLUMN subscription_plan TEXT DEFAULT 'free'"); } catch (e) {}
+    try { db.run("ALTER TABLE customers ADD COLUMN welcome_sms_sent INTEGER DEFAULT 0"); } catch (e) {}
+    try { db.run("ALTER TABLE gyms ADD COLUMN sms_api_key TEXT"); } catch (e) {}
+    try { db.run("ALTER TABLE gyms ADD COLUMN sms_enabled INTEGER DEFAULT 0"); } catch (e) {}
 
     // Migrate existing gyms to free plan if subscription_plan is null
     try {

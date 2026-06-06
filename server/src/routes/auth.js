@@ -283,7 +283,9 @@ router.get('/me', authenticateToken, (req, res) => {
         subscription_plan: gym.subscription_plan,
         subscription_start: gym.subscription_start,
         subscription_end: gym.subscription_end,
-        max_members: gym.max_members
+        max_members: gym.max_members,
+        sms_enabled: gym.sms_enabled,
+        sms_api_key: gym.sms_api_key ? '***' + gym.sms_api_key.slice(-4) : null
       },
       user: {
         id: user.id,
@@ -455,7 +457,7 @@ router.get('/settings', authenticateToken, (req, res) => {
 // Update gym profile
 router.put('/gym', authenticateToken, (req, res) => {
   try {
-    const { name, phone, address } = req.body;
+    const { name, phone, address, sms_enabled, sms_api_key } = req.body;
 
     const updates = [];
     const values = [];
@@ -464,13 +466,21 @@ router.put('/gym', authenticateToken, (req, res) => {
       updates.push('name = ?');
       values.push(name);
     }
-    if (phone) {
+    if (phone !== undefined) {
       updates.push('phone = ?');
       values.push(phone);
     }
-    if (address) {
+    if (address !== undefined) {
       updates.push('address = ?');
       values.push(address);
+    }
+    if (sms_enabled !== undefined) {
+      updates.push('sms_enabled = ?');
+      values.push(sms_enabled ? 1 : 0);
+    }
+    if (sms_api_key !== undefined) {
+      updates.push('sms_api_key = ?');
+      values.push(sms_api_key);
     }
 
     if (updates.length > 0) {
@@ -490,7 +500,9 @@ router.put('/gym', authenticateToken, (req, res) => {
         slug: gym.slug,
         email: gym.email,
         phone: gym.phone,
-        address: gym.address
+        address: gym.address,
+        sms_enabled: gym.sms_enabled,
+        sms_api_key: gym.sms_api_key ? '***' + gym.sms_api_key.slice(-4) : null
       }
     });
   } catch (error) {

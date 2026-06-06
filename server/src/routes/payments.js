@@ -2,6 +2,7 @@ import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { runQuery, getOne, getAll } from '../models/database.js';
 import { authenticateToken, requireActiveSubscription } from './auth.js';
+import { smsService } from '../services/smsService.js';
 
 const router = express.Router();
 
@@ -64,6 +65,7 @@ router.post('/', authenticateToken, requireActiveSubscription, (req, res) => {
     }
 
     const customer = getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [customer_id, gymId]);
+    const gym = getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
 
     if (!customer) {
       return res.status(404).json({ error: 'Customer not found' });
@@ -106,6 +108,15 @@ router.post('/', authenticateToken, requireActiveSubscription, (req, res) => {
 
     const updatedCustomer = getOne('SELECT * FROM customers WHERE id = ?', [customer_id]);
     const payment = getOne('SELECT * FROM payments WHERE id = ?', [paymentId]);
+
+    // Send payment confirmation SMS
+    if (updatedCustomer.phone && gym.sms_enabled) {
+      try {
+        await smsService.sendPaymentConfirmation(updatedCustomer, payment, gym);
+      } catch (smsError) {
+        console.error('Failed to send payment confirmation SMS:', smsError);
+      }
+    }
 
     res.status(201).json({
       payment,

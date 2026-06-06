@@ -2,6 +2,7 @@ import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { runQuery, getOne, getAll } from '../models/database.js';
 import { authenticateToken, requireActiveSubscription } from './auth.js';
+import { smsService } from '../services/smsService.js';
 
 const router = express.Router();
 
@@ -255,6 +256,16 @@ router.post('/', authenticateToken, requireActiveSubscription, (req, res) => {
     }
 
     const customer = getOne('SELECT * FROM customers WHERE id = ?', [customerId]);
+
+    // Send welcome SMS (one-time only)
+    if (customer.phone && gym.sms_enabled) {
+      try {
+        await smsService.sendWelcomeSms(customer, gym);
+        runQuery('UPDATE customers SET welcome_sms_sent = 1 WHERE id = ?', [customerId]);
+      } catch (smsError) {
+        console.error('Failed to send welcome SMS:', smsError);
+      }
+    }
 
     res.status(201).json({
       ...customer,
