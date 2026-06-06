@@ -63,6 +63,54 @@ export async function initDatabase() {
     try { db.run("ALTER TABLE gyms ADD COLUMN subscription_status TEXT DEFAULT 'active'"); } catch (e) {}
     try { db.run("ALTER TABLE gyms ADD COLUMN subscription_plan TEXT DEFAULT 'free'"); } catch (e) {}
 
+    // Migrate existing gyms to free plan if subscription_plan is null
+    try {
+      db.run("UPDATE gyms SET subscription_plan = 'free', subscription_status = 'active' WHERE subscription_plan IS NULL");
+      db.run("UPDATE gyms SET max_members = 10 WHERE max_members IS NULL");
+    } catch (e) { /* Migration already done */ }
+
+    // Create subscription_requests table if it doesn't exist (for existing databases)
+    try {
+      const checkTable = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='subscription_requests'");
+      if (checkTable.length === 0 || checkTable[0].values.length === 0) {
+        db.run(`
+          CREATE TABLE subscription_requests (
+            id TEXT PRIMARY KEY,
+            gym_id TEXT NOT NULL,
+            requested_plan TEXT NOT NULL,
+            amount_paid REAL,
+            payment_proof TEXT,
+            payment_method TEXT,
+            status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'declined')),
+            admin_notes TEXT,
+            reviewed_by TEXT,
+            reviewed_at TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
+          )
+        `);
+      }
+    } catch (e) { /* Table exists or migration done */ }
+
+    // Create admins table if it doesn't exist
+    try {
+      const checkAdmins = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='admins'");
+      if (checkAdmins.length === 0 || checkAdmins[0].values.length === 0) {
+        db.run(`
+          CREATE TABLE admins (
+            id TEXT PRIMARY KEY,
+            email TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            name TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+          )
+        `);
+        const adminId = uuidv4();
+        const hashedPassword = bcrypt.hashSync('admin123', 10);
+        db.run("INSERT INTO admins (id, email, password, name) VALUES (?, ?, ?, ?)", [adminId, 'admin@hullugyms.com', hashedPassword, 'System Admin']);
+      }
+    } catch (e) { /* Table exists or migration done */ }
+
     db.run(`
       CREATE TABLE IF NOT EXISTS gym_users (
         id TEXT PRIMARY KEY,
@@ -195,41 +243,47 @@ export async function initDatabase() {
     `);
 
     // Subscription upgrade requests
-    db.run(`
-      CREATE TABLE IF NOT EXISTS subscription_requests (
-        id TEXT PRIMARY KEY,
-        gym_id TEXT NOT NULL,
-        requested_plan TEXT NOT NULL,
-        amount_paid REAL,
-        payment_proof TEXT,
-        payment_method TEXT,
-        status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'declined')),
-        admin_notes TEXT,
-        reviewed_by TEXT,
-        reviewed_at TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
-      )
-    `);
+    try {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS subscription_requests (
+          id TEXT PRIMARY KEY,
+          gym_id TEXT NOT NULL,
+          requested_plan TEXT NOT NULL,
+          amount_paid REAL,
+          payment_proof TEXT,
+          payment_method TEXT,
+          status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'declined')),
+          admin_notes TEXT,
+          reviewed_by TEXT,
+          reviewed_at TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
+        )
+      `);
+    } catch (e) { /* Table exists */ }
 
     // Admin users table (separate from gym users)
-    db.run(`
-      CREATE TABLE IF NOT EXISTS admins (
-        id TEXT PRIMARY KEY,
-        email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        name TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+    try {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS admins (
+          id TEXT PRIMARY KEY,
+          email TEXT UNIQUE NOT NULL,
+          password TEXT NOT NULL,
+          name TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+    } catch (e) { /* Table exists */ }
 
     // Add default admin if not exists
-    const existingAdmin = db.exec("SELECT * FROM admins WHERE email = 'admin@hullugyms.com'");
-    if (existingAdmin.length === 0 || existingAdmin[0].values.length === 0) {
-      const adminId = uuidv4();
-      const hashedPassword = bcrypt.hashSync('admin123', 10);
-      db.run("INSERT INTO admins (id, email, password, name) VALUES (?, ?, ?, ?)", [adminId, 'admin@hullugyms.com', hashedPassword, 'System Admin']);
-    }
+    try {
+      const existingAdmin = db.exec("SELECT * FROM admins WHERE email = 'admin@hullugyms.com'");
+      if (existingAdmin.length === 0 || existingAdmin[0].values.length === 0) {
+        const adminId = uuidv4();
+        const hashedPassword = bcrypt.hashSync('admin123', 10);
+        db.run("INSERT INTO admins (id, email, password, name) VALUES (?, ?, ?, ?)", [adminId, 'admin@hullugyms.com', hashedPassword, 'System Admin']);
+      }
+    } catch (e) { /* Admin exists */ }
 
     // QR codes for member access
     db.run(`

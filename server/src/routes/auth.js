@@ -345,17 +345,22 @@ router.post('/subscribe', authenticateToken, (req, res) => {
     };
 
     if (!plans[plan_id]) {
-      return res.status(400).json({ error: 'Invalid plan' });
+      return res.status(400).json({ error: 'Invalid plan. Choose free, starter, or pro.' });
     }
 
     // Check if there's already a pending request
-    const existingRequest = getOne(`
-      SELECT * FROM subscription_requests 
-      WHERE gym_id = ? AND status = 'pending'
-    `, [req.user.gym_id]);
+    let existingRequest = null;
+    try {
+      existingRequest = getOne(`
+        SELECT * FROM subscription_requests 
+        WHERE gym_id = ? AND status = 'pending'
+      `, [req.user.gym_id]);
+    } catch (e) {
+      // Table might not exist, continue
+    }
 
     if (existingRequest) {
-      return res.status(400).json({ error: 'You already have a pending subscription request' });
+      return res.status(400).json({ error: 'You already have a pending subscription request. Please wait for it to be reviewed.' });
     }
 
     // For free plan, activate immediately
@@ -382,19 +387,29 @@ router.post('/subscribe', authenticateToken, (req, res) => {
 
     // For paid plans, create a subscription request
     const requestId = uuidv4();
-    runQuery(`
-      INSERT INTO subscription_requests (id, gym_id, requested_plan, amount_paid, payment_proof, payment_method, status)
-      VALUES (?, ?, ?, ?, ?, ?, 'pending')
-    `, [requestId, req.user.gym_id, plan_id, amount_paid || plans[plan_id].price, payment_proof, payment_method]);
+    
+    try {
+      runQuery(`
+        INSERT INTO subscription_requests (id, gym_id, requested_plan, amount_paid, payment_proof, payment_method, status)
+        VALUES (?, ?, ?, ?, ?, ?, 'pending')
+      `, [requestId, req.user.gym_id, plan_id, amount_paid || plans[plan_id].price, payment_proof, payment_method]);
+    } catch (e) {
+      console.error('Failed to create subscription request:', e.message);
+      return res.status(500).json({ 
+        error: 'Database error. Please contact support.',
+        details: e.message 
+      });
+    }
 
     res.json({
-      message: 'Subscription request submitted. You will be notified once reviewed by admin.',
+      message: 'Subscription request submitted! Contact Hullu Gyms admin to approve your payment.',
       request_id: requestId,
-      status: 'pending'
+      status: 'pending',
+      next_steps: 'Go to admin dashboard at /admin-login to approve this request'
     });
   } catch (error) {
     console.error('Subscribe error:', error);
-    res.status(500).json({ error: 'Failed to submit subscription request' });
+    res.status(500).json({ error: 'Failed to submit subscription request: ' + error.message });
   }
 });
 
