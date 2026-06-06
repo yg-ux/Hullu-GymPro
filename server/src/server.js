@@ -35,7 +35,7 @@ app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', version: 'v3', timestamp: new Date().toISOString() });
 });
 
 // Direct SMS update endpoint - for updating demo gym
