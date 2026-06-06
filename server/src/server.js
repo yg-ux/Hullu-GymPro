@@ -86,8 +86,9 @@ app.post('/api/seed-demo', (req, res) => {
           const smsApiKey = process.env.GEEZSMS_API_KEY || '3VhJLbbr4NYviZDFB1EclyKo6AlMUj6m';
           db.run("UPDATE gyms SET sms_enabled = 1, sms_api_key = ? WHERE email = 'demo@afrofitness.com'", [smsApiKey]);
           saveDatabase();
+          console.log('SMS enabled for demo gym');
           // Return confirmation that SMS is now enabled
-          return res.json({ message: 'Demo gym already exists - SMS enabled', email: 'demo@afrofitness.com', password: 'Demo1234', sms_enabled: true });
+          return res.json({ message: 'SMS ENABLED FOR DEMO GYM', email: 'demo@afrofitness.com', password: 'Demo1234', sms_enabled: true });
         }
         
         const gymId = uuidv4();
