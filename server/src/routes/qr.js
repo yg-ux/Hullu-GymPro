@@ -2,7 +2,7 @@ import express from 'express';
 import QRCode from 'qrcode';
 import { v4 as uuidv4 } from 'uuid';
 import { runQuery, getOne, getAll } from '../models/database.js';
-import { authenticateToken } from './auth.js';
+import { authenticateToken, requireActiveSubscription } from './auth.js';
 
 const router = express.Router();
 
@@ -89,7 +89,7 @@ router.get('/:customerId', authenticateToken, async (req, res) => {
 });
 
 // Scan QR code and auto check-in
-router.post('/scan', authenticateToken, async (req, res) => {
+router.post('/scan', authenticateToken, requireActiveSubscription, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
     const { qr_data } = req.body;
@@ -195,7 +195,7 @@ router.post('/scan', authenticateToken, async (req, res) => {
 });
 
 // Regenerate QR code
-router.post('/:customerId/regenerate', authenticateToken, async (req, res) => {
+router.post('/:customerId/regenerate', authenticateToken, requireActiveSubscription, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
     const { customerId } = req.params;

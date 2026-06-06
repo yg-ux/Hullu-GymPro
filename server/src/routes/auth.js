@@ -59,6 +59,30 @@ function checkSubscription(gym) {
   return { valid: false, status: gym.subscription_status, daysLeft: 0 };
 }
 
+// Middleware to check subscription validity for write operations
+function requireActiveSubscription(req, res, next) {
+  const gym = getOne('SELECT * FROM gyms WHERE id = ?', [req.user.gym_id]);
+  
+  if (!gym) {
+    return res.status(404).json({ error: 'Gym not found' });
+  }
+  
+  const subscription = checkSubscription(gym);
+  
+  if (!subscription.valid) {
+    return res.status(403).json({ 
+      error: `Your subscription has ${subscription.status === 'trial_expired' ? 'trial has expired' : 'expired'}. Please renew to continue using the system.`,
+      subscription_status: subscription.status,
+      subscription_valid: false
+    });
+  }
+  
+  // Attach subscription info to request
+  req.subscription = subscription;
+  req.gym = gym;
+  next();
+}
+
 // Register a new gym
 router.post('/register', async (req, res) => {
   try {

@@ -1,7 +1,7 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { runQuery, getOne, getAll } from '../models/database.js';
-import { authenticateToken } from './auth.js';
+import { authenticateToken, requireActiveSubscription } from './auth.js';
 
 const router = express.Router();
 
@@ -77,7 +77,7 @@ router.get('/current', authenticateToken, (req, res) => {
 });
 
 // Check in customer by phone or ID
-router.post('/check-in', authenticateToken, (req, res) => {
+router.post('/check-in', authenticateToken, requireActiveSubscription, (req, res) => {
   try {
     const gymId = req.user.gym_id;
     const { phone, customer_id } = req.body;
@@ -155,7 +155,7 @@ router.post('/check-in', authenticateToken, (req, res) => {
 });
 
 // Check out customer
-router.post('/check-out', authenticateToken, (req, res) => {
+router.post('/check-out', authenticateToken, requireActiveSubscription, (req, res) => {
   try {
     const gymId = req.user.gym_id;
     const { customer_id, phone } = req.body;

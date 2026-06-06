@@ -2,7 +2,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import { runQuery, getOne, getAll, getDb } from '../models/database.js';
-import { authenticateToken } from './auth.js';
+import { authenticateToken, requireActiveSubscription } from './auth.js';
 
 const router = express.Router();
 
@@ -65,7 +65,7 @@ router.get('/', authenticateToken, (req, res) => {
 });
 
 // Add new staff member
-router.post('/', authenticateToken, (req, res) => {
+router.post('/', authenticateToken, requireActiveSubscription, (req, res) => {
   try {
     const gymId = req.user.gym_id;
     const { username, password, role = 'receptionist' } = req.body;
@@ -135,7 +135,7 @@ router.post('/', authenticateToken, (req, res) => {
 });
 
 // Update staff member
-router.put('/:id', authenticateToken, (req, res) => {
+router.put('/:id', authenticateToken, requireActiveSubscription, (req, res) => {
   try {
     const gymId = req.user.gym_id;
     const staffId = req.params.id;
@@ -198,7 +198,7 @@ router.put('/:id', authenticateToken, (req, res) => {
 });
 
 // Delete staff member
-router.delete('/:id', authenticateToken, (req, res) => {
+router.delete('/:id', authenticateToken, requireActiveSubscription, (req, res) => {
   try {
     const gymId = req.user.gym_id;
     const staffId = req.params.id;
@@ -229,7 +229,7 @@ router.delete('/:id', authenticateToken, (req, res) => {
 });
 
 // Reset staff password
-router.post('/:id/reset-password', authenticateToken, (req, res) => {
+router.post('/:id/reset-password', authenticateToken, requireActiveSubscription, (req, res) => {
   try {
     const gymId = req.user.gym_id;
     const staffId = req.params.id;

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api, formatDateTime } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 import { 
   Phone, 
   Search, 
@@ -82,6 +83,7 @@ const QRCodeSVG = ({ value, size = 200 }) => {
 };
 
 export default function CheckIn() {
+  const { subscription } = useAuth();
   const navigate = useNavigate();
   const [phone, setPhone] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -248,10 +250,10 @@ export default function CheckIn() {
                   {/* Check-in Button */}
                   <button
                     onClick={() => handleCheckIn(customer.id)}
-                    disabled={actionLoading === customer.id || !isActive}
+                    disabled={actionLoading === customer.id || !isActive || !subscription?.valid}
                     className={clsx(
                       "flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all",
-                      isActive
+                      isActive && subscription?.valid
                         ? "bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/20"
                         : "bg-gray-700 text-gray-400 cursor-not-allowed"
                     )}

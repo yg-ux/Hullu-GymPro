@@ -1,7 +1,7 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { runQuery, getOne, getAll } from '../models/database.js';
-import { authenticateToken } from './auth.js';
+import { authenticateToken, requireActiveSubscription } from './auth.js';
 
 const router = express.Router();
 
@@ -208,7 +208,7 @@ router.get('/:id', authenticateToken, (req, res) => {
 });
 
 // Create customer
-router.post('/', authenticateToken, (req, res) => {
+router.post('/', authenticateToken, requireActiveSubscription, (req, res) => {
   try {
     const { name, phone, email, membership_type = '1_month', amount, emergency_contact, notes, photo } = req.body;
     const gymId = req.user.gym_id;
@@ -268,7 +268,7 @@ router.post('/', authenticateToken, (req, res) => {
 });
 
 // Update customer
-router.put('/:id', authenticateToken, (req, res) => {
+router.put('/:id', authenticateToken, requireActiveSubscription, (req, res) => {
   try {
     const { name, phone, email, membership_type, membership_start, membership_end, emergency_contact, notes, status, photo } = req.body;
 
@@ -309,7 +309,7 @@ router.put('/:id', authenticateToken, (req, res) => {
 });
 
 // Delete customer
-router.delete('/:id', authenticateToken, (req, res) => {
+router.delete('/:id', authenticateToken, requireActiveSubscription, (req, res) => {
   try {
     const { delete_code } = req.body;
     const gymId = req.user.gym_id;
@@ -352,7 +352,7 @@ router.delete('/:id', authenticateToken, (req, res) => {
 });
 
 // Extend membership
-router.post('/:id/extend', authenticateToken, (req, res) => {
+router.post('/:id/extend', authenticateToken, requireActiveSubscription, (req, res) => {
   try {
     const { membership_type } = req.body;
     const gymId = req.user.gym_id;
@@ -398,7 +398,7 @@ router.post('/:id/extend', authenticateToken, (req, res) => {
 });
 
 // Check in
-router.post('/:id/check-in', authenticateToken, (req, res) => {
+router.post('/:id/check-in', authenticateToken, requireActiveSubscription, (req, res) => {
   try {
     const gymId = req.user.gym_id;
 
@@ -475,7 +475,7 @@ router.post('/:id/check-in', authenticateToken, (req, res) => {
 });
 
 // Check out
-router.post('/:id/check-out', authenticateToken, (req, res) => {
+router.post('/:id/check-out', authenticateToken, requireActiveSubscription, (req, res) => {
   try {
     const gymId = req.user.gym_id;
 

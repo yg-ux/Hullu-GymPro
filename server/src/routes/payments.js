@@ -1,7 +1,7 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { runQuery, getOne, getAll } from '../models/database.js';
-import { authenticateToken } from './auth.js';
+import { authenticateToken, requireActiveSubscription } from './auth.js';
 
 const router = express.Router();
 
@@ -54,7 +54,7 @@ router.get('/', authenticateToken, (req, res) => {
 });
 
 // Record payment
-router.post('/', authenticateToken, (req, res) => {
+router.post('/', authenticateToken, requireActiveSubscription, (req, res) => {
   try {
     const { customer_id, amount, payment_method = 'cash', membership_type, notes } = req.body;
     const gymId = req.user.gym_id;
@@ -119,7 +119,7 @@ router.post('/', authenticateToken, (req, res) => {
 });
 
 // Delete payment
-router.delete('/:id', authenticateToken, (req, res) => {
+router.delete('/:id', authenticateToken, requireActiveSubscription, (req, res) => {
   try {
     const gymId = req.user.gym_id;
 

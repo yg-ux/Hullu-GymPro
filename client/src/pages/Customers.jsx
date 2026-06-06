@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, getStatusColor, formatDate, getMembershipLabel } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 import { 
   Search, 
   Plus, 
@@ -53,6 +54,7 @@ function useLocalStorage(key, initialValue) {
 }
 
 export default function Customers() {
+  const { subscription } = useAuth();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -202,10 +204,21 @@ export default function Customers() {
             <Filter className="w-4 h-4" />
             Filter
           </Link>
-          <Link to="/customers/new" className="gradient-primary btn-primary inline-flex items-center gap-2 shadow-lg shadow-gym-500/30">
-            <Plus className="w-5 h-5" />
-            Add Customer
-          </Link>
+          {subscription?.valid ? (
+            <Link to="/customers/new" className="gradient-primary btn-primary inline-flex items-center gap-2 shadow-lg shadow-gym-500/30">
+              <Plus className="w-5 h-5" />
+              Add Customer
+            </Link>
+          ) : (
+            <button 
+              disabled
+              className="opacity-50 cursor-not-allowed gradient-primary btn-primary inline-flex items-center gap-2"
+              title="Subscription expired"
+            >
+              <Plus className="w-5 h-5" />
+              Add Customer
+            </button>
+          )}
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api, formatDateTime } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 import { 
   Users, 
   LogOut, 
@@ -16,6 +17,7 @@ import {
 import clsx from 'clsx';
 
 export default function CheckOut() {
+  const { subscription } = useAuth();
   const [checkedInCustomers, setCheckedInCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
@@ -234,8 +236,13 @@ export default function CheckOut() {
                       {/* Check Out Button */}
                       <button
                         onClick={() => handleCheckOut(log.customer_id)}
-                        disabled={actionLoading === log.customer_id}
-                        className="flex items-center gap-2 px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-red-500/20"
+                        disabled={actionLoading === log.customer_id || !subscription?.valid}
+                        className={clsx(
+                          "flex items-center gap-2 px-6 py-3 font-semibold rounded-xl transition-colors shadow-lg",
+                          subscription?.valid
+                            ? "bg-red-500 hover:bg-red-600 text-white shadow-red-500/20"
+                            : "bg-gray-700 text-gray-400 cursor-not-allowed"
+                        )}
                       >
                         {actionLoading === log.customer_id ? (
                           <span className="animate-spin">⏳</span>
