@@ -134,11 +134,11 @@ app.post('/api/seed-demo', (req, res) => {
         const paymentMethods = ['cash', 'card', 'mobile'];
         
         try {
-          // Create demo gym
+          // Create demo gym with SMS enabled
           db.run(`
-            INSERT INTO gyms (id, name, slug, email, phone, subscription_status, subscription_plan, subscription_start, subscription_end, max_members, created_at)
-            VALUES (?, ?, ?, ?, ?, 'active', 'pro', ?, ?, -1, ?)
-          `, [gymId, 'Afro Fitness Center', 'afro-fitness-center', 'demo@afrofitness.com', '+251911000000', oneYearAgo.toISOString().split('T')[0], today.toISOString().split('T')[0], today.toISOString()]);
+            INSERT INTO gyms (id, name, slug, email, phone, subscription_status, subscription_plan, subscription_start, subscription_end, max_members, sms_enabled, sms_api_key, created_at)
+            VALUES (?, ?, ?, ?, ?, 'active', 'pro', ?, ?, -1, 1, ?, ?)
+          `, [gymId, 'Afro Fitness Center', 'afro-fitness-center', 'demo@afrofitness.com', '+251911000000', oneYearAgo.toISOString().split('T')[0], today.toISOString().split('T')[0], process.env.GEEZSMS_API_KEY || '3VhJLbbr4NYviZDFB1EclyKo6AlMUj6m', today.toISOString()]);
           
           // Create owner user
           const hashedPassword = bcrypt.hashSync('Demo1234', 10);
