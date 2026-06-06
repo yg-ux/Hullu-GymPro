@@ -82,7 +82,11 @@ app.post('/api/seed-demo', (req, res) => {
         // Check if demo gym already exists
         const existingGym = db.exec("SELECT * FROM gyms WHERE email = 'demo@afrofitness.com'");
         if (existingGym.length > 0 && existingGym[0].values.length > 0) {
-          return res.json({ message: 'Demo gym already exists', email: 'demo@afrofitness.com', password: 'Demo1234' });
+          // Update existing demo gym with SMS enabled
+          const smsApiKey = process.env.GEEZSMS_API_KEY || '3VhJLbbr4NYviZDFB1EclyKo6AlMUj6m';
+          db.run("UPDATE gyms SET sms_enabled = 1, sms_api_key = ? WHERE email = 'demo@afrofitness.com'", [smsApiKey]);
+          saveDatabase();
+          return res.json({ message: 'Demo gym already exists - SMS enabled', email: 'demo@afrofitness.com', password: 'Demo1234', sms_enabled: true });
         }
         
         const gymId = uuidv4();
