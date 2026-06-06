@@ -6,20 +6,17 @@
 const GEEZSMS_BASE_URL = 'https://api.geezsms.com/api/v1/sms';
 
 class SmsService {
-  constructor() {
-    this.apiKey = process.env.GEEZSMS_API_KEY || '';
-  }
-
   /**
    * Send SMS to a phone number
    * @param {string} phone - Phone number (must start with 2519 or +2519)
    * @param {string} message - SMS message (max 335 chars)
+   * @param {string} apiKey - Optional API key (uses gym's key if not provided)
    * @returns {Promise<object>} - API response
    */
-  async sendSms(phone, message) {
-    if (!this.apiKey) {
-      console.log('SMS: No API key configured, skipping SMS');
-      return { success: false, message: 'SMS not configured' };
+  async sendSms(phone, message, apiKey = null) {
+    if (!apiKey) {
+      console.log('SMS: No API key provided, skipping SMS');
+      return { success: false, message: 'SMS API key not configured' };
     }
 
     if (!phone || !message) {
@@ -52,7 +49,7 @@ class SmsService {
         body: JSON.stringify({
           phone: formattedPhone,
           msg: message,
-          token: this.apiKey
+          token: apiKey
         })
       });
 
@@ -78,7 +75,7 @@ class SmsService {
    */
   async sendWelcomeSms(customer, gym) {
     const message = `Welcome to ${gym.name}! Your membership is now active. Check-in using your phone number. For help, contact us. - Hullu Gyms`;
-    return await this.sendSms(customer.phone, message);
+    return await this.sendSms(customer.phone, message, gym.sms_api_key);
   }
 
   /**
@@ -91,7 +88,7 @@ class SmsService {
     const amount = parseFloat(payment.amount).toFixed(2);
     const endDate = new Date(payment.end_date).toLocaleDateString('en-ET');
     const message = `Payment confirmed! ${amount} ETB received for your ${customer.membership_type?.replace('_', ' ')} membership at ${gym.name}. Valid until ${endDate}. - Hullu Gyms`;
-    return await this.sendSms(customer.phone, message);
+    return await this.sendSms(customer.phone, message, gym.sms_api_key);
   }
 
   /**
@@ -107,7 +104,7 @@ class SmsService {
     } else {
       message = `Reminder: Your membership at ${gym.name} expires in ${daysLeft} days. Please visit us to renew. - Hullu Gyms`;
     }
-    return await this.sendSms(customer.phone, message);
+    return await this.sendSms(customer.phone, message, gym.sms_api_key);
   }
 
   /**
@@ -117,7 +114,7 @@ class SmsService {
    */
   async sendSubscriptionRenewalReminder(gym, daysLeft) {
     const message = `Hullu Gyms: Your subscription expires in ${daysLeft} days. Renew now to keep your gym active and avoid service interruption. - Hullu Gyms`;
-    return await this.sendSms(gym.phone, message);
+    return await this.sendSms(gym.phone, message, gym.sms_api_key);
   }
 }
 
