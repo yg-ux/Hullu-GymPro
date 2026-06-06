@@ -305,4 +305,28 @@ router.post('/migrate-plans', authenticateToken, (req, res) => {
   }
 });
 
+// Enable SMS for a gym (admin utility)
+router.post('/enable-sms', (req, res) => {
+  const { secret, gym_id, api_key } = req.body;
+  
+  if (secret !== 'ADMIN123' && secret !== process.env.ADMIN_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    if (!gym_id || !api_key) {
+      return res.status(400).json({ error: 'gym_id and api_key are required' });
+    }
+
+    runQuery('UPDATE gyms SET sms_enabled = 1, sms_api_key = ? WHERE id = ?', [api_key, gym_id]);
+    
+    const gym = getOne('SELECT id, name, sms_enabled FROM gyms WHERE id = ?', [gym_id]);
+    
+    res.json({ success: true, message: 'SMS enabled for gym', gym });
+  } catch (error) {
+    console.error('Enable SMS failed:', error);
+    res.status(500).json({ error: 'Failed to enable SMS' });
+  }
+});
+
 export default router;

@@ -55,32 +55,6 @@ app.post('/api/cron/sms-reminders', async (req, res) => {
   }
 });
 
-// Enable SMS for a gym (for setup/testing)
-app.post('/api/admin/enable-sms', async (req, res) => {
-  const { secret, gym_id, api_key } = req.body;
-  
-  if (secret !== 'ADMIN123' && secret !== process.env.ADMIN_SECRET) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  try {
-    const { runQuery, getOne } = await import('./models/database.js');
-    
-    if (!gym_id || !api_key) {
-      return res.status(400).json({ error: 'gym_id and api_key are required' });
-    }
-
-    runQuery('UPDATE gyms SET sms_enabled = 1, sms_api_key = ? WHERE id = ?', [api_key, gym_id]);
-    
-    const gym = getOne('SELECT id, name, sms_enabled FROM gyms WHERE id = ?', [gym_id]);
-    
-    res.json({ success: true, message: 'SMS enabled for gym', gym });
-  } catch (error) {
-    console.error('Enable SMS failed:', error);
-    res.status(500).json({ error: 'Failed to enable SMS' });
-  }
-});
-
 // Test registration endpoint (for debugging)
 app.post('/api/test-register', (req, res) => {
   console.log('🧪 Test registration endpoint called');
