@@ -283,4 +283,26 @@ router.get('/stats', authenticateToken, (req, res) => {
   }
 });
 
+// Migrate all gyms to correct plan (admin utility)
+router.post('/migrate-plans', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+
+  try {
+    // Set all gyms with null or old plans to 'free'
+    runQuery("UPDATE gyms SET subscription_plan = 'free', subscription_status = 'active', max_members = 10 WHERE subscription_plan IS NULL OR subscription_plan = '' OR subscription_plan = 'starter' OR subscription_plan = 'pro'");
+    
+    const updatedCount = getOne('SELECT COUNT(*) as count FROM gyms')?.count || 0;
+    
+    res.json({
+      message: 'All gyms migrated to free plan',
+      total_gyms: updatedCount
+    });
+  } catch (error) {
+    console.error('Migration error:', error);
+    res.status(500).json({ error: 'Failed to migrate plans' });
+  }
+});
+
 export default router;
