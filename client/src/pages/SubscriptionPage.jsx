@@ -145,7 +145,7 @@ export default function SubscriptionPage() {
 
     setSubmitting(true);
     try {
-      const result = await api.post('/admin/subscription-request', {
+      await api.post('/admin/subscription-request', {
         plan_id: selectedPlan,
         amount_paid: totalPrice,
         payment_method: paymentMethod,
@@ -153,13 +153,7 @@ export default function SubscriptionPage() {
         duration_months: durationMonths,
       });
 
-      if (result.auto_approved) {
-        toast.success(`✅ Payment verified! Your ${selectedPlan} plan is now active.`);
-        // Refresh auth so the new subscription is reflected immediately
-        if (refreshAuth) await refreshAuth();
-      } else {
-        toast.success('Request submitted! We\'ll review and activate your plan shortly.');
-      }
+      toast.success('Request submitted! We\'ll review and activate your plan shortly.');
 
       await loadData();
       setStep('plans');
@@ -460,15 +454,6 @@ export default function SubscriptionPage() {
               ))}
             </div>
 
-            {/* Telebirr instant approval notice */}
-            {paymentMethod === 'telebirr' && (
-              <div className="flex items-start gap-3 p-3 bg-green-500/10 border border-green-500/30 rounded-xl">
-                <Zap className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-green-300">
-                  <span className="font-semibold">Instant activation!</span> Paying via Telebirr automatically verifies your transaction and activates your plan immediately — no waiting for manual review.
-                </p>
-              </div>
-            )}
 
             {/* Context-sensitive payment details */}
             {paymentMethod !== 'cash' && (
@@ -510,11 +495,9 @@ export default function SubscriptionPage() {
               placeholder="e.g. TXN-20260606-12345"
               required
             />
-            <p className={clsx('text-xs flex items-center gap-1', paymentMethod === 'telebirr' ? 'text-green-400' : 'text-gray-500')}>
+            <p className="text-xs text-gray-500 flex items-center gap-1">
               <AlertCircle className="w-3 h-3" />
-              {paymentMethod === 'telebirr'
-                ? 'Your Telebirr transaction will be verified instantly and your plan activated automatically'
-                : 'We will verify this transaction before activating your plan'}
+              We will verify this transaction before activating your plan
             </p>
           </div>
 
@@ -524,9 +507,7 @@ export default function SubscriptionPage() {
             className="w-full btn-primary py-4 text-base font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {submitting ? (
-              paymentMethod === 'telebirr'
-                ? <><Loader className="w-5 h-5 animate-spin" /> Verifying with Telebirr...</>
-                : <><Loader className="w-5 h-5 animate-spin" /> Submitting Request...</>
+              <><Loader className="w-5 h-5 animate-spin" /> Submitting Request...</>
             ) : (
               <>Submit Subscription Request <ChevronRight className="w-5 h-5" /></>
             )}

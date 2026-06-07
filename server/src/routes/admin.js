@@ -163,52 +163,14 @@ router.post('/subscription-request', authenticateToken, async (req, res) => {
     const expectedAmount = amount_paid || plans[plan_id] * months;
     const id = uuidv4();
 
-    // For Telebirr payments: auto-approve immediately.
-    // Payment goes to the owner's personal Telebirr number and can be
-    // verified manually in the Telebirr app history at any time.
-    // Other payment methods go through manual admin review as normal.
-    const isTelebirr = (payment_method || 'telebirr') === 'telebirr';
-
-    if (isTelebirr) {
-      const today = new Date();
-      const endDate = new Date(today);
-      endDate.setMonth(endDate.getMonth() + months);
-      const planLimits = { 'starter': 100, 'pro': -1 };
-
-      await runQuery(`
-        INSERT INTO subscription_requests (id, gym_id, requested_plan, amount_paid, payment_method, transaction_id, duration_months, status, admin_notes, reviewed_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'approved', 'Auto-approved — Telebirr payment', NOW())
-      `, [id, gymId, plan_id, expectedAmount, payment_method, transaction_id.trim(), months]);
-
-      await runQuery(`
-        UPDATE gyms SET
-          subscription_status = 'active',
-          subscription_plan = ?,
-          subscription_start = ?,
-          subscription_end = ?,
-          max_members = ?,
-          updated_at = NOW()
-        WHERE id = ?
-      `, [plan_id, today.toISOString().split('T')[0], endDate.toISOString().split('T')[0], planLimits[plan_id] ?? 10, gymId]);
-
-      return res.status(201).json({
-        message: `Payment confirmed! Your ${plan_id} plan is now active until ${endDate.toISOString().split('T')[0]}.`,
-        request_id: id,
-        auto_approved: true,
-        plan_active_until: endDate.toISOString().split('T')[0],
-      });
-    }
-
-    // Non-Telebirr: insert as pending for manual review
     await runQuery(`
       INSERT INTO subscription_requests (id, gym_id, requested_plan, amount_paid, payment_method, transaction_id, duration_months, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
-    `, [id, gymId, plan_id, expectedAmount, payment_method, transaction_id.trim(), months]);
+    `, [id, gymId, plan_id, expectedAmount, payment_method || 'telebirr', transaction_id.trim(), months]);
 
     res.status(201).json({
       message: 'Request submitted! We\'ll review and activate your plan shortly.',
       request_id: id,
-      auto_approved: false,
     });
   } catch (error) {
     console.error('Create subscription request error:', error);
