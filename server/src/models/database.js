@@ -8,7 +8,9 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dbPath = path.join(__dirname, '../../data/gym.db');
+// On Render: use /data (persistent disk). Locally: use ./data next to server root.
+const dbPath = process.env.DB_PATH ||
+  (fs.existsSync('/data') ? '/data/gym.db' : path.join(__dirname, '../../data/gym.db'));
 const dataDir = path.dirname(dbPath);
 
 let db = null;
