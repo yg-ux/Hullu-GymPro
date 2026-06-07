@@ -9,6 +9,7 @@ import { logPaymentRecorded, logPaymentDeleted } from '../services/activityServi
 const router = express.Router();
 
 const membershipDurations = {
+  'daily': 1,
   '1_month': 30,
   '2_months': 60,
   '3_months': 90,

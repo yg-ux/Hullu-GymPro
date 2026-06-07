@@ -14,7 +14,8 @@ import {
   Calendar,
   FileText,
   AlertCircle,
-  DollarSign
+  DollarSign,
+  Zap
 } from 'lucide-react';
 
 export default function AddCustomer() {
@@ -191,6 +192,7 @@ export default function AddCustomer() {
   };
 
   const is3DaysWeek = formData.membership_type === '3_days_week';
+  const isDaily = formData.membership_type === 'daily';
   const membershipDays = is3DaysWeek
     ? (THREE_DAYS_DURATIONS.find(d => d.value === formData.membership_duration)?.days || 30)
     : getMembershipDays(formData.membership_type);
@@ -353,6 +355,20 @@ export default function AddCustomer() {
           <div className="card p-6 space-y-4">
             <h2 className="text-lg font-semibold text-white">Membership & Payment</h2>
 
+            {/* Walk-in banner */}
+            {isDaily && (
+              <div className="flex items-start gap-3 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                <Zap className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-amber-400 font-semibold">Walk-in / Daily Pass</p>
+                  <p className="text-sm text-gray-400 mt-0.5">
+                    This customer pays per visit. Their pass is valid <span className="text-white font-medium">today only</span>.
+                    When they return, use <span className="text-white font-medium">Extend Membership</span> on their profile to record a new daily payment.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">Membership Type</label>
@@ -431,28 +447,52 @@ export default function AddCustomer() {
               </div>
             </div>
 
-            <div className="p-4 bg-dark-200 rounded-lg border border-gray-700">
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Duration</p>
-                  <p className="text-lg font-bold text-white">{membershipDays} days</p>
+            {/* Preview card */}
+            {isDaily ? (
+              <div className="p-4 bg-dark-200 rounded-lg border border-amber-500/30">
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Valid On</p>
+                    <p className="text-lg font-bold text-amber-400">{startDate.toLocaleDateString()}</p>
+                    <p className="text-xs text-gray-500">Today only</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Pass Type</p>
+                    <p className="text-lg font-bold text-white">Daily</p>
+                    <p className="text-xs text-gray-500">1 visit</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Start Date</p>
-                  <p className="text-lg font-bold text-white">{startDate.toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">End Date</p>
-                  <p className="text-lg font-bold text-green-400">{endDate.toLocaleDateString()}</p>
-                </div>
+                {formData.amount && (
+                  <div className="mt-4 pt-4 border-t border-gray-700 text-center">
+                    <p className="text-sm text-gray-400">Amount paid:</p>
+                    <p className="text-2xl font-bold text-green-400">ETB {parseFloat(formData.amount || 0).toLocaleString()}</p>
+                  </div>
+                )}
               </div>
-              {formData.amount && (
-                <div className="mt-4 pt-4 border-t border-gray-700 text-center">
-                  <p className="text-sm text-gray-400">Amount paid: </p>
-                  <p className="text-2xl font-bold text-green-400">ETB {parseFloat(formData.amount || 0).toLocaleString()}</p>
+            ) : (
+              <div className="p-4 bg-dark-200 rounded-lg border border-gray-700">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Duration</p>
+                    <p className="text-lg font-bold text-white">{membershipDays} days</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Start Date</p>
+                    <p className="text-lg font-bold text-white">{startDate.toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">End Date</p>
+                    <p className="text-lg font-bold text-green-400">{endDate.toLocaleDateString()}</p>
+                  </div>
                 </div>
-              )}
-            </div>
+                {formData.amount && (
+                  <div className="mt-4 pt-4 border-t border-gray-700 text-center">
+                    <p className="text-sm text-gray-400">Amount paid: </p>
+                    <p className="text-2xl font-bold text-green-400">ETB {parseFloat(formData.amount || 0).toLocaleString()}</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -510,7 +550,7 @@ export default function AddCustomer() {
                 {isEditing ? 'Updating...' : 'Adding...'}
               </span>
             ) : (
-              isEditing ? 'Save Changes' : 'Add Customer & Record Payment'
+              isEditing ? 'Save Changes' : isDaily ? 'Register Walk-in & Record Payment' : 'Add Customer & Record Payment'
             )}
           </button>
         </div>

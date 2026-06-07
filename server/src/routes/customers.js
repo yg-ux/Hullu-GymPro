@@ -16,7 +16,7 @@ function getWeekStart(date = new Date()) {
 }
 
 const membershipDurations = {
-  '1_month': 30, '2_months': 60, '3_months': 90,
+  'daily': 1, '1_month': 30, '2_months': 60, '3_months': 90,
   '6_months': 180, '1_year': 365, '3_days_week': 30
 };
 

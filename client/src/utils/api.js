@@ -61,6 +61,7 @@ export const api = {
 };
 
 export const MEMBERSHIP_TYPES = [
+  { value: 'daily', label: 'Daily (Walk-in)', days: 1 },
   { value: '1_month', label: '1 Month', days: 30 },
   { value: '2_months', label: '2 Months', days: 60 },
   { value: '3_months', label: '3 Months', days: 90 },
