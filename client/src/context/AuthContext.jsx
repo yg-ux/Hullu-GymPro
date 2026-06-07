@@ -19,9 +19,13 @@ export function AuthProvider({ children }) {
           setSubscription(data.subscription);
         })
         .catch(() => {
+          // Token invalid/expired — clear everything so user goes to login
           localStorage.removeItem('token');
           localStorage.removeItem('gym');
           localStorage.removeItem('subscription');
+          setUser(null);
+          setGym(null);
+          setSubscription(null);
         })
         .finally(() => {
           setLoading(false);
