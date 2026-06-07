@@ -126,8 +126,8 @@ router.post('/register', validateRegister, async (req, res) => {
 
     const today = new Date();
     const gymInsertSql = `
-      INSERT INTO gyms (id, name, slug, email, phone, subscription_status, subscription_plan, subscription_start, subscription_end, color_theme, logo, max_members)
-      VALUES (?, ?, ?, ?, ?, 'active', 'free', ?, ?, ?, ?, 10)
+      INSERT INTO gyms (id, name, slug, email, phone, subscription_status, subscription_plan, subscription_start, subscription_end, color_theme, logo, max_members, sms_enabled)
+      VALUES (?, ?, ?, ?, ?, 'active', 'free', ?, ?, ?, ?, 10, 1)
     `;
     const gymParams = [gymId, gymName, slug, email, phone || null, today.toISOString().split('T')[0], today.toISOString().split('T')[0], colorTheme || 'default', logo || null];
 

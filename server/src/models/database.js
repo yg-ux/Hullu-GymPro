@@ -65,7 +65,7 @@ export async function initDatabase() {
       subscription_end TEXT,
       max_members INTEGER DEFAULT 10,
       total_customers INTEGER DEFAULT 0,
-      sms_enabled INTEGER DEFAULT 0,
+      sms_enabled INTEGER DEFAULT 1,
       sms_api_key TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
