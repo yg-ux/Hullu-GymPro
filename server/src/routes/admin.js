@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { runQuery, getOne, getAll, saveDatabase } from '../models/database.js';
 import { authenticateToken, JWT_SECRET } from './auth.js';
 import { verifyTelebirrTransaction } from '../services/telebirrService.js';
+import { notifyNewSubscriptionRequest } from '../services/telegramService.js';
 
 const router = express.Router();
 
@@ -167,6 +168,18 @@ router.post('/subscription-request', authenticateToken, async (req, res) => {
       INSERT INTO subscription_requests (id, gym_id, requested_plan, amount_paid, payment_method, transaction_id, duration_months, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
     `, [id, gymId, plan_id, expectedAmount, payment_method || 'telebirr', transaction_id.trim(), months]);
+
+    // Fire Telegram notification — non-blocking, never fails the request
+    const gym = await getOne('SELECT name, email FROM gyms WHERE id = ?', [gymId]);
+    notifyNewSubscriptionRequest({
+      gymName:       gym?.name || 'Unknown Gym',
+      gymEmail:      gym?.email || null,
+      plan:          plan_id,
+      amount:        expectedAmount,
+      paymentMethod: payment_method || 'telebirr',
+      transactionId: transaction_id.trim(),
+      durationMonths: months,
+    }).catch(e => console.warn('Telegram notify failed:', e.message));
 
     res.status(201).json({
       message: 'Request submitted! We\'ll review and activate your plan shortly.',
