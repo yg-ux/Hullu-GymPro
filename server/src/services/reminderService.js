@@ -34,8 +34,7 @@ class ReminderService {
         WHERE c.status IN ('active', 'expiring')
           AND c.membership_end IS NOT NULL
           AND (
-            c.membership_end::date = CURRENT_DATE + INTERVAL '7 days'
-            OR c.membership_end::date = CURRENT_DATE + INTERVAL '1 day'
+            c.membership_end::date = CURRENT_DATE + INTERVAL '3 days'
             OR c.membership_end::date = CURRENT_DATE
           )
           AND g.sms_enabled = 1
