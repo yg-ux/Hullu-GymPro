@@ -23,7 +23,7 @@ const PLANS = [
   {
     id: 'starter',
     name: 'Starter',
-    price: 1999,
+    price: 1499,
     color: 'from-blue-500 to-cyan-500',
     icon: Zap,
     maxMembers: 100,
@@ -33,7 +33,7 @@ const PLANS = [
   {
     id: 'pro',
     name: 'Pro',
-    price: 4999,
+    price: 3499,
     color: 'from-purple-500 to-pink-500',
     icon: Crown,
     maxMembers: -1,

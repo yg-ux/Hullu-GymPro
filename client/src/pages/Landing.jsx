@@ -38,7 +38,7 @@ const PLANS = [
   {
     id: 'starter',
     name: 'Starter',
-    price: 1999,
+    price: 1499,
     priceLabel: 'ETB 1,999',
     description: 'For growing gyms',
     color: 'border-blue-500',
@@ -56,7 +56,7 @@ const PLANS = [
   {
     id: 'pro',
     name: 'Pro',
-    price: 4999,
+    price: 3499,
     priceLabel: 'ETB 4,999',
     description: 'Full power, no limits',
     color: 'border-purple-500',

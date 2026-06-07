@@ -335,7 +335,7 @@ router.get('/plans', (req, res) => {
       {
         id: 'starter',
         name: 'Starter',
-        price: 1999,
+        price: 1499,
         currency: 'ETB',
         period: 'month',
         max_members: 100,
@@ -350,7 +350,7 @@ router.get('/plans', (req, res) => {
       {
         id: 'pro',
         name: 'Pro',
-        price: 4999,
+        price: 3499,
         currency: 'ETB',
         period: 'month',
         max_members: -1, // unlimited
@@ -379,7 +379,7 @@ router.post('/subscribe', authenticateToken, async (req, res) => {
 
     const plans = {
       'free': { price: 0, max_members: 10 },
-      'starter': { price: 1999, max_members: 100 },
+      'starter': { price: 1499, max_members: 100 },
       'pro': { price: 5000, max_members: -1 }
     };
 

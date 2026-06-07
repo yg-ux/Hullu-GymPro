@@ -127,8 +127,8 @@ router.post('/subscription-request', authenticateToken, async (req, res) => {
     const gymId = req.user.gym_id;
 
     const plans = {
-      'starter': 1999,
-      'pro': 4999,
+      'starter': 1499,
+      'pro': 3499,
     };
 
     if (!plans[plan_id]) {
