@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { 
+import { api } from '../utils/api';
+import { useToast } from '../context/ToastContext';
+import {
   ArrowLeft,
   User,
   Mail,
@@ -11,7 +13,6 @@ import {
   EyeOff,
   Shuffle,
   Send,
-  CheckCircle,
   AlertCircle,
   Building,
   UserCheck,
@@ -62,6 +63,7 @@ function generatePassword(length = 12) {
 
 export default function AddStaff() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -73,7 +75,6 @@ export default function AddStaff() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
-  const [successMessage, setSuccessMessage] = useState('');
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -121,33 +122,29 @@ export default function AddStaff() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
+      toast.error('Please fix the errors below');
       return;
     }
-    
+
     setLoading(true);
     setErrors({});
-    
+
     try {
-      // In production: await api.post('/staff', formData);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Simulate sending credentials email
-      if (formData.sendCredentials) {
-        console.log(`Credentials sent to ${formData.email}`);
-      }
-      
-      setSuccessMessage(`Staff member "${formData.name}" has been created successfully!`);
-      
-      // Navigate back after short delay
-      setTimeout(() => {
-        navigate('/staff');
-      }, 1500);
+      await api.post('/staff', {
+        username: formData.email,
+        email: formData.email,
+        name: formData.name,
+        phone: formData.phone || null,
+        role: formData.role,
+        password: formData.password,
+      });
+
+      toast.success(`${formData.name} has been added to your team`);
+      setTimeout(() => navigate('/staff'), 1000);
     } catch (error) {
-      console.error('Failed to create staff:', error);
-      setErrors({ submit: 'Failed to create staff member. Please try again.' });
+      toast.error(error.message || 'Failed to create staff member');
     } finally {
       setLoading(false);
     }
@@ -168,18 +165,6 @@ export default function AddStaff() {
           <p className="text-gray-400 mt-1">Create a new team member account</p>
         </div>
       </div>
-
-      {/* Success Message */}
-      {successMessage && (
-        <div className="glass-card p-4 border-green-500/30 bg-green-500/10 animate-slide-down">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center">
-              <CheckCircle className="w-5 h-5 text-green-400" />
-            </div>
-            <p className="text-green-300 font-medium">{successMessage}</p>
-          </div>
-        </div>
-      )}
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="glass-card p-6 space-y-6">
@@ -375,16 +360,6 @@ export default function AddStaff() {
             </div>
           </label>
         </div>
-
-        {/* Submit Error */}
-        {errors.submit && (
-          <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-red-400" />
-              <p className="text-red-300">{errors.submit}</p>
-            </div>
-          </div>
-        )}
 
         {/* Form Actions */}
         <div className="flex gap-3 pt-4 border-t border-gray-800/50">

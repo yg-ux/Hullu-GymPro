@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+﻿import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Dumbbell, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
@@ -112,6 +112,12 @@ export default function Login() {
                 'Sign in'
               )}
             </button>
+
+            <div className="text-center">
+              <Link to="/forgot-password" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">
+                Forgot your password?
+              </Link>
+            </div>
           </form>
         </div>
       </div>

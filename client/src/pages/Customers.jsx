@@ -1,11 +1,14 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, getStatusColor, formatDate, getMembershipLabel } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import { 
-  Search, 
-  Plus, 
-  Grid3X3, 
+import { useToast } from '../context/ToastContext';
+import Pagination from '../components/Pagination';
+import { CustomerCardSkeleton } from '../components/Skeleton';
+import {
+  Search,
+  Plus,
+  Grid3X3,
   List,
   X,
   User,
@@ -24,7 +27,8 @@ import {
   Zap,
   MoreHorizontal,
   ChevronDown,
-  UserCheck
+  UserCheck,
+  Download
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -55,89 +59,89 @@ function useLocalStorage(key, initialValue) {
 
 export default function Customers() {
   const { subscription } = useAuth();
+  const toast = useToast();
   const [customers, setCustomers] = useState([]);
+  const [pagination, setPagination] = useState(null);
+  const [summary, setSummary] = useState({ total: 0, active: 0, expiring: 0, expired: 0, inactive: 0 });
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('membership_end');
-  const [sortOrder, setSortOrder] = useState('asc');
   const [viewMode, setViewMode] = useLocalStorage('customerViewMode', 'grid');
   const [selectedCustomers, setSelectedCustomers] = useState([]);
   const [bulkActionOpen, setBulkActionOpen] = useState(false);
   const navigate = useNavigate();
+  const searchDebounceRef = useRef(null);
 
   useEffect(() => {
-    loadCustomers();
-  }, []);
+    loadCustomers(page, statusFilter, search);
+  }, [page, statusFilter]);
 
-  const loadCustomers = async () => {
+  // Debounce search
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      setPage(1);
+      loadCustomers(1, statusFilter, search);
+    }, 300);
+    return () => clearTimeout(searchDebounceRef.current);
+  }, [search]);
+
+  const loadCustomers = async (p = 1, status = 'all', q = '') => {
     try {
-      const data = await api.get('/customers');
-      setCustomers(data);
+      setLoading(true);
+      const params = new URLSearchParams({ page: p, limit: 50 });
+      if (status && status !== 'all') params.set('status', status);
+      if (q) params.set('search', q);
+      const data = await api.get(`/customers?${params}`);
+      setCustomers(data.data || []);
+      setPagination(data.pagination || null);
+      setSummary(data.summary || { total: 0, active: 0, expiring: 0, expired: 0, inactive: 0 });
     } catch (error) {
       console.error('Failed to load customers:', error);
+      toast.error('Failed to load customers');
     } finally {
       setLoading(false);
     }
   };
 
-  // Smart sorting: Active → Expiring → Expired → Inactive
-  const filteredCustomers = useMemo(() => {
-    let result = [...customers];
-
-    // Apply status filter
-    if (statusFilter !== 'all') {
-      result = result.filter(c => c.status === statusFilter);
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+      const params = new URLSearchParams({ format: 'csv' });
+      if (statusFilter !== 'all') params.set('status', statusFilter);
+      const res = await fetch(`${API_BASE}/reports/customers?${params}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `customers-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Export downloaded successfully');
+    } catch (err) {
+      toast.error(err.message || 'Export failed');
+    } finally {
+      setExporting(false);
     }
+  };
 
-    // Apply search
-    if (search) {
-      const searchLower = search.toLowerCase();
-      result = result.filter(c => 
-        c.name.toLowerCase().includes(searchLower) ||
-        (c.phone && c.phone.includes(searchLower))
-      );
-    }
+  const filteredCustomers = customers; // Server handles filtering now
 
-    // Smart sorting by status
-    const statusPriority = { active: 0, expiring: 1, expired: 2, inactive: 3 };
-    
-    result.sort((a, b) => {
-      // First sort by status priority
-      const statusDiff = statusPriority[a.status] - statusPriority[b.status];
-      if (statusDiff !== 0) return sortOrder === 'asc' ? statusDiff : -statusDiff;
-      
-      // Then by selected sort field
-      let aVal, bVal;
-      
-      switch (sortBy) {
-        case 'name':
-          aVal = a.name.toLowerCase();
-          bVal = b.name.toLowerCase();
-          return sortOrder === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
-        case 'membership_end':
-          aVal = new Date(a.membership_end || '9999-12-31');
-          bVal = new Date(b.membership_end || '9999-12-31');
-          return aVal > bVal ? 1 : -1;
-        case 'created_at':
-          aVal = new Date(a.created_at);
-          bVal = new Date(b.created_at);
-          return sortOrder === 'desc' ? aVal - bVal : bVal - aVal;
-        default:
-          return 0;
-      }
-    });
-
-    return result;
-  }, [customers, search, statusFilter, sortBy, sortOrder]);
-
-  const statusCounts = useMemo(() => ({
-    all: customers.length,
-    active: customers.filter(c => c.status === 'active').length,
-    expiring: customers.filter(c => c.status === 'expiring').length,
-    expired: customers.filter(c => c.status === 'expired').length,
-    inactive: customers.filter(c => c.status === 'inactive').length,
-  }), [customers]);
+  const statusCounts = {
+    all: summary.total,
+    active: summary.active,
+    expiring: summary.expiring,
+    expired: summary.expired,
+    inactive: summary.inactive,
+  };
 
   const getDaysDisplay = (customer) => {
     const days = customer.days_until_expiry;
@@ -154,6 +158,12 @@ export default function Customers() {
     if (days > 7) return 'text-green-400';
     if (days > 0) return 'text-yellow-400';
     return 'text-red-400';
+  };
+
+  const handleStatusFilter = (status) => {
+    setStatusFilter(status);
+    setPage(1);
+    setSelectedCustomers([]);
   };
 
   // Bulk selection handlers
@@ -173,18 +183,7 @@ export default function Customers() {
     );
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="relative">
-          <div className="w-16 h-16 rounded-full border-4 border-gym-600/30 animate-pulse" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-8 h-8 rounded-full border-4 border-gym-500 border-t-transparent animate-spin" />
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Skeleton grid shown inline rather than replacing the whole page
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -193,17 +192,22 @@ export default function Customers() {
         <div>
           <h1 className="text-3xl font-bold text-white">
             Customers
-            <span className="ml-2 text-lg font-normal text-gray-400">({filteredCustomers.length})</span>
+            <span className="ml-2 text-lg font-normal text-gray-400">({statusCounts.all})</span>
           </h1>
           <p className="text-gray-400 mt-1">
             Manage your gym members and their memberships
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Link to="/customers" className="btn-secondary hidden sm:inline-flex items-center gap-2">
-            <Filter className="w-4 h-4" />
-            Filter
-          </Link>
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="btn-secondary hidden sm:inline-flex items-center gap-2"
+            title="Export customers to CSV"
+          >
+            {exporting ? <span className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full" /> : <Download className="w-4 h-4" />}
+            Export
+          </button>
           {subscription?.valid ? (
             <Link to="/customers/new" className="gradient-primary btn-primary inline-flex items-center gap-2 shadow-lg shadow-gym-500/30">
               <Plus className="w-5 h-5" />
@@ -232,7 +236,7 @@ export default function Customers() {
         ].map(tab => (
           <button
             key={tab.key}
-            onClick={() => setStatusFilter(tab.key)}
+            onClick={() => handleStatusFilter(tab.key)}
             className={clsx(
               "px-4 py-2 rounded-xl font-medium transition-all duration-300",
               statusFilter === tab.key
@@ -360,7 +364,11 @@ export default function Customers() {
       )}
 
       {/* Customer List */}
-      {filteredCustomers.length === 0 ? (
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, i) => <CustomerCardSkeleton key={i} />)}
+        </div>
+      ) : filteredCustomers.length === 0 ? (
         <div className="glass-card p-12 text-center">
           <div className="w-20 h-20 rounded-2xl bg-dark-200 flex items-center justify-center mx-auto mb-4">
             <User className="w-10 h-10 text-gray-600" />
@@ -368,17 +376,18 @@ export default function Customers() {
           <h3 className="text-lg font-medium text-white mb-2">No customers found</h3>
           <p className="text-gray-400 mb-6">
             {search || statusFilter !== 'all'
-              ? 'Try adjusting your filters'
+              ? 'Try adjusting your filters or search term'
               : 'Start by adding your first customer'}
           </p>
           {!search && statusFilter === 'all' && (
             <Link to="/customers/new" className="gradient-primary btn-primary inline-flex items-center gap-2 shadow-lg">
               <Plus className="w-5 h-5" />
-              Add Customer
+              Add Your First Member
             </Link>
           )}
         </div>
       ) : viewMode === 'grid' ? (
+        <>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 stagger-children">
           {filteredCustomers.map((customer) => (
             <CustomerCard
@@ -393,7 +402,10 @@ export default function Customers() {
             />
           ))}
         </div>
+        <Pagination pagination={pagination} onPageChange={setPage} />
+        </>
       ) : (
+        <>
         <div className="glass-card overflow-hidden">
           <table className="w-full">
             <thead>
@@ -501,6 +513,8 @@ export default function Customers() {
             </tbody>
           </table>
         </div>
+        <Pagination pagination={pagination} onPageChange={setPage} />
+        </>
       )}
     </div>
   );

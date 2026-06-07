@@ -129,8 +129,51 @@ function SummaryCard({ title, value, icon: Icon, color, trend, trendUp, delay, a
   );
 }
 
+// Label helpers for all periods
+const MONTH_NAMES_R = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTH_SHORT_R  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function parseLabel(str, period) {
+  if (!str) return { short: '', long: str || '' };
+
+  if (period === 'monthly') {
+    // "2026-06" → Jun / June 2026
+    const parts = str.split('-');
+    if (parts.length >= 2) {
+      const idx = parseInt(parts[1], 10) - 1;
+      if (idx >= 0 && idx < 12) return { short: MONTH_SHORT_R[idx], long: `${MONTH_NAMES_R[idx]} ${parts[0]}` };
+    }
+  }
+
+  if (period === 'daily') {
+    // "2026-06-07" → "7 Jun" / "Jun 7, 2026"
+    const parts = str.split('-');
+    if (parts.length === 3) {
+      const monthIdx = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      if (monthIdx >= 0 && monthIdx < 12) {
+        return { short: `${day} ${MONTH_SHORT_R[monthIdx]}`, long: `${MONTH_SHORT_R[monthIdx]} ${day}, ${parts[0]}` };
+      }
+    }
+  }
+
+  if (period === 'weekly') {
+    // "2026-W22" → "Wk 22" / "Week 22, 2026"
+    const match = str.match(/^(\d{4})-W(\d+)$/);
+    if (match) return { short: `Wk ${parseInt(match[2], 10)}`, long: `Week ${parseInt(match[2], 10)}, ${match[1]}` };
+  }
+
+  if (period === 'yearly') {
+    // "2026" → "2026" / "2026"
+    return { short: str, long: str };
+  }
+
+  return { short: str, long: str };
+}
+
 // Revenue Chart Component
 function RevenueChart({ data, period, onPeriodChange, animated }) {
+  const [hoveredIdx, setHoveredIdx] = useState(null);
+
   const periods = [
     { key: 'daily', label: 'Daily' },
     { key: 'weekly', label: 'Weekly' },
@@ -138,28 +181,54 @@ function RevenueChart({ data, period, onPeriodChange, animated }) {
     { key: 'yearly', label: 'Yearly' },
   ];
 
-  // Simple bar chart implementation
-  const maxValue = data.length > 0 ? Math.max(...data.map(d => d.total)) : 0;
+  const VW = 900, VH = 260;
+  const pad = { top: 52, right: 20, bottom: 52, left: 64 };
+  const innerW = VW - pad.left - pad.right;
+  const innerH = VH - pad.top - pad.bottom;
+  const GRID = 4;
+
+  const maxVal = data.length > 0 ? Math.max(...data.map(d => d.total), 1) : 1;
+  const slotW = data.length > 0 ? innerW / data.length : innerW;
+  const barW = Math.min(slotW * 0.55, 42);
+
+  const xOf = (i) => pad.left + slotW * i + slotW / 2;
+  const baseY = pad.top + innerH;
+
+  // Rounded-top-only bar path: flat bottom, rounded top corners
+  const barPath = (cx, barY, w, h, r) => {
+    if (h <= 0) return '';
+    const x = cx - w / 2;
+    const cr = Math.min(r, w / 2, h);
+    return `M${x},${barY + h} L${x},${barY + cr} Q${x},${barY} ${x + cr},${barY} L${x + w - cr},${barY} Q${x + w},${barY} ${x + w},${barY + cr} L${x + w},${barY + h} Z`;
+  };
+
+  const fmtY = (v) => {
+    if (v === 0) return '0';
+    if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+    if (v >= 1000) return `${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k`;
+    return Math.round(v).toString();
+  };
 
   return (
     <div className="glass-card p-6">
-      <div className="flex items-center justify-between mb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
         <h2 className="text-xl font-semibold text-white flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-            <BarChart3 className="w-6 h-6 text-white" />
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+            <BarChart3 className="w-5 h-5 text-white" />
           </div>
           Revenue Over Time
         </h2>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center bg-dark-300/60 rounded-xl p-1 gap-0.5">
           {periods.map((p) => (
             <button
               key={p.key}
               onClick={() => onPeriodChange(p.key)}
               className={clsx(
-                "px-3 py-1.5 text-sm rounded-lg transition-all duration-300",
+                "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200",
                 period === p.key
-                  ? "bg-gym-500/30 text-gym-400 border border-gym-500/50"
-                  : "text-gray-400 hover:text-white hover:bg-dark-100"
+                  ? "bg-emerald-500/20 text-emerald-400 shadow-sm"
+                  : "text-gray-500 hover:text-gray-300"
               )}
             >
               {p.label}
@@ -169,47 +238,145 @@ function RevenueChart({ data, period, onPeriodChange, animated }) {
       </div>
 
       {data.length > 0 ? (
-        <div className="h-64 flex items-end gap-2">
-          {data.map((item, index) => {
-            const height = maxValue > 0 ? (item.total / maxValue) * 100 : 0;
-            const isCurrent = index === data.length - 1;
+        <svg viewBox={`0 0 ${VW} ${VH}`} className="w-full" style={{ height: 'auto', display: 'block' }}>
+          <defs>
+            <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stopColor="#34d399" stopOpacity="1" />
+              <stop offset="60%"  stopColor="#10b981" stopOpacity="0.9" />
+              <stop offset="100%" stopColor="#065f46" stopOpacity="0.75" />
+            </linearGradient>
+            <linearGradient id="barGradHov" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stopColor="#6ee7b7" stopOpacity="1" />
+              <stop offset="60%"  stopColor="#34d399" stopOpacity="1" />
+              <stop offset="100%" stopColor="#10b981" stopOpacity="0.9" />
+            </linearGradient>
+            <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+              <feGaussianBlur stdDeviation="5" result="blur" />
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
 
+          {/* Grid lines + Y labels */}
+          {Array.from({ length: GRID + 1 }, (_, i) => {
+            const frac = i / GRID;
+            const val  = maxVal * (1 - frac);
+            const y    = pad.top + innerH * frac;
             return (
-              <div
-                key={item.label || index}
-                className="flex-1 flex flex-col items-center gap-2 group"
-              >
-                <div className="w-full flex flex-col items-center justify-end h-44">
-                  <div
-                    className={clsx(
-                      "w-full rounded-t-lg transition-all duration-1000 ease-out cursor-pointer relative",
-                      isCurrent
-                        ? "bg-gradient-to-t from-emerald-600 via-emerald-500 to-emerald-400 shadow-lg shadow-emerald-500/40"
-                        : "bg-gradient-to-t from-gray-600 to-gray-500 group-hover:from-gray-500 group-hover:to-gray-400"
-                    )}
-                    style={{
-                      height: animated ? `${Math.max(height, 5)}%` : '0%',
-                      transitionDelay: `${index * 100}ms`
-                    }}
-                  >
-                    {/* Tooltip */}
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity glass-card px-3 py-2 shadow-xl whitespace-nowrap z-10">
-                      <p className="text-xs text-gray-400">{item.label}</p>
-                      <p className="text-sm font-bold text-white">{formatCurrency(item.total)}</p>
-                      {item.count && <p className="text-xs text-gray-400">{item.count} payments</p>}
-                    </div>
-                  </div>
-                </div>
-                <span className="text-xs text-gray-500">{item.label}</span>
-              </div>
+              <g key={i}>
+                <line
+                  x1={pad.left} y1={y} x2={VW - pad.right} y2={y}
+                  stroke={i === GRID ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)'}
+                  strokeWidth={i === GRID ? 1.5 : 1}
+                  strokeDasharray={i === GRID ? '' : '4 6'}
+                />
+                <text x={pad.left - 8} y={y + 4} textAnchor="end"
+                  fill="#4b5563" fontSize="11" fontFamily="ui-sans-serif, system-ui, sans-serif">
+                  {fmtY(val)}
+                </text>
+              </g>
             );
           })}
-        </div>
+
+          {/* Bars */}
+          {data.map((item, i) => {
+            const cx   = xOf(i);
+            const rawH = (item.total / maxVal) * innerH;
+            const barH = animated ? Math.max(rawH, item.total > 0 ? 3 : 0) : 0;
+            const barY = baseY - barH;
+            const isHov = hoveredIdx === i;
+            const { short, long } = parseLabel(item.label, period);
+
+            // Tooltip
+            const TW = 112, TH = 34;
+            const tipX = Math.min(Math.max(cx - TW / 2, pad.left), VW - pad.right - TW);
+            const tipY = Math.max(barY - TH - 10, 2);
+            const caretX = Math.min(Math.max(cx, tipX + 12), tipX + TW - 12);
+
+            return (
+              <g key={item.label || i}
+                onMouseEnter={() => setHoveredIdx(i)}
+                onMouseLeave={() => setHoveredIdx(null)}
+                style={{ cursor: 'pointer' }}>
+
+                {/* Hit zone */}
+                <rect x={cx - slotW / 2} y={pad.top} width={slotW} height={innerH} fill="transparent" />
+
+                {/* Hover background lane */}
+                {isHov && (
+                  <rect x={cx - barW / 2 - 5} y={pad.top} width={barW + 10} height={innerH}
+                    rx={8} fill="rgba(52,211,153,0.06)" />
+                )}
+
+                {/* Main bar — rounded top only */}
+                {barH > 0 && (
+                  <path
+                    d={barPath(cx, barY, barW, barH, 6)}
+                    fill={isHov ? 'url(#barGradHov)' : 'url(#barGrad)'}
+                    opacity={isHov ? 1 : 0.82}
+                    filter={isHov ? 'url(#glow)' : undefined}
+                    style={{
+                      transition: `opacity 0.2s`,
+                    }}
+                  />
+                )}
+
+                {/* Thin highlight line at top edge */}
+                {barH > 8 && (
+                  <line
+                    x1={cx - barW / 2 + 4} y1={barY + 1.5}
+                    x2={cx + barW / 2 - 4} y2={barY + 1.5}
+                    stroke={isHov ? '#a7f3d0' : '#6ee7b7'}
+                    strokeWidth="2" strokeLinecap="round"
+                    opacity={isHov ? 0.9 : 0.45}
+                  />
+                )}
+
+                {/* Value label above bar on hover */}
+                {isHov && barH > 10 && (
+                  <text x={cx} y={barY - 6} textAnchor="middle"
+                    fill="#34d399" fontSize="10" fontWeight="700"
+                    fontFamily="ui-sans-serif, system-ui, sans-serif">
+                    {fmtY(item.total)}
+                  </text>
+                )}
+
+                {/* X-axis label */}
+                <text x={cx} y={baseY + 18} textAnchor="middle"
+                  fill={isHov ? '#9ca3af' : '#4b5563'}
+                  fontSize={data.length > 20 ? 8 : data.length > 12 ? 9 : 10}
+                  fontWeight={isHov ? '600' : '400'}
+                  fontFamily="ui-sans-serif, system-ui, sans-serif">
+                  {short}
+                </text>
+
+                {/* Tooltip */}
+                {isHov && (
+                  <g>
+                    <rect x={tipX + 2} y={tipY + 2} width={TW} height={TH} rx={8} fill="rgba(0,0,0,0.35)" />
+                    <rect x={tipX} y={tipY} width={TW} height={TH} rx={8}
+                      fill="#0f172a" stroke="#34d399" strokeWidth="1" strokeOpacity="0.4" />
+                    <circle cx={tipX + 12} cy={tipY + TH / 2} r={3.5} fill="#34d399" />
+                    <text x={tipX + 22} y={tipY + 13} fill="#6ee7b7" fontSize="8" fontWeight="500"
+                      fontFamily="ui-sans-serif, system-ui, sans-serif">
+                      {long}
+                    </text>
+                    <text x={tipX + 22} y={tipY + 26} fill="white" fontSize="10" fontWeight="700"
+                      fontFamily="ui-sans-serif, system-ui, sans-serif">
+                      ETB {item.total.toLocaleString()}
+                    </text>
+                    <path d={`M${caretX - 5},${tipY + TH} L${caretX},${tipY + TH + 6} L${caretX + 5},${tipY + TH}`}
+                      fill="#0f172a" stroke="#34d399" strokeOpacity="0.4" strokeWidth="1" strokeLinejoin="round" />
+                  </g>
+                )}
+              </g>
+            );
+          })}
+        </svg>
       ) : (
-        <div className="h-64 flex items-center justify-center text-gray-500">
+        <div className="h-52 flex items-center justify-center text-gray-500">
           <div className="text-center">
-            <BarChart3 className="w-12 h-12 mx-auto mb-3 text-gray-600" />
-            <p>No revenue data available</p>
+            <BarChart3 className="w-10 h-10 mx-auto mb-3 text-gray-700" />
+            <p className="text-sm">No revenue data for this period</p>
           </div>
         </div>
       )}

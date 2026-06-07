@@ -1,21 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { 
-  Search, 
-  Plus, 
-  Grid3X3, 
-  List,
+import { useToast } from '../context/ToastContext';
+import { api } from '../utils/api';
+import {
+  Search,
+  Plus,
   X,
   User,
-  Phone,
   Mail,
   Shield,
   Clock,
-  MoreHorizontal,
   Edit,
   Trash2,
-  Eye,
   UserCheck,
   Building,
   ChevronDown
@@ -105,7 +102,9 @@ const mockStaff = [
 ];
 
 function formatLastLogin(dateString) {
+  if (!dateString) return 'Never';
   const date = new Date(dateString);
+  if (isNaN(date)) return 'Never';
   const now = new Date();
   const diffMs = now - date;
   const diffMins = Math.floor(diffMs / 60000);
@@ -118,17 +117,27 @@ function formatLastLogin(dateString) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+// Normalise API response — server stores username, client expects name/email
+function normaliseStaff(member) {
+  return {
+    ...member,
+    name: member.name || member.username || 'Staff',
+    email: member.email || member.username || '',
+    status: member.status || 'active',
+  };
+}
+
 export default function Staff() {
   const { subscription } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [viewMode, setViewMode] = useState('grid');
   const [deleteModal, setDeleteModal] = useState({ open: false, staff: null });
-  const [bulkActionsOpen, setBulkActionsOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState([]);
 
   useEffect(() => {
@@ -138,7 +147,7 @@ export default function Staff() {
   const loadStaff = async () => {
     try {
       const data = await api.get('/staff');
-      setStaff(data.staff || []);
+      setStaff((data.staff || []).map(normaliseStaff));
       setLoading(false);
     } catch (error) {
       console.error('Failed to load staff:', error);
@@ -159,11 +168,15 @@ export default function Staff() {
 
   const handleDelete = async (staffMember) => {
     try {
-      // In production: await api.delete(`/staff/${staffMember.id}`);
+      setDeleteLoading(true);
+      await api.delete(`/staff/${staffMember.id}`);
       setStaff(prev => prev.filter(s => s.id !== staffMember.id));
       setDeleteModal({ open: false, staff: null });
+      toast.success(`${staffMember.name} has been removed`);
     } catch (error) {
-      console.error('Failed to delete staff:', error);
+      toast.error(error.message || 'Failed to delete staff member');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -392,17 +405,27 @@ export default function Staff() {
                   They will lose access to the system immediately.
                 </p>
                 <div className="flex gap-3">
-                  <button 
+                  <button
                     onClick={() => setDeleteModal({ open: false, staff: null })}
-                    className="flex-1 px-4 py-2.5 bg-dark-200 text-white rounded-lg font-medium hover:bg-dark-300 transition-all"
+                    disabled={deleteLoading}
+                    className="flex-1 px-4 py-2.5 bg-dark-200 text-white rounded-lg font-medium hover:bg-dark-300 transition-all disabled:opacity-50"
                   >
                     Cancel
                   </button>
-                  <button 
+                  <button
                     onClick={() => handleDelete(deleteModal.staff)}
-                    className="flex-1 px-4 py-2.5 bg-gradient-to-r from-red-500 to-rose-500 text-white rounded-lg font-medium hover:shadow-lg hover:shadow-red-500/30 transition-all"
+                    disabled={deleteLoading}
+                    className="flex-1 px-4 py-2.5 bg-gradient-to-r from-red-500 to-rose-500 text-white rounded-lg font-medium hover:shadow-lg hover:shadow-red-500/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                   >
-                    Delete
+                    {deleteLoading ? (
+                      <>
+                        <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Deleting...
+                      </>
+                    ) : 'Delete'}
                   </button>
                 </div>
               </div>

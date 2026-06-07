@@ -296,12 +296,12 @@ router.get('/reports', authenticateToken, (req, res) => {
 
     // Attendance data (check-ins last 30 days)
     const attendanceData = getAll(`
-      SELECT 
-        date(created_at) as date,
+      SELECT
+        date(check_in) as date,
         COUNT(*) as count
-      FROM check_ins 
-      WHERE gym_id = ? AND date(created_at) >= date('now', '-30 days')
-      GROUP BY date(created_at)
+      FROM attendance
+      WHERE gym_id = ? AND date(check_in) >= date('now', '-30 days')
+      GROUP BY date(check_in)
       ORDER BY date DESC
     `, [gymId]);
 
@@ -309,13 +309,13 @@ router.get('/reports', authenticateToken, (req, res) => {
     const totalCheckIns = attendanceData.reduce((sum, d) => sum + d.count, 0);
     const avgDaily = attendanceData.length > 0 ? Math.round(totalCheckIns / attendanceData.length) : 0;
     const peakDay = attendanceData.length > 0 ? attendanceData[0].date : 'N/A';
-    
-    // Find busiest hour (if check_ins has time data)
+
+    // Find busiest hour
     const busiestHourResult = getOne(`
-      SELECT strftime('%H', created_at) as hour, COUNT(*) as count
-      FROM check_ins 
-      WHERE gym_id = ? AND date(created_at) >= date('now', '-30 days')
-      GROUP BY strftime('%H', created_at)
+      SELECT strftime('%H', check_in) as hour, COUNT(*) as count
+      FROM attendance
+      WHERE gym_id = ? AND date(check_in) >= date('now', '-30 days')
+      GROUP BY strftime('%H', check_in)
       ORDER BY count DESC
       LIMIT 1
     `, [gymId]);
@@ -464,13 +464,40 @@ router.get('/revenue', authenticateToken, (req, res) => {
       ORDER BY p.payment_date DESC LIMIT 10
     `, [gymId]);
 
-    // Monthly trend
+    // Monthly trend (last 12 months)
     const monthlyTrend = getAll(`
-      SELECT strftime('%Y-%m', payment_date) as month, SUM(amount) as total, COUNT(*) as count
+      SELECT strftime('%Y-%m', payment_date) as label, SUM(amount) as total, COUNT(*) as count
       FROM payments
       WHERE gym_id = ? AND date(payment_date) >= date('now', '-12 months')
       GROUP BY strftime('%Y-%m', payment_date)
-      ORDER BY month
+      ORDER BY label
+    `, [gymId]);
+
+    // Daily trend (last 30 days)
+    const dailyTrend = getAll(`
+      SELECT date(payment_date) as label, SUM(amount) as total, COUNT(*) as count
+      FROM payments
+      WHERE gym_id = ? AND date(payment_date) >= date('now', '-30 days')
+      GROUP BY date(payment_date)
+      ORDER BY label
+    `, [gymId]);
+
+    // Weekly trend (last 13 weeks)
+    const weeklyTrend = getAll(`
+      SELECT strftime('%Y-W%W', payment_date) as label, SUM(amount) as total, COUNT(*) as count
+      FROM payments
+      WHERE gym_id = ? AND date(payment_date) >= date('now', '-91 days')
+      GROUP BY strftime('%Y-%W', payment_date)
+      ORDER BY label
+    `, [gymId]);
+
+    // Yearly trend (all years)
+    const yearlyTrend = getAll(`
+      SELECT strftime('%Y', payment_date) as label, SUM(amount) as total, COUNT(*) as count
+      FROM payments
+      WHERE gym_id = ?
+      GROUP BY strftime('%Y', payment_date)
+      ORDER BY label
     `, [gymId]);
 
     // Forecast
@@ -488,13 +515,10 @@ router.get('/revenue', authenticateToken, (req, res) => {
       payment_methods: paymentMethods,
       top_customers: topCustomers,
       recent_transactions: recentTransactions,
-      monthly_trend: monthlyTrend.map(m => ({
-        ...m,
-        label: m.month?.substring(5) || m.month
-      })),
-      daily_trend: [],
-      weekly_trend: [],
-      yearly_trend: [],
+      monthly_trend: monthlyTrend,
+      daily_trend: dailyTrend,
+      weekly_trend: weeklyTrend,
+      yearly_trend: yearlyTrend,
       forecast: {
         predicted_revenue: monthlyAvg * 1.1,
         growth_rate: 8.5,

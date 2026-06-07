@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { api, formatDate, formatCurrency, getMembershipLabel } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { StatCardSkeleton } from '../components/Skeleton';
 import { 
   Users, 
   UserCheck, 
@@ -222,12 +223,14 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="relative">
-          <div className="w-16 h-16 rounded-full border-4 border-gym-600/30 animate-pulse" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-8 h-8 rounded-full border-4 border-gym-500 border-t-transparent animate-spin" />
-          </div>
+      <div className="space-y-6 animate-fade-in">
+        <div className="h-10 w-64 bg-gray-800 rounded-lg animate-pulse" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[0, 1, 2, 3].map(i => <StatCardSkeleton key={i} />)}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 h-64 bg-gray-800 rounded-2xl animate-pulse" />
+          <div className="h-64 bg-gray-800 rounded-2xl animate-pulse" />
         </div>
       </div>
     );
@@ -262,10 +265,17 @@ export default function Dashboard() {
             </div>
           )}
           <div>
-            <h1 className="text-3xl font-bold text-white">
-              Welcome back! <span className={`bg-gradient-to-r from-${theme.accent}-400 to-${theme.accent}-500 bg-clip-text text-transparent`}>{gym?.name || 'Hullu Gyms'}</span>
+            <p className="text-sm font-medium text-gray-400 mb-0.5">
+              {stats?.overview?.total_customers === 0 ? 'Welcome!' : 'Welcome back!'}
+            </p>
+            <h1 className={`text-3xl font-bold bg-gradient-to-r from-${theme.accent}-400 to-${theme.accent}-500 bg-clip-text text-transparent leading-tight`}>
+              {gym?.name || 'Your Gym'}
             </h1>
-            <p className="text-gray-400 mt-1">Here's what's happening at {gym?.name || 'your gym'} today.</p>
+            <p className="text-gray-400 mt-1 text-sm">
+              {stats?.overview?.total_customers === 0
+                ? "Let's get started — add your first member!"
+                : `Here's what's happening at ${gym?.name || 'your gym'} today.`}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -788,46 +798,164 @@ function AnimatedRevenueCard({ title, value, icon: Icon, color, animated, delay 
   );
 }
 
+// Parse "2026-06" → { short: "Jun", long: "June 2026" }
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTH_SHORT  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function parseMonthLabel(str) {
+  if (!str) return { short: '', long: str || '' };
+  const parts = str.split('-');
+  if (parts.length >= 2) {
+    const idx = parseInt(parts[1], 10) - 1;
+    if (idx >= 0 && idx < 12) {
+      return { short: MONTH_SHORT[idx], long: `${MONTH_NAMES[idx]} ${parts[0]}` };
+    }
+  }
+  return { short: str, long: str };
+}
+
 function AnimatedBarChart({ data, animated }) {
-  const maxValue = Math.max(...data.map(d => d.total));
-  
+  const [hoveredIdx, setHoveredIdx] = useState(null);
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-48 flex items-center justify-center text-gray-600 text-sm">
+        No data yet
+      </div>
+    );
+  }
+
+  // SVG dimensions
+  const VW = 800, VH = 240;
+  const pad = { top: 60, right: 12, bottom: 38, left: 52 };
+  const innerW = VW - pad.left - pad.right;
+  const innerH = VH - pad.top - pad.bottom;
+
+  const maxVal = Math.max(...data.map(d => d.total), 1);
+  const GRID = 3;
+
+  const slotW = innerW / data.length;
+  const barW = Math.min(slotW * 0.55, 42);
+  const xOf = (i) => pad.left + slotW * i + slotW / 2;
+
+  const fmtY = (v) => {
+    if (v === 0) return '0';
+    if (v >= 1000000) return `${(v / 1000000).toFixed(1)}M`;
+    if (v >= 1000) return `${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k`;
+    return Math.round(v).toString();
+  };
+
   return (
-    <div className="h-48 flex items-end gap-1">
-      {data.map((month, index) => {
-        const height = maxValue > 0 ? (month.total / maxValue) * 100 : 0;
-        const isCurrentMonth = index === data.length - 1;
-        
+    <svg viewBox={`0 0 ${VW} ${VH}`} className="w-full" style={{ height: 'auto', display: 'block' }}>
+      <defs>
+        <linearGradient id="dbBarGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--gym-500, #8b5cf6)" stopOpacity="1" />
+          <stop offset="100%" stopColor="var(--gym-700, #5b21b6)" stopOpacity="0.6" />
+        </linearGradient>
+        <linearGradient id="dbBarLast" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--gym-400, #a78bfa)" />
+          <stop offset="100%" stopColor="var(--gym-600, #7c3aed)" stopOpacity="0.9" />
+        </linearGradient>
+        <linearGradient id="dbBarHov" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#ddd6fe" />
+          <stop offset="100%" stopColor="#a78bfa" stopOpacity="0.9" />
+        </linearGradient>
+      </defs>
+
+      {/* Grid lines + Y labels */}
+      {Array.from({ length: GRID + 1 }, (_, i) => {
+        const frac = i / GRID;
+        const val = maxVal * (1 - frac);
+        const y = pad.top + innerH * frac;
         return (
-          <div 
-            key={month.month} 
-            className="flex-1 flex flex-col items-center gap-2 group"
-          >
-            <div className="w-full flex flex-col items-center justify-end h-36">
-              <div 
-                className={clsx(
-                  "w-full rounded-t-lg transition-all duration-1000 ease-out cursor-pointer relative",
-                  isCurrentMonth 
-                    ? "bg-gradient-to-t from-gym-600 via-gym-500 to-gym-400 shadow-lg shadow-gym-500/40" 
-                    : "bg-gradient-to-t from-gray-600 to-gray-500 group-hover:from-gray-500 group-hover:to-gray-400"
-                )}
-                style={{ 
-                  height: animated ? `${Math.max(height, 5)}%` : '0%',
-                  transitionDelay: `${index * 100}ms`
-                }}
-              >
-                {/* Tooltip */}
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity glass-card px-3 py-2 shadow-xl whitespace-nowrap z-10">
-                  <p className="text-xs text-gray-400">{month.month}</p>
-                  <p className="text-sm font-bold text-white">{formatCurrency(month.total)}</p>
-                  <p className="text-xs text-gray-400">{month.count} payments</p>
-                </div>
-              </div>
-            </div>
-            <span className="text-xs text-gray-500">{month.month.split('-')[1]}</span>
-          </div>
+          <g key={i}>
+            <line x1={pad.left} y1={y} x2={VW - pad.right} y2={y}
+              stroke={i === GRID ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)'}
+              strokeWidth={i === GRID ? 1.5 : 1}
+              strokeDasharray={i === GRID ? 'none' : '4 4'} />
+            <text x={pad.left - 8} y={y + 4} textAnchor="end"
+              fill="#4b5563" fontSize="11" fontFamily="ui-sans-serif, system-ui, sans-serif">
+              {fmtY(val)}
+            </text>
+          </g>
         );
       })}
-    </div>
+
+      {/* Bars */}
+      {data.map((month, i) => {
+        const cx = xOf(i);
+        const barH = animated ? Math.max((month.total / maxVal) * innerH, month.total > 0 ? 3 : 0) : 0;
+        const barY = pad.top + innerH - barH;
+        const isLast = i === data.length - 1;
+        const isHov = hoveredIdx === i;
+        const fillId = isHov ? 'url(#dbBarHov)' : isLast ? 'url(#dbBarLast)' : 'url(#dbBarGrad)';
+        const { short, long } = parseMonthLabel(month.month || month.label || '');
+
+        // Tooltip — compact, always above bar, clamped to top of SVG
+        const TW = 96, TH = 30;
+        const tipX = Math.min(Math.max(cx - TW / 2, pad.left), VW - pad.right - TW);
+        const tipY = Math.max(barY - TH - 8, 2);
+        const caretX = Math.min(Math.max(cx, tipX + 8), tipX + TW - 8);
+
+        return (
+          <g key={month.month || i}
+            onMouseEnter={() => setHoveredIdx(i)}
+            onMouseLeave={() => setHoveredIdx(null)}
+            style={{ cursor: 'pointer' }}
+          >
+            {/* Full-column hover zone */}
+            <rect x={cx - slotW / 2} y={pad.top} width={slotW} height={innerH} fill="transparent" />
+
+            {/* Bar */}
+            <rect x={cx - barW / 2} y={barY} width={barW} height={barH}
+              rx={5} ry={5} fill={fillId}
+              opacity={isHov || isLast ? 1 : 0.6}
+              style={{
+                transition: `y 0.7s cubic-bezier(.22,.68,0,1.2) ${i * 50}ms,
+                             height 0.7s cubic-bezier(.22,.68,0,1.2) ${i * 50}ms,
+                             fill 0.2s, opacity 0.2s`
+              }}
+            />
+
+            {/* Shine strip on bar top */}
+            {barH > 8 && (
+              <rect x={cx - barW / 2 + 4} y={barY + 3} width={barW - 8} height={3}
+                rx={2} fill="rgba(255,255,255,0.28)"
+                style={{ transition: `y 0.7s cubic-bezier(.22,.68,0,1.2) ${i * 50}ms` }} />
+            )}
+
+            {/* X-axis label — abbreviated month name */}
+            <text x={cx} y={VH - pad.bottom + 18} textAnchor="middle"
+              fill={isHov || isLast ? '#9ca3af' : '#374151'}
+              fontSize={data.length > 10 ? 9 : 11}
+              fontFamily="ui-sans-serif, system-ui, sans-serif">
+              {short}
+            </text>
+
+            {/* Tooltip — always above bar, caret points down */}
+            {isHov && (
+              <g>
+                <rect x={tipX + 1} y={tipY + 1} width={TW} height={TH} rx={8} fill="rgba(0,0,0,0.3)" />
+                <rect x={tipX} y={tipY} width={TW} height={TH} rx={8}
+                  fill="#1e1b4b" stroke="rgba(167,139,250,0.45)" strokeWidth="1" />
+                <text x={tipX + TW / 2} y={tipY + 12} textAnchor="middle"
+                  fill="#a78bfa" fontSize="7.5" fontWeight="500" letterSpacing="0.4"
+                  fontFamily="ui-sans-serif, system-ui, sans-serif">
+                  {long.toUpperCase()}
+                </text>
+                <text x={tipX + TW / 2} y={tipY + 25} textAnchor="middle"
+                  fill="white" fontSize="9.5" fontWeight="700"
+                  fontFamily="ui-sans-serif, system-ui, sans-serif">
+                  ETB {(month.total || 0).toLocaleString()}
+                </text>
+                {/* Caret always points down toward bar */}
+                <path d={`M${caretX - 5},${tipY + TH} L${caretX},${tipY + TH + 5} L${caretX + 5},${tipY + TH}`}
+                  fill="#1e1b4b" stroke="rgba(167,139,250,0.45)" strokeWidth="1" strokeLinejoin="round" />
+              </g>
+            )}
+          </g>
+        );
+      })}
+    </svg>
   );
 }
 

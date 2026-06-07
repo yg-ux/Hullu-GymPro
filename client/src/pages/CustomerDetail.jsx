@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, getStatusColor, formatDate, formatDateTime, getMembershipLabel, MEMBERSHIP_TYPES, formatCurrency, getMembershipPrice } from '../utils/api';
+import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 import {
-  ArrowLeft, 
-  Edit2, 
-  Trash2, 
+  ArrowLeft,
+  Edit2,
+  Trash2,
   X,
   Camera,
   Phone,
@@ -17,7 +19,6 @@ import {
   LogIn,
   LogOut,
   FileText,
-  CheckCircle,
   Wifi,
   WifiOff
 } from 'lucide-react';
@@ -26,15 +27,16 @@ import clsx from 'clsx';
 export default function CustomerDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
+  const { user } = useAuth();
+  const canDelete = !['receptionist', 'trainer'].includes(user?.role);
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showPhoto, setShowPhoto] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showExtendModal, setShowExtendModal] = useState(false);
   const [photoFullscreen, setPhotoFullscreen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
-  const [error, setError] = useState('');
-  
+
   // Delete form state
   const [deleteCode, setDeleteCode] = useState('');
   
@@ -63,11 +65,11 @@ export default function CustomerDetail() {
   const handleCheckIn = async () => {
     try {
       setActionLoading(true);
-      setError('');
       await api.post(`/customers/${id}/check-in`);
       await loadCustomer();
+      toast.success('Checked in successfully');
     } catch (error) {
-      setError(error.message);
+      toast.error(error.message || 'Failed to check in');
     } finally {
       setActionLoading(false);
     }
@@ -76,11 +78,11 @@ export default function CustomerDetail() {
   const handleCheckOut = async () => {
     try {
       setActionLoading(true);
-      setError('');
       await api.post(`/customers/${id}/check-out`);
       await loadCustomer();
+      toast.success('Checked out successfully');
     } catch (error) {
-      setError(error.message);
+      toast.error(error.message || 'Failed to check out');
     } finally {
       setActionLoading(false);
     }
@@ -90,7 +92,6 @@ export default function CustomerDetail() {
     e.preventDefault();
     try {
       setActionLoading(true);
-      setError('');
       const amount = parseInt(customAmount) || 0;
       await api.post('/payments', {
         customer_id: id,
@@ -100,8 +101,9 @@ export default function CustomerDetail() {
       });
       await loadCustomer();
       setShowExtendModal(false);
+      toast.success('Membership extended successfully!');
     } catch (error) {
-      setError(error.message);
+      toast.error(error.message || 'Failed to extend membership');
     } finally {
       setActionLoading(false);
     }
@@ -112,9 +114,10 @@ export default function CustomerDetail() {
     try {
       setActionLoading(true);
       await api.delete(`/customers/${id}`, { delete_code: deleteCode });
+      toast.success('Customer deleted');
       navigate('/customers');
     } catch (error) {
-      setError(error.message);
+      toast.error(error.message || 'Failed to delete customer');
     } finally {
       setActionLoading(false);
     }
@@ -149,30 +152,23 @@ export default function CustomerDetail() {
           <p className="text-gray-400">Customer Details</p>
         </div>
         <div className="flex items-center gap-2">
-          <Link to={`/customers/${id}/edit`} className="btn-secondary inline-flex items-center gap-2">
-            <Edit2 className="w-4 h-4" />
-            Edit
-          </Link>
-          <button 
+          {canDelete && (
+            <Link to={`/customers/${id}/edit`} className="btn-secondary inline-flex items-center gap-2">
+              <Edit2 className="w-4 h-4" />
+              Edit
+            </Link>
+          )}
+          {canDelete && (
+          <button
             onClick={() => setShowDeleteModal(true)}
             className="btn-danger inline-flex items-center gap-2"
           >
             <Trash2 className="w-4 h-4" />
             Delete
           </button>
+          )}
         </div>
       </div>
-
-      {/* Error Message */}
-      {error && (
-        <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-          <AlertTriangle className="w-5 h-5 text-red-400" />
-          <span className="text-red-400">{error}</span>
-          <button onClick={() => setError('')} className="ml-auto">
-            <X className="w-5 h-5 text-red-400" />
-          </button>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Info */}
@@ -491,14 +487,54 @@ export default function CustomerDetail() {
                 <span className="text-gray-400">Plan</span>
                 <span className="text-white font-medium">{getMembershipLabel(customer.membership_type)}</span>
               </div>
-              {customer.max_visits_per_week > 0 && (
+              {customer.membership_start && customer.membership_end && (
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Weekly Visits</span>
-                  <span className="text-yellow-400 font-medium">
-                    {customer.visits_this_week || 0} / {customer.max_visits_per_week}
+                  <span className="text-gray-400">Period</span>
+                  <span className="text-white font-medium text-sm">
+                    {new Date(customer.membership_start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {' → '}
+                    {new Date(customer.membership_end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </span>
                 </div>
               )}
+              {customer.max_visits_per_week > 0 && (() => {
+                const used = customer.visits_this_week || 0;
+                const max = customer.max_visits_per_week;
+                const remaining = Math.max(0, max - used);
+                const limitReached = used >= max;
+                return (
+                  <div className="py-1">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-gray-400">Weekly Visits</span>
+                      <span className={clsx(
+                        'text-sm font-bold',
+                        limitReached ? 'text-red-400' : 'text-yellow-400'
+                      )}>
+                        {used} / {max} used
+                        {!limitReached && (
+                          <span className="text-gray-400 font-normal"> · {remaining} left</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex gap-1.5 mb-1.5">
+                      {Array.from({ length: max }, (_, i) => (
+                        <div
+                          key={i}
+                          className={clsx(
+                            'flex-1 h-2.5 rounded-full transition-all',
+                            i < used ? 'bg-yellow-400' : 'bg-gray-700'
+                          )}
+                        />
+                      ))}
+                    </div>
+                    {limitReached ? (
+                      <p className="text-xs text-red-400">⚠ Weekly limit reached — resets Monday</p>
+                    ) : (
+                      <p className="text-xs text-gray-500">{remaining} visit{remaining !== 1 ? 's' : ''} remaining this week</p>
+                    )}
+                  </div>
+                );
+              })()}
               <div className="flex items-center justify-between">
                 <span className="text-gray-400">Status</span>
                 <span className={clsx(

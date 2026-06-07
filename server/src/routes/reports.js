@@ -246,27 +246,27 @@ router.get('/customers', authenticateToken, (req, res) => {
     const customers = getAll(sql, params);
 
     if (format === 'csv') {
-      // Generate CSV
-      const headers = ['Name', 'Phone', 'Email', 'Membership Type', 'Start Date', 'End Date', 'Status', 'Total Paid', 'Payments'];
-      const csvRows = [headers.join(',')];
+      const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const headers = ['Name', 'Phone', 'Email', 'Membership Type', 'Start Date', 'End Date', 'Status', 'Total Paid (ETB)', 'Payment Count'];
+      const csvRows = [headers.map(esc).join(',')];
 
       customers.forEach(c => {
         csvRows.push([
-          `"${c.name}"`,
-          c.phone || '',
-          c.email || '',
-          c.membership_type,
-          c.membership_start || '',
-          c.membership_end || '',
-          c.status,
-          c.total_paid || 0,
-          c.payment_count || 0
+          esc(c.name),
+          esc(c.phone),
+          esc(c.email),
+          esc(c.membership_type),
+          esc(c.membership_start),
+          esc(c.membership_end),
+          esc(c.status),
+          esc(c.total_paid || 0),
+          esc(c.payment_count || 0)
         ].join(','));
       });
 
-      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', 'attachment; filename="customers-export.csv"');
-      res.send(csvRows.join('\n'));
+      res.send('﻿' + csvRows.join('\r\n')); // BOM for Excel UTF-8 compatibility
     } else {
       // JSON format
       res.json({

@@ -5,18 +5,18 @@
 /* Google Fonts - Inter */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-/* Default Color Theme Variables */
+/* Default Color Theme Variables — space-separated RGB for Tailwind <alpha-value> support */
 :root {
-  --gym-50: #f0f9ff;
-  --gym-100: #e0f2fe;
-  --gym-200: #bae6fd;
-  --gym-300: #7dd3fc;
-  --gym-400: #38bdf8;
-  --gym-500: #0ea5e9;
-  --gym-600: #0284c7;
-  --gym-700: #0369a1;
-  --gym-800: #075985;
-  --gym-900: #0c4a6e;
+  --gym-50-rgb:  240 249 255;
+  --gym-100-rgb: 224 242 254;
+  --gym-200-rgb: 186 230 253;
+  --gym-300-rgb: 125 211 252;
+  --gym-400-rgb: 56 189 248;
+  --gym-500-rgb: 14 165 233;
+  --gym-600-rgb: 2 132 199;
+  --gym-700-rgb: 3 105 161;
+  --gym-800-rgb: 7 89 133;
+  --gym-900-rgb: 12 74 110;
 }
 
 @layer base {
@@ -265,9 +265,15 @@
 /* ========== COMPONENTS ========== */
 @layer components {
   .btn-primary {
-    @apply px-4 py-2 bg-gym-600 hover:bg-gym-700 text-white rounded-lg font-medium 
-           transition-all duration-200 shadow-lg shadow-gym-600/20 
-           hover:shadow-gym-600/40 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply px-4 py-2 text-white rounded-lg font-medium
+           transition-all duration-200 shadow-lg
+           active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+    background: linear-gradient(135deg, rgb(var(--gym-500-rgb)), rgb(var(--gym-700-rgb)));
+    box-shadow: 0 4px 14px 0 rgb(var(--gym-500-rgb) / 0.35);
+  }
+  .btn-primary:hover {
+    background: linear-gradient(135deg, rgb(var(--gym-400-rgb)), rgb(var(--gym-600-rgb)));
+    box-shadow: 0 6px 20px 0 rgb(var(--gym-500-rgb) / 0.5);
   }
   
   .btn-secondary {
@@ -277,9 +283,13 @@
   }
   
   .btn-danger {
-    @apply px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium 
-           transition-all duration-200 shadow-lg shadow-red-600/20 
-           hover:shadow-red-600/40 active:scale-95;
+    @apply px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium
+           transition-all duration-200 shadow-lg
+           active:scale-95;
+    box-shadow: 0 4px 14px 0 rgba(220, 38, 38, 0.2);
+  }
+  .btn-danger:hover {
+    box-shadow: 0 4px 14px 0 rgba(220, 38, 38, 0.4);
   }
   
   .btn-ghost {
@@ -305,7 +315,7 @@
   }
   
   .card-hover {
-    @apply hover:shadow-xl hover:shadow-gym-900/10 hover:-translate-y-1;
+    @apply hover:shadow-xl hover:-translate-y-1;
   }
   
   .status-badge {
@@ -435,7 +445,8 @@
   
   .hover-lift:hover {
     transform: translateY(-4px);
-    @apply shadow-xl shadow-gym-900/20;
+    @apply shadow-xl;
+    box-shadow: 0 20px 40px -8px rgb(var(--gym-500-rgb) / 0.25);
   }
   
   .hover-scale {

@@ -1,4 +1,4 @@
-import initSqlJs from 'sql.js';
+﻿import initSqlJs from 'sql.js';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
@@ -65,6 +65,15 @@ export async function initDatabase() {
     try { db.run("ALTER TABLE customers ADD COLUMN welcome_sms_sent INTEGER DEFAULT 0"); } catch (e) {}
     try { db.run("ALTER TABLE gyms ADD COLUMN sms_api_key TEXT"); } catch (e) {}
     try { db.run("ALTER TABLE gyms ADD COLUMN sms_enabled INTEGER DEFAULT 0"); } catch (e) {}
+    try { db.run("ALTER TABLE subscription_requests ADD COLUMN transaction_id TEXT"); } catch (e) {}
+    try { db.run("ALTER TABLE subscription_requests ADD COLUMN duration_months INTEGER DEFAULT 1"); } catch (e) {}
+    try { db.run("ALTER TABLE gym_users ADD COLUMN name TEXT"); } catch (e) {}
+    try { db.run("ALTER TABLE gym_users ADD COLUMN email TEXT"); } catch (e) {}
+    try { db.run("ALTER TABLE gym_users ADD COLUMN updated_at TEXT"); } catch (e) {}
+    // Weekly visit tracking columns (added for 3-days/week plan support)
+    try { db.run("ALTER TABLE customers ADD COLUMN max_visits_per_week INTEGER DEFAULT 0"); } catch (e) {}
+    try { db.run("ALTER TABLE customers ADD COLUMN visits_this_week INTEGER DEFAULT 0"); } catch (e) {}
+    try { db.run("ALTER TABLE customers ADD COLUMN week_start_date TEXT"); } catch (e) {}
 
     // Migrate existing gyms to free plan if subscription_plan is null
     try {
@@ -110,7 +119,7 @@ export async function initDatabase() {
         `);
         const adminId = uuidv4();
         const hashedPassword = bcrypt.hashSync('admin123', 10);
-        db.run("INSERT INTO admins (id, email, password, name) VALUES (?, ?, ?, ?)", [adminId, 'admin@hullugyms.com', hashedPassword, 'System Admin']);
+        db.run("INSERT INTO admins (id, email, password, name) VALUES (?, ?, ?, ?)", [adminId, 'admin@Hullu Gyms.com', hashedPassword, 'System Admin']);
       }
     } catch (e) { /* Table exists or migration done */ }
 
@@ -280,11 +289,11 @@ export async function initDatabase() {
 
     // Add default admin if not exists
     try {
-      const existingAdmin = db.exec("SELECT * FROM admins WHERE email = 'admin@hullugyms.com'");
+      const existingAdmin = db.exec("SELECT * FROM admins WHERE email = 'admin@Hullu Gyms.com'");
       if (existingAdmin.length === 0 || existingAdmin[0].values.length === 0) {
         const adminId = uuidv4();
         const hashedPassword = bcrypt.hashSync('admin123', 10);
-        db.run("INSERT INTO admins (id, email, password, name) VALUES (?, ?, ?, ?)", [adminId, 'admin@hullugyms.com', hashedPassword, 'System Admin']);
+        db.run("INSERT INTO admins (id, email, password, name) VALUES (?, ?, ?, ?)", [adminId, 'admin@Hullu Gyms.com', hashedPassword, 'System Admin']);
       }
     } catch (e) { /* Admin exists */ }
 
@@ -317,6 +326,22 @@ export async function initDatabase() {
         FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
       )
     `);
+
+    // Performance indexes on frequently queried columns
+    db.run('CREATE INDEX IF NOT EXISTS idx_customers_gym_id ON customers(gym_id)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_customers_membership_end ON customers(membership_end)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_customers_status ON customers(status)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_payments_gym_id ON payments(gym_id)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_payments_customer_id ON payments(customer_id)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_payments_payment_date ON payments(payment_date)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_attendance_gym_id ON attendance(gym_id)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_attendance_customer_id ON attendance(customer_id)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_attendance_check_in ON attendance(check_in)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_qr_codes_customer_id ON qr_codes(customer_id)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_activity_log_gym_id ON activity_log(gym_id)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_sms_logs_gym_id ON sms_logs(gym_id)');
+    console.log('✅ Database indexes created');
 
     saveDatabase();
     console.log('✅ Multi-tenant Database initialized successfully');

@@ -1,8 +1,10 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { runQuery, getOne, getAll } from '../models/database.js';
+import { runQuery, getOne, getAll, logActivity } from '../models/database.js';
 import { authenticateToken, requireActiveSubscription } from './auth.js';
 import { smsService } from '../services/smsService.js';
+import { validateCreatePayment } from '../middleware/validate.js';
+import { logPaymentRecorded, logPaymentDeleted } from '../services/activityService.js';
 
 const router = express.Router();
 
@@ -14,40 +16,48 @@ const membershipDurations = {
   '1_year': 365
 };
 
-// Get all payments for this gym
+// Get all payments for this gym (with pagination)
 router.get('/', authenticateToken, (req, res) => {
   try {
-    const { customer_id, start_date, end_date, limit = 100 } = req.query;
+    const { customer_id, start_date, end_date } = req.query;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 50));
+    const offset = (page - 1) * limit;
     const gymId = req.user.gym_id;
 
-    let sql = `
+    let where = 'WHERE p.gym_id = ?';
+    const params = [gymId];
+    const countParams = [gymId];
+
+    if (customer_id) {
+      where += ' AND p.customer_id = ?';
+      params.push(customer_id);
+      countParams.push(customer_id);
+    }
+    if (start_date) {
+      where += ' AND p.payment_date >= ?';
+      params.push(start_date);
+      countParams.push(start_date);
+    }
+    if (end_date) {
+      where += ' AND p.payment_date <= ?';
+      params.push(end_date);
+      countParams.push(end_date);
+    }
+
+    const total = getOne(`SELECT COUNT(*) as total FROM payments p ${where}`, countParams)?.total || 0;
+    params.push(limit, offset);
+
+    const payments = getAll(`
       SELECT p.*, c.name as customer_name, c.phone as customer_phone
       FROM payments p
       LEFT JOIN customers c ON p.customer_id = c.id
-      WHERE p.gym_id = ?
-    `;
-    const params = [gymId];
+      ${where}
+      ORDER BY p.payment_date DESC
+      LIMIT ? OFFSET ?
+    `, params);
 
-    if (customer_id) {
-      sql += ' AND p.customer_id = ?';
-      params.push(customer_id);
-    }
-
-    if (start_date) {
-      sql += ' AND p.payment_date >= ?';
-      params.push(start_date);
-    }
-
-    if (end_date) {
-      sql += ' AND p.payment_date <= ?';
-      params.push(end_date);
-    }
-
-    sql += ' ORDER BY p.payment_date DESC LIMIT ?';
-    params.push(parseInt(limit));
-
-    const payments = getAll(sql, params);
-    res.json(payments);
+    res.json({ data: payments, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
   } catch (error) {
     console.error('Get payments error:', error);
     res.status(500).json({ error: 'Failed to get payments' });
@@ -55,7 +65,7 @@ router.get('/', authenticateToken, (req, res) => {
 });
 
 // Record payment
-router.post('/', authenticateToken, requireActiveSubscription, (req, res) => {
+router.post('/', authenticateToken, requireActiveSubscription, validateCreatePayment, async (req, res) => {
   try {
     const { customer_id, amount, payment_method = 'cash', membership_type, notes } = req.body;
     const gymId = req.user.gym_id;
@@ -109,12 +119,15 @@ router.post('/', authenticateToken, requireActiveSubscription, (req, res) => {
     const updatedCustomer = getOne('SELECT * FROM customers WHERE id = ?', [customer_id]);
     const payment = getOne('SELECT * FROM payments WHERE id = ?', [paymentId]);
 
-    // Send payment confirmation SMS
-    if (updatedCustomer.phone && gym.sms_enabled) {
+    logPaymentRecorded(gymId, req.user.id, paymentId, amount, updatedCustomer.name);
+
+    // Send payment confirmation SMS — requires Starter or Pro plan + SMS enabled
+    const smsPlanAllowed = ['starter', 'pro'].includes(gym.subscription_plan);
+    if (updatedCustomer.phone && smsPlanAllowed && gym.sms_enabled) {
       try {
         await smsService.sendPaymentConfirmation(updatedCustomer, payment, gym);
       } catch (smsError) {
-        console.error('Failed to send payment confirmation SMS:', smsError);
+        console.warn('Failed to send payment confirmation SMS:', smsError.message);
       }
     }
 
@@ -141,6 +154,7 @@ router.delete('/:id', authenticateToken, requireActiveSubscription, (req, res) =
     }
 
     runQuery('DELETE FROM payments WHERE id = ? AND gym_id = ?', [req.params.id, gymId]);
+    logPaymentDeleted(gymId, req.user.id, req.params.id);
     res.json({ message: 'Payment deleted successfully' });
   } catch (error) {
     console.error('Delete payment error:', error);

@@ -80,6 +80,22 @@ router.get('/gyms', authenticateToken, (req, res) => {
 });
 
 // Get all subscription requests
+// Get current gym's own subscription request status
+router.get('/my-request', authenticateToken, (req, res) => {
+  try {
+    const request = getOne(`
+      SELECT id, requested_plan, amount_paid, payment_method, transaction_id, duration_months, status, admin_notes, created_at, reviewed_at
+      FROM subscription_requests
+      WHERE gym_id = ?
+      ORDER BY created_at DESC
+      LIMIT 1
+    `, [req.user.gym_id]);
+    res.json(request || null);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get request status' });
+  }
+});
+
 router.get('/subscription-requests', authenticateToken, (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
@@ -107,37 +123,50 @@ router.get('/subscription-requests', authenticateToken, (req, res) => {
 // Create subscription request (from gym owner)
 router.post('/subscription-request', authenticateToken, (req, res) => {
   try {
-    const { plan_id, amount_paid, payment_proof, payment_method } = req.body;
+    const { plan_id, amount_paid, payment_method, transaction_id, duration_months } = req.body;
     const gymId = req.user.gym_id;
 
     const plans = {
-      'starter': 3000,
-      'pro': 5000,
-      'enterprise': 10000
+      'starter': 1999,
+      'pro': 4999,
     };
 
     if (!plans[plan_id]) {
       return res.status(400).json({ error: 'Invalid plan' });
     }
 
+    if (!transaction_id || !transaction_id.trim()) {
+      return res.status(400).json({ error: 'Transaction ID is required' });
+    }
+
     // Check if there's already a pending request
     const existingRequest = getOne(`
-      SELECT * FROM subscription_requests 
+      SELECT * FROM subscription_requests
       WHERE gym_id = ? AND status = 'pending'
     `, [gymId]);
 
     if (existingRequest) {
-      return res.status(400).json({ error: 'You already have a pending request' });
+      return res.status(400).json({ error: 'You already have a pending subscription request. Please wait for it to be reviewed.' });
     }
 
+    // Check if transaction_id was already used
+    const duplicateTx = getOne(`
+      SELECT * FROM subscription_requests WHERE transaction_id = ?
+    `, [transaction_id.trim()]);
+
+    if (duplicateTx) {
+      return res.status(400).json({ error: 'This transaction ID has already been used.' });
+    }
+
+    const months = parseInt(duration_months) || 1;
     const id = uuidv4();
     runQuery(`
-      INSERT INTO subscription_requests (id, gym_id, requested_plan, amount_paid, payment_proof, payment_method, status)
-      VALUES (?, ?, ?, ?, ?, ?, 'pending')
-    `, [id, gymId, plan_id, amount_paid || plans[plan_id], payment_proof, payment_method]);
+      INSERT INTO subscription_requests (id, gym_id, requested_plan, amount_paid, payment_method, transaction_id, duration_months, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+    `, [id, gymId, plan_id, amount_paid || plans[plan_id] * months, payment_method || 'telebirr', transaction_id.trim(), months]);
 
     res.status(201).json({
-      message: 'Request submitted. You will be notified once reviewed.',
+      message: 'Request submitted successfully. We will review and activate your plan shortly.',
       request_id: id
     });
   } catch (error) {
@@ -174,13 +203,13 @@ router.post('/approve-request/:id', authenticateToken, (req, res) => {
 
     // Update gym subscription
     const today = new Date();
-    const nextMonth = new Date(today);
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    const months = parseInt(request.duration_months) || 1;
+    const endDate = new Date(today);
+    endDate.setMonth(endDate.getMonth() + months);
 
     const planLimits = {
       'starter': 100,
-      'pro': 500,
-      'enterprise': -1
+      'pro': -1,
     };
 
     runQuery(`
@@ -192,7 +221,7 @@ router.post('/approve-request/:id', authenticateToken, (req, res) => {
         max_members = ?,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `, [request.requested_plan, today.toISOString().split('T')[0], nextMonth.toISOString().split('T')[0], planLimits[request.requested_plan], request.gym_id]);
+    `, [request.requested_plan, today.toISOString().split('T')[0], endDate.toISOString().split('T')[0], planLimits[request.requested_plan], request.gym_id]);
 
     res.json({ message: 'Request approved successfully' });
   } catch (error) {
@@ -309,7 +338,7 @@ router.post('/migrate-plans', authenticateToken, (req, res) => {
 router.post('/enable-sms', (req, res) => {
   const { secret, gym_id, api_key } = req.body;
   
-  if (secret !== 'ADMIN123' && secret !== process.env.ADMIN_SECRET) {
+  if (!process.env.ADMIN_SECRET || secret !== process.env.ADMIN_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 

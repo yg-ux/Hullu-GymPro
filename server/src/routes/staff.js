@@ -6,22 +6,13 @@ import { authenticateToken, requireActiveSubscription } from './auth.js';
 
 const router = express.Router();
 
-// Check if gym has staff feature (Pro or Enterprise)
-function checkStaffFeature(gym) {
-  return gym.subscription_plan === 'pro' || gym.subscription_plan === 'enterprise';
-}
-
-// Get staff limit based on plan
+// Get staff limit based on plan (all plans can have staff)
 function getStaffLimit(plan) {
   switch (plan) {
-    case 'starter':
-      return 0;
-    case 'pro':
-      return 3;
-    case 'enterprise':
-      return -1; // unlimited
-    default:
-      return 0;
+    case 'enterprise': return -1; // unlimited
+    case 'pro':        return 10;
+    case 'starter':    return 3;
+    default:           return 2;  // free plan
   }
 }
 
@@ -36,17 +27,10 @@ router.get('/', authenticateToken, (req, res) => {
       return res.status(404).json({ error: 'Gym not found' });
     }
 
-    if (!checkStaffFeature(gym)) {
-      return res.status(403).json({
-        error: 'Staff management is available on Pro and Enterprise plans only',
-        requires_plan: 'pro'
-      });
-    }
-
     const staff = getAll(`
-      SELECT id, gym_id, username, role, created_at, updated_at
+      SELECT id, gym_id, username, name, email, role, created_at, updated_at
       FROM gym_users
-      WHERE gym_id = ?
+      WHERE gym_id = ? AND role != 'owner'
       ORDER BY created_at ASC
     `, [gymId]);
 
@@ -68,23 +52,18 @@ router.get('/', authenticateToken, (req, res) => {
 router.post('/', authenticateToken, requireActiveSubscription, (req, res) => {
   try {
     const gymId = req.user.gym_id;
-    const { username, password, role = 'receptionist' } = req.body;
+    const { username, name, email, phone, password, role = 'receptionist' } = req.body;
 
-    if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password are required' });
+    // Accept either username or email as the login identifier
+    const loginUsername = username || email;
+    if (!loginUsername || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
     }
 
     // Check subscription
     const gym = getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
     if (!gym) {
       return res.status(404).json({ error: 'Gym not found' });
-    }
-
-    if (!checkStaffFeature(gym)) {
-      return res.status(403).json({
-        error: 'Staff management is available on Pro and Enterprise plans only',
-        requires_plan: 'pro'
-      });
     }
 
     // Check staff limit
@@ -100,9 +79,9 @@ router.post('/', authenticateToken, requireActiveSubscription, (req, res) => {
     }
 
     // Check if username already exists
-    const existingUser = getOne('SELECT * FROM gym_users WHERE username = ?', [username]);
+    const existingUser = getOne('SELECT * FROM gym_users WHERE username = ?', [loginUsername]);
     if (existingUser) {
-      return res.status(400).json({ error: 'Username already exists' });
+      return res.status(400).json({ error: 'A staff member with this email already exists' });
     }
 
     // Validate role
@@ -115,12 +94,12 @@ router.post('/', authenticateToken, requireActiveSubscription, (req, res) => {
     const hashedPassword = bcrypt.hashSync(password, 10);
 
     runQuery(`
-      INSERT INTO gym_users (id, gym_id, username, password, role)
-      VALUES (?, ?, ?, ?, ?)
-    `, [staffId, gymId, username, hashedPassword, role]);
+      INSERT INTO gym_users (id, gym_id, username, name, email, password, role)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [staffId, gymId, loginUsername, name || loginUsername, email || loginUsername, hashedPassword, role]);
 
     const newStaff = getOne(`
-      SELECT id, gym_id, username, role, created_at
+      SELECT id, gym_id, username, name, email, role, created_at
       FROM gym_users WHERE id = ?
     `, [staffId]);
 

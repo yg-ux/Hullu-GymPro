@@ -9,16 +9,16 @@ export default {
     extend: {
       colors: {
         gym: {
-          50: 'var(--gym-50, #f0f9ff)',
-          100: 'var(--gym-100, #e0f2fe)',
-          200: 'var(--gym-200, #bae6fd)',
-          300: 'var(--gym-300, #7dd3fc)',
-          400: 'var(--gym-400, #38bdf8)',
-          500: 'var(--gym-500, #0ea5e9)',
-          600: 'var(--gym-600, #0284c7)',
-          700: 'var(--gym-700, #0369a1)',
-          800: 'var(--gym-800, #075985)',
-          900: 'var(--gym-900, #0c4a6e)',
+          50:  'rgb(var(--gym-50-rgb)  / <alpha-value>)',
+          100: 'rgb(var(--gym-100-rgb) / <alpha-value>)',
+          200: 'rgb(var(--gym-200-rgb) / <alpha-value>)',
+          300: 'rgb(var(--gym-300-rgb) / <alpha-value>)',
+          400: 'rgb(var(--gym-400-rgb) / <alpha-value>)',
+          500: 'rgb(var(--gym-500-rgb) / <alpha-value>)',
+          600: 'rgb(var(--gym-600-rgb) / <alpha-value>)',
+          700: 'rgb(var(--gym-700-rgb) / <alpha-value>)',
+          800: 'rgb(var(--gym-800-rgb) / <alpha-value>)',
+          900: 'rgb(var(--gym-900-rgb) / <alpha-value>)',
         },
         dark: {
           100: '#1e293b',

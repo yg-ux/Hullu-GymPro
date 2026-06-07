@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -25,25 +25,40 @@ import {
   Lock,
   BarChart3,
   UserCog,
-  TrendingUp
+  TrendingUp,
+  Zap
 } from 'lucide-react';
 import clsx from 'clsx';
 
 // Plan requirements: free < starter < pro
 const PLAN_ORDER = ['free', 'starter', 'pro'];
 
+// Which roles can see each page (owner always has full access)
+const ALL_ROLES = ['owner', 'admin', 'manager', 'trainer', 'receptionist'];
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Check In', href: '/check-in', icon: LogIn },
-  { name: 'Check Out', href: '/check-out', icon: LogOutIcon },
-  { name: 'Customers', href: '/customers', icon: Users },
-  { name: 'Staff', href: '/staff', icon: UserCog, requiresPlan: 'starter' },
-  { name: 'Reports', href: '/reports', icon: BarChart3, requiresPlan: 'pro' },
-  { name: 'Revenue', href: '/revenue', icon: TrendingUp, requiresPlan: 'pro' },
+  { name: 'Dashboard',  href: '/dashboard',    icon: LayoutDashboard, roles: ['owner','admin','manager','trainer'] },
+  { name: 'Check In',   href: '/check-in',     icon: LogIn,           roles: ALL_ROLES },
+  { name: 'Check Out',  href: '/check-out',    icon: LogOutIcon,      roles: ALL_ROLES },
+  { name: 'Customers',  href: '/customers',    icon: Users,           roles: ['owner','admin','manager','trainer','receptionist'] },
+  { name: 'Staff',      href: '/staff',        icon: UserCog,         roles: ['owner','admin','manager'], requiresPlan: 'starter' },
+  { name: 'Reports',    href: '/reports',      icon: BarChart3,       roles: ['owner','admin','manager'], requiresPlan: 'pro' },
+  { name: 'Revenue',    href: '/revenue',      icon: TrendingUp,      roles: ['owner','admin','manager'], requiresPlan: 'pro' },
+  { name: 'Settings',   href: '/settings',     icon: Settings,        roles: ['owner','admin'] },
 ];
+
+// Role display config
+const ROLE_CONFIG = {
+  owner:        { label: 'Owner',        color: 'text-gym-400    bg-gym-500/20' },
+  admin:        { label: 'Admin',        color: 'text-purple-400 bg-purple-500/20' },
+  manager:      { label: 'Manager',      color: 'text-blue-400   bg-blue-500/20' },
+  trainer:      { label: 'Trainer',      color: 'text-green-400  bg-green-500/20' },
+  receptionist: { label: 'Receptionist', color: 'text-yellow-400 bg-yellow-500/20' },
+};
 
 export default function Layout() {
   const { user, gym, subscription, logout } = useAuth();
+  const userRole = user?.role || 'owner';
+  const roleConfig = ROLE_CONFIG[userRole] || ROLE_CONFIG.owner;
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -61,19 +76,21 @@ export default function Layout() {
     
     // Apply color theme as CSS variables
     const colorTheme = gym?.color_theme || 'default';
-    const themeColors = {
-      default: { primary: '#3b82f6', primaryDark: '#2563eb', accent: '#60a5fa' },
-      emerald: { primary: '#10b981', primaryDark: '#059669', accent: '#34d399' },
-      purple: { primary: '#a855f7', primaryDark: '#9333ea', accent: '#c084fc' },
-      red: { primary: '#ef4444', primaryDark: '#dc2626', accent: '#f87171' },
-      amber: { primary: '#f59e0b', primaryDark: '#d97706', accent: '#fbbf24' },
-      cyan: { primary: '#06b6d4', primaryDark: '#0891b2', accent: '#22d3ee' },
+    // Space-separated RGB values for Tailwind <alpha-value> and modern rgb() syntax
+    const themeScales = {
+      default: { r300:'125 211 252', r400:'56 189 248',  r500:'14 165 233',  r600:'2 132 199',   r700:'3 105 161'  },
+      emerald: { r300:'110 231 183', r400:'52 211 153',  r500:'16 185 129',  r600:'5 150 105',   r700:'4 120 87'   },
+      purple:  { r300:'216 180 254', r400:'192 132 252', r500:'168 85 247',  r600:'147 51 234',  r700:'126 34 206' },
+      red:     { r300:'252 165 165', r400:'248 113 113', r500:'239 68 68',   r600:'220 38 38',   r700:'185 28 28'  },
+      amber:   { r300:'252 211 77',  r400:'251 191 36',  r500:'245 158 11',  r600:'217 119 6',   r700:'180 83 9'   },
+      cyan:    { r300:'103 232 249', r400:'34 211 238',  r500:'6 182 212',   r600:'8 145 178',   r700:'14 116 144' },
     };
-    const colors = themeColors[colorTheme] || themeColors.default;
-    
-    document.documentElement.style.setProperty('--gym-500', colors.primary);
-    document.documentElement.style.setProperty('--gym-600', colors.primaryDark);
-    document.documentElement.style.setProperty('--gym-400', colors.accent);
+    const s = themeScales[colorTheme] || themeScales.default;
+    document.documentElement.style.setProperty('--gym-300-rgb', s.r300);
+    document.documentElement.style.setProperty('--gym-400-rgb', s.r400);
+    document.documentElement.style.setProperty('--gym-500-rgb', s.r500);
+    document.documentElement.style.setProperty('--gym-600-rgb', s.r600);
+    document.documentElement.style.setProperty('--gym-700-rgb', s.r700);
   }, [darkMode, gym?.color_theme]);
 
   const handleLogout = () => {
@@ -81,7 +98,9 @@ export default function Layout() {
     navigate('/');
   };
 
-  const showSubscriptionAlert = subscription && !subscription.valid;
+  const isFreePlan = !gym?.subscription_plan || gym?.subscription_plan === 'free';
+  const showSubscriptionAlert = subscription && !subscription.valid && !isFreePlan;
+  const showFreePlanBanner = isFreePlan;
 
   // Sample notifications - in production these would come from API
   const notifications = [
@@ -103,19 +122,40 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-dark-200">
-      {/* Subscription Alert Banner */}
+      {/* Free Plan Info Banner */}
+      {showFreePlanBanner && (
+        <div className="bg-gradient-to-r from-blue-500/8 to-indigo-500/8 border-b border-blue-500/20 px-4 py-2">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-blue-300 text-sm">
+              <Zap className="w-4 h-4 text-blue-400 flex-shrink-0" />
+              <span>
+                You're on the <span className="font-semibold text-white">Free Plan</span>
+                {' '}— up to <span className="font-semibold text-white">10 members</span>. Upgrade for SMS, unlimited members &amp; more.
+              </span>
+            </div>
+            <button
+              onClick={() => navigate('/subscription')}
+              className="flex-shrink-0 px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-semibold rounded-lg hover:from-blue-400 hover:to-indigo-400 transition-all shadow-md"
+            >
+              Upgrade Plan
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Expired Subscription Alert Banner */}
       {showSubscriptionAlert && (
         <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border-b border-yellow-500/30 px-4 py-2">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-2 text-yellow-400 text-sm">
               <AlertTriangle className="w-4 h-4 animate-pulse" />
               <span>
-                {subscription.status === 'trial_expired' 
+                {subscription.status === 'trial_expired'
                   ? 'Your free trial has ended. Subscribe to continue.'
                   : 'Your subscription has expired. Please renew.'}
               </span>
             </div>
-            <button 
+            <button
               onClick={() => navigate('/subscription')}
               className="px-4 py-1 bg-gradient-to-r from-yellow-500 to-orange-500 text-black text-sm font-medium rounded-lg hover:from-yellow-400 hover:to-orange-400 transition-all shadow-lg shadow-yellow-500/20"
             >
@@ -305,18 +345,23 @@ export default function Layout() {
                           <div>
                             <p className="text-sm font-semibold text-white">{gym?.name}</p>
                             <p className="text-xs text-gray-400">{user?.username}</p>
+                            <span className={clsx('inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium', roleConfig.color)}>
+                              {roleConfig.label}
+                            </span>
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="py-2">
-                        <button
-                          onClick={() => { navigate('/subscription'); setUserMenuOpen(false); }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-dark-200 hover:text-white transition-colors"
-                        >
-                          <CreditCard className="w-4 h-4" />
-                          Subscription
-                        </button>
+                        {(userRole === 'owner' || userRole === 'admin') && (
+                          <button
+                            onClick={() => { navigate('/subscription'); setUserMenuOpen(false); }}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-dark-200 hover:text-white transition-colors"
+                          >
+                            <CreditCard className="w-4 h-4" />
+                            Subscription
+                          </button>
+                        )}
                         <button
                           onClick={() => { handleLogout(); setUserMenuOpen(false); }}
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
@@ -343,84 +388,85 @@ export default function Layout() {
 }
 
 function SidebarContent({ onNavigate }) {
-  const { gym, subscription } = useAuth();
+  const { gym, subscription, user } = useAuth();
   const location = useLocation();
-  
+
   const currentPlan = gym?.subscription_plan?.toLowerCase() || 'free';
   const currentPlanIndex = PLAN_ORDER.indexOf(currentPlan);
+  const userRole = user?.role || 'owner';
 
-  const hasAccess = (requiredPlan) => {
+  const hasPlanAccess = (requiredPlan) => {
     if (!requiredPlan) return true;
-    const requiredIndex = PLAN_ORDER.indexOf(requiredPlan);
-    return currentPlanIndex >= requiredIndex;
+    return currentPlanIndex >= PLAN_ORDER.indexOf(requiredPlan);
   };
+
+  // Filter nav items the current role can see
+  const visibleNav = navigation.filter(item =>
+    !item.roles || item.roles.includes(userRole)
+  );
 
   const getPlanBadge = (requiredPlan) => {
     if (!requiredPlan) return null;
-    if (currentPlan === 'pro' && requiredPlan === 'pro') {
-      return <span className="ml-auto text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full">Pro</span>;
-    }
-    if (hasAccess(requiredPlan)) {
-      return <span className="ml-auto text-xs px-2 py-0.5 bg-gym-500/20 text-gym-400 rounded-full capitalize">{requiredPlan}+</span>;
-    }
+    if (hasPlanAccess(requiredPlan)) return null; // no badge if they have access
     return <span className="ml-auto text-xs px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full">Locked</span>;
   };
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-b from-dark-100 to-dark-200 border-r border-gray-800/50">
+    <div className="flex flex-col h-full bg-dark-100 border-r border-gray-800/50 relative overflow-hidden">
+      {/* Theme colour strip at very top */}
+      <div className="h-1 w-full flex-shrink-0" style={{ background: 'linear-gradient(90deg, rgb(var(--gym-400-rgb)), rgb(var(--gym-600-rgb)))' }} />
+
       {/* Logo */}
-      <div className="flex items-center gap-3 h-16 px-6 border-b border-gray-800/50 bg-gradient-to-r from-dark-100 to-dark-200">
-        <div className={clsx(
-          "w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg animate-pulse-glow",
-          gym?.color_theme === 'emerald' && "bg-gradient-to-br from-emerald-500 to-emerald-600",
-          gym?.color_theme === 'purple' && "bg-gradient-to-br from-purple-500 to-purple-600",
-          gym?.color_theme === 'red' && "bg-gradient-to-br from-red-500 to-red-600",
-          gym?.color_theme === 'amber' && "bg-gradient-to-br from-amber-500 to-amber-600",
-          gym?.color_theme === 'cyan' && "bg-gradient-to-br from-cyan-500 to-cyan-600",
-          (!gym?.color_theme || gym?.color_theme === 'default') && "bg-gradient-to-br from-gym-500 via-purple-500 to-pink-500"
-        )}>
-          <Dumbbell className="w-7 h-7 text-white" />
+      <div className="flex items-center gap-3 h-16 px-5 border-b border-gray-800/50"
+        style={{ background: 'linear-gradient(135deg, rgb(var(--gym-600-rgb) / 0.15), transparent)' }}>
+        <div
+          className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0"
+          style={{ background: 'linear-gradient(135deg, rgb(var(--gym-500-rgb)), rgb(var(--gym-700-rgb)))', boxShadow: '0 4px 14px rgb(var(--gym-500-rgb) / 0.4)' }}
+        >
+          <Dumbbell className="w-6 h-6 text-white" />
         </div>
         <div>
-          <h1 className="text-xl font-bold gradient-text">Hullu Gyms</h1>
-          <p className="text-xs text-gray-400 truncate max-w-[160px]">{gym?.name || 'Your Gym'}</p>
+          <h1 className="text-lg font-bold text-white">Hullu Gyms</h1>
+          <p className="text-xs truncate max-w-[150px]" style={{ color: 'rgb(var(--gym-400-rgb))' }}>{gym?.name || 'Your Gym'}</p>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-2">
-        {navigation.map((item) => {
+      <nav className="flex-1 px-3 py-4 space-y-1">
+        {visibleNav.map((item) => {
           const isActive = location.pathname === item.href;
-          const access = hasAccess(item.requiresPlan);
-          
+          const planOk = hasPlanAccess(item.requiresPlan);
+
           return (
             <NavLink
               key={item.name}
-              to={access ? item.href : '/subscription'}
+              to={planOk ? item.href : '/subscription'}
               onClick={onNavigate}
               className={clsx(
-                "flex items-center gap-3 px-4 py-3.5 rounded-xl font-medium transition-all duration-300 group",
-                isActive 
-                  ? "bg-gradient-to-r from-gym-600/30 to-purple-600/30 text-gym-400 shadow-lg shadow-gym-500/10 border border-gym-500/20" 
-                  : !access
-                    ? "text-gray-500 cursor-not-allowed opacity-60"
-                    : "text-gray-400 hover:text-white hover:bg-dark-100 border border-transparent"
+                "flex items-center gap-3 px-3 py-3 rounded-xl font-medium transition-all duration-200 group relative overflow-hidden",
+                isActive
+                  ? "text-white"
+                  : !planOk
+                    ? "text-gray-600 cursor-not-allowed opacity-50"
+                    : "text-gray-400 hover:text-white hover:bg-white/5"
               )}
+              style={isActive ? {
+                background: 'linear-gradient(135deg, rgb(var(--gym-500-rgb) / 0.25), rgb(var(--gym-700-rgb) / 0.15))',
+                borderLeft: '3px solid rgb(var(--gym-400-rgb))',
+                boxShadow: 'inset 0 0 20px rgb(var(--gym-500-rgb) / 0.08)',
+              } : { borderLeft: '3px solid transparent' }}
             >
-              <div className={clsx(
-                "p-2 rounded-lg transition-all duration-300",
-                isActive ? "bg-gym-500/20" : !access ? "bg-dark-300" : "bg-dark-300 group-hover:bg-dark-200"
-              )}>
-                {access ? (
-                  <item.icon className="w-5 h-5" />
-                ) : (
-                  <Lock className="w-5 h-5" />
-                )}
+              <div className="p-1.5 rounded-lg transition-all duration-200 flex-shrink-0"
+                style={isActive ? {
+                  background: 'rgb(var(--gym-500-rgb) / 0.25)',
+                  color: 'rgb(var(--gym-400-rgb))',
+                } : {}}>
+                {planOk ? <item.icon className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
               </div>
-              {item.name}
+              <span className="text-sm">{item.name}</span>
               {getPlanBadge(item.requiresPlan)}
               {isActive && (
-                <div className="ml-auto w-2 h-2 rounded-full bg-gym-400 animate-pulse" />
+                <div className="ml-auto w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'rgb(var(--gym-400-rgb))' }} />
               )}
             </NavLink>
           );
@@ -459,7 +505,7 @@ function SidebarContent({ onNavigate }) {
         <div className="text-xs text-gray-500 text-center">
           <span className="gradient-text font-semibold">{gym?.name || 'Your Gym'}</span> by <span className="gradient-text font-semibold">Hullu Gyms</span>
           <br />
-          © 2024 All rights reserved
+          © 2025 All rights reserved
         </div>
       </div>
     </div>

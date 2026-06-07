@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { Building2, Eye, EyeOff, Crown } from 'lucide-react';
@@ -18,7 +18,7 @@ export default function AdminLogin() {
     setError('');
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://hullu-gympro.onrender.com'}/api/admin/login`, {
+      const response = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -72,7 +72,7 @@ export default function AdminLogin() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@hullugyms.com"
+                placeholder="admin@Hullu Gyms.com"
                 className="w-full px-4 py-3 bg-dark-200 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-gym-500 transition-colors"
                 required
               />
@@ -112,9 +112,10 @@ export default function AdminLogin() {
           </form>
         </div>
 
-        <p className="text-center text-gray-500 text-sm mt-6">
-          Hullu Gym Management System
-        </p>
+        <div className="mt-6 p-4 bg-dark-200/60 rounded-xl border border-gray-800 text-center">
+          <p className="text-xs text-gray-500 mb-1">Default admin credentials</p>
+          <p className="text-xs text-gray-400 font-mono">admin@Hullu Gyms.com · admin123</p>
+        </div>
       </div>
     </div>
   );

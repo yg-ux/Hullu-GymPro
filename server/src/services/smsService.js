@@ -1,4 +1,4 @@
-/**
+﻿/**
  * GeezSMS Integration Service
  * Handles all SMS notifications for GymPro
  */
@@ -7,32 +7,43 @@ const GEEZSMS_BASE_URL = 'https://api.geezsms.com/api/v1/sms';
 
 class SmsService {
   /**
-   * Send SMS to a phone number
-   * @param {string} phone - Phone number (must start with 2519 or +2519)
+   * Send SMS to a phone number.
+   * Uses the platform-level GEEZSMS_API_KEY from environment — no per-gym key needed.
+   * @param {string} phone - Phone number (Ethiopian format)
    * @param {string} message - SMS message (max 335 chars)
-   * @param {string} apiKey - Optional API key (uses gym's key if not provided)
    * @returns {Promise<object>} - API response
    */
-  async sendSms(phone, message, apiKey = null) {
+  async sendSms(phone, message) {
+    const apiKey = process.env.GEEZSMS_API_KEY;
     if (!apiKey) {
-      console.log('SMS: No API key provided, skipping SMS');
-      return { success: false, message: 'SMS API key not configured' };
+      console.log('SMS: GEEZSMS_API_KEY not set in environment, skipping SMS');
+      return { success: false, message: 'SMS not configured on this server' };
     }
 
     if (!phone || !message) {
       return { success: false, message: 'Phone and message are required' };
     }
 
-    // Validate phone format (Ethiopian: 2519xxxxxxxx)
-    let formattedPhone = phone.replace(/\s/g, '');
-    if (!formattedPhone.startsWith('2519')) {
-      if (formattedPhone.startsWith('+2519')) {
-        formattedPhone = formattedPhone.substring(1); // Remove + prefix
-      } else if (formattedPhone.startsWith('09')) {
-        formattedPhone = '251' + formattedPhone.substring(1); // 09 -> 2519
-      } else {
-        return { success: false, message: 'Invalid phone format. Use 2519XXXXXXXX format.' };
-      }
+    // Normalize Ethiopian phone number to 251XXXXXXXXX format
+    let formattedPhone = phone.replace(/[\s\-().]/g, ''); // strip spaces, dashes, parens
+
+    if (formattedPhone.startsWith('+251')) {
+      formattedPhone = formattedPhone.substring(1); // +2519x -> 2519x
+    } else if (formattedPhone.startsWith('251')) {
+      // already in 251x format — keep as-is
+    } else if (formattedPhone.startsWith('0') && formattedPhone.length === 10) {
+      formattedPhone = '251' + formattedPhone.substring(1); // 09xx -> 2519xx, 07xx -> 2517xx
+    } else if (formattedPhone.length === 9) {
+      formattedPhone = '251' + formattedPhone; // 9xxxxxxxx -> 2519xxxxxxxx
+    } else {
+      console.warn(`SMS: Unrecognized phone format: ${phone}`);
+      return { success: false, message: `Unrecognized phone format: ${phone}` };
+    }
+
+    // Final sanity check: must be 251 + 9 digits = 12 digits total
+    if (!/^251\d{9}$/.test(formattedPhone)) {
+      console.warn(`SMS: Phone failed final validation: ${formattedPhone}`);
+      return { success: false, message: `Invalid phone number: ${phone}` };
     }
 
     // Validate message length
@@ -41,17 +52,16 @@ class SmsService {
     }
 
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+
       const response = await fetch(`${GEEZSMS_BASE_URL}/send`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          phone: formattedPhone,
-          msg: message,
-          token: apiKey
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: formattedPhone, msg: message, token: apiKey }),
+        signal: controller.signal
       });
+      clearTimeout(timeout);
 
       const data = await response.json();
       
@@ -74,8 +84,21 @@ class SmsService {
    * @param {object} gym - Gym object
    */
   async sendWelcomeSms(customer, gym) {
-    const message = `Welcome to ${gym.name}! Your membership is now active. Check-in using your phone number. For help, contact us. - Hullu Gyms`;
-    return await this.sendSms(customer.phone, message, gym.sms_api_key);
+    const amount = customer.amount ? `ETB ${parseFloat(customer.amount).toLocaleString()}` : null;
+    const end = customer.membership_end
+      ? new Date(customer.membership_end).toLocaleDateString('en-ET', { day: 'numeric', month: 'short', year: 'numeric' })
+      : null;
+    const duration = customer.membership_type
+      ? customer.membership_type.replace(/_/g, ' ')
+      : 'monthly';
+
+    let message = `Hi ${customer.name}, you're officially a member of ${gym.name}! 💪`;
+    if (amount) message += ` Your ${duration} membership is active — ${amount} received.`;
+    if (end) message += ` Valid until ${end}.`;
+    message += ` Show up, put in the work, and let's lift some weights!`;
+    if (gym.phone) message += ` Any questions? Call us at ${gym.phone}.`;
+
+    return await this.sendSms(customer.phone, message);
   }
 
   /**
@@ -85,10 +108,18 @@ class SmsService {
    * @param {object} gym - Gym object
    */
   async sendPaymentConfirmation(customer, payment, gym) {
-    const amount = parseFloat(payment.amount).toFixed(2);
-    const endDate = new Date(payment.end_date).toLocaleDateString('en-ET');
-    const message = `Payment confirmed! ${amount} ETB received for your ${customer.membership_type?.replace('_', ' ')} membership at ${gym.name}. Valid until ${endDate}. - Hullu Gyms`;
-    return await this.sendSms(customer.phone, message, gym.sms_api_key);
+    const amount = parseFloat(payment.amount).toLocaleString();
+    const duration = customer.membership_type ? customer.membership_type.replace(/_/g, ' ') : 'membership';
+    const endDate = payment.end_date
+      ? new Date(payment.end_date).toLocaleDateString('en-ET', { day: 'numeric', month: 'short', year: 'numeric' })
+      : null;
+
+    let message = `Hi ${customer.name}, payment confirmed! ✅ ETB ${amount} received for your ${duration} at ${gym.name}.`;
+    if (endDate) message += ` You're covered until ${endDate}.`;
+    message += ` Keep showing up — you've got this! 💪`;
+    if (gym.phone) message += ` Questions? Call ${gym.phone}.`;
+
+    return await this.sendSms(customer.phone, message);
   }
 
   /**
@@ -99,12 +130,15 @@ class SmsService {
    */
   async sendMembershipExpiryReminder(customer, gym, daysLeft) {
     let message;
-    if (daysLeft <= 1) {
-      message = `Reminder: Your membership at ${gym.name} expires ${daysLeft <= 0 ? 'today' : 'tomorrow'}! Please renew to continue enjoying our services. - Hullu Gyms`;
+    if (daysLeft <= 0) {
+      message = `Hi ${customer.name}, your membership at ${gym.name} has expired today. Don't let the momentum stop — renew now and keep going! 🔥`;
+    } else if (daysLeft === 1) {
+      message = `Hi ${customer.name}, heads up! Your membership at ${gym.name} expires tomorrow. Renew today and keep that streak alive! 💪`;
     } else {
-      message = `Reminder: Your membership at ${gym.name} expires in ${daysLeft} days. Please visit us to renew. - Hullu Gyms`;
+      message = `Hi ${customer.name}, just a reminder — your membership at ${gym.name} expires in ${daysLeft} days. Renew soon and stay on track!`;
     }
-    return await this.sendSms(customer.phone, message, gym.sms_api_key);
+    if (gym.phone) message += ` Call us at ${gym.phone} to renew.`;
+    return await this.sendSms(customer.phone, message);
   }
 
   /**
@@ -114,7 +148,7 @@ class SmsService {
    */
   async sendSubscriptionRenewalReminder(gym, daysLeft) {
     const message = `Hullu Gyms: Your subscription expires in ${daysLeft} days. Renew now to keep your gym active and avoid service interruption. - Hullu Gyms`;
-    return await this.sendSms(gym.phone, message, gym.sms_api_key);
+    return await this.sendSms(gym.phone, message);
   }
 }
 

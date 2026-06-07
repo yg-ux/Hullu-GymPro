@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, MEMBERSHIP_TYPES, getMembershipDays } from '../utils/api';
-import { 
-  ArrowLeft, 
-  Upload, 
+import { useToast } from '../context/ToastContext';
+import clsx from 'clsx';
+import {
+  ArrowLeft,
+  Upload,
   X,
   Camera,
   User,
@@ -12,13 +14,13 @@ import {
   Calendar,
   FileText,
   AlertCircle,
-  CheckCircle,
   DollarSign
 } from 'lucide-react';
 
 export default function AddCustomer() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const isEditing = Boolean(id);
 
   const [formData, setFormData] = useState({
@@ -26,16 +28,24 @@ export default function AddCustomer() {
     phone: '',
     email: '',
     membership_type: '1_month',
+    membership_duration: '1_month',
     amount: '',
     emergency_contact: '',
     notes: '',
   });
-  
+
+  const THREE_DAYS_DURATIONS = [
+    { value: '1_month',  label: '1 Month  (3 days/week)',  days: 30  },
+    { value: '2_months', label: '2 Months (3 days/week)',  days: 60  },
+    { value: '3_months', label: '3 Months (3 days/week)',  days: 90  },
+    { value: '6_months', label: '6 Months (3 days/week)',  days: 180 },
+    { value: '1_year',   label: '1 Year   (3 days/week)',  days: 365 },
+  ];
+
+  const [fieldErrors, setFieldErrors] = useState({});
   const [photo, setPhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     if (isEditing) {
@@ -60,24 +70,25 @@ export default function AddCustomer() {
       }
     } catch (error) {
       console.error('Failed to load customer:', error);
-      setError('Failed to load customer data');
+      toast.error('Failed to load customer data');
     }
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => ({ ...prev, [name]: '' }));
+    }
   };
 
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Limit to 1MB for base64 storage
       if (file.size > 1024 * 1024) {
-        setError('Photo too large. Please use an image under 1MB.');
+        toast.error('Photo too large. Please use an image under 1MB.');
         return;
       }
-      
       setPhoto(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -92,14 +103,49 @@ export default function AddCustomer() {
     setPhotoPreview(null);
   };
 
+  const validate = () => {
+    const errors = {};
+    const name = formData.name.trim();
+    const phone = formData.phone.trim();
+    const email = formData.email.trim();
+    const amount = formData.amount;
+
+    if (!name) {
+      errors.name = 'Name is required';
+    } else if (name.length < 2) {
+      errors.name = 'Name must be at least 2 characters';
+    }
+
+    if (phone && phone.replace(/\D/g, '').length < 7) {
+      errors.phone = 'Enter a valid phone number (at least 7 digits)';
+    }
+
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = 'Enter a valid email address';
+    }
+
+    if (!isEditing) {
+      if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+        errors.amount = 'Amount must be greater than 0';
+      }
+    }
+
+    return errors;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
+
+    const errors = validate();
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      toast.error('Please fix the errors below');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Convert photo to base64 if it's a file
       let photoData = null;
       if (photo && photo instanceof File) {
         photoData = await new Promise((resolve, reject) => {
@@ -123,26 +169,31 @@ export default function AddCustomer() {
 
       if (isEditing) {
         await api.put(`/customers/${id}`, submitData);
-        setSuccess('Customer updated successfully!');
+        toast.success('Customer updated successfully!');
       } else {
         submitData.membership_type = formData.membership_type;
         submitData.amount = formData.amount;
-        const customer = await api.post('/customers', submitData);
-        
-        setSuccess('Customer added successfully!');
+        if (formData.membership_type === '3_days_week') {
+          submitData.membership_duration = formData.membership_duration;
+        }
+        await api.post('/customers', submitData);
+        toast.success('Customer added successfully!');
       }
 
       setTimeout(() => {
         navigate('/customers');
-      }, 1500);
+      }, 1000);
     } catch (error) {
-      setError(error.message || 'Failed to save customer');
+      toast.error(error.message || 'Failed to save customer');
     } finally {
       setLoading(false);
     }
   };
 
-  const membershipDays = getMembershipDays(formData.membership_type);
+  const is3DaysWeek = formData.membership_type === '3_days_week';
+  const membershipDays = is3DaysWeek
+    ? (THREE_DAYS_DURATIONS.find(d => d.value === formData.membership_duration)?.days || 30)
+    : getMembershipDays(formData.membership_type);
   const startDate = new Date();
   const endDate = new Date(startDate.getTime() + membershipDays * 24 * 60 * 60 * 1000);
 
@@ -163,28 +214,12 @@ export default function AddCustomer() {
         </div>
       </div>
 
-      {/* Success Message */}
-      {success && (
-        <div className="flex items-center gap-3 p-4 bg-green-500/10 border border-green-500/30 rounded-lg animate-slide-up">
-          <CheckCircle className="w-5 h-5 text-green-400" />
-          <span className="text-green-400">{success}</span>
-        </div>
-      )}
-
-      {/* Error Message */}
-      {error && (
-        <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-lg animate-slide-up">
-          <AlertCircle className="w-5 h-5 text-red-400" />
-          <span className="text-red-400">{error}</span>
-        </div>
-      )}
-
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Photo Upload */}
         <div className="card p-6">
           <h2 className="text-lg font-semibold text-white mb-4">Customer Photo</h2>
-          
+
           <div className="flex flex-col items-center">
             <div className="relative mb-4">
               {photoPreview ? (
@@ -209,7 +244,7 @@ export default function AddCustomer() {
                 </div>
               )}
             </div>
-            
+
             <label className="cursor-pointer">
               <input
                 type="file"
@@ -222,14 +257,14 @@ export default function AddCustomer() {
                 {photoPreview ? 'Change Photo' : 'Upload Photo'}
               </span>
             </label>
-            <p className="text-xs text-gray-500 mt-2">JPG, PNG, GIF up to 5MB</p>
+            <p className="text-xs text-gray-500 mt-2">JPG, PNG, GIF up to 1MB</p>
           </div>
         </div>
 
         {/* Basic Info */}
         <div className="card p-6 space-y-4">
           <h2 className="text-lg font-semibold text-white">Basic Information</h2>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Full Name <span className="text-red-400">*</span>
@@ -241,11 +276,16 @@ export default function AddCustomer() {
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                className="input-field pl-10"
+                className={clsx('input-field pl-10', fieldErrors.name && 'border-red-500 focus:ring-red-500')}
                 placeholder="Enter customer's full name"
-                required
               />
             </div>
+            {fieldErrors.name && (
+              <p className="mt-1 text-xs text-red-400 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                {fieldErrors.name}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -258,10 +298,16 @@ export default function AddCustomer() {
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
-                  className="input-field pl-10"
+                  className={clsx('input-field pl-10', fieldErrors.phone && 'border-red-500 focus:ring-red-500')}
                   placeholder="+251911234567"
                 />
               </div>
+              {fieldErrors.phone && (
+                <p className="mt-1 text-xs text-red-400 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {fieldErrors.phone}
+                </p>
+              )}
             </div>
 
             <div>
@@ -273,10 +319,16 @@ export default function AddCustomer() {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="input-field pl-10"
+                  className={clsx('input-field pl-10', fieldErrors.email && 'border-red-500 focus:ring-red-500')}
                   placeholder="email@example.com"
                 />
               </div>
+              {fieldErrors.email && (
+                <p className="mt-1 text-xs text-red-400 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {fieldErrors.email}
+                </p>
+              )}
             </div>
           </div>
 
@@ -296,11 +348,11 @@ export default function AddCustomer() {
           </div>
         </div>
 
-        {/* Membership & Payment - Only show for new customers, not edit mode */}
+        {/* Membership & Payment - Only show for new customers */}
         {!isEditing && (
           <div className="card p-6 space-y-4">
             <h2 className="text-lg font-semibold text-white">Membership & Payment</h2>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">Membership Type</label>
@@ -319,11 +371,44 @@ export default function AddCustomer() {
                     ))}
                   </select>
                 </div>
+
+                {/* Duration selector — only shown for 3 days/week */}
+                {is3DaysWeek && (
+                  <div className="mt-3">
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Duration <span className="text-red-400">*</span>
+                    </label>
+                    <div className="grid grid-cols-1 gap-2">
+                      {THREE_DAYS_DURATIONS.map(opt => (
+                        <label
+                          key={opt.value}
+                          className={clsx(
+                            'flex items-center gap-3 px-4 py-2.5 rounded-lg border cursor-pointer transition-all',
+                            formData.membership_duration === opt.value
+                              ? 'border-gym-500 bg-gym-500/10 text-white'
+                              : 'border-gray-700 bg-dark-200 text-gray-400 hover:border-gray-500'
+                          )}
+                        >
+                          <input
+                            type="radio"
+                            name="membership_duration"
+                            value={opt.value}
+                            checked={formData.membership_duration === opt.value}
+                            onChange={handleChange}
+                            className="accent-gym-500"
+                          />
+                          <span className="text-sm font-medium">{opt.label}</span>
+                          <span className="ml-auto text-xs text-gray-500">{opt.days} days</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Amount Paid (ETB) <span className="text-yellow-400">*</span>
+                  Amount Paid (ETB) <span className="text-red-400">*</span>
                 </label>
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -332,12 +417,17 @@ export default function AddCustomer() {
                     name="amount"
                     value={formData.amount}
                     onChange={handleChange}
-                    className="input-field pl-10"
+                    className={clsx('input-field pl-10', fieldErrors.amount && 'border-red-500 focus:ring-red-500')}
                     placeholder="Enter amount paid"
-                    required
                     min="1"
                   />
                 </div>
+                {fieldErrors.amount && (
+                  <p className="mt-1 text-xs text-red-400 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {fieldErrors.amount}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -366,7 +456,7 @@ export default function AddCustomer() {
           </div>
         )}
 
-        {/* Edit Mode Message - Membership Extension */}
+        {/* Edit Mode Message */}
         {isEditing && (
           <div className="card p-6">
             <div className="flex items-start gap-3 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
@@ -382,7 +472,7 @@ export default function AddCustomer() {
         {/* Notes */}
         <div className="card p-6 space-y-4">
           <h2 className="text-lg font-semibold text-white">Additional Information</h2>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">Notes</label>
             <div className="relative">
@@ -400,8 +490,8 @@ export default function AddCustomer() {
 
         {/* Actions */}
         <div className="flex gap-4">
-          <Link 
-            to={isEditing ? `/customers/${id}` : '/customers'} 
+          <Link
+            to={isEditing ? `/customers/${id}` : '/customers'}
             className="btn-secondary flex-1 justify-center"
           >
             Cancel

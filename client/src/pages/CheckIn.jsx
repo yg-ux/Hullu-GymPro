@@ -90,7 +90,7 @@ export default function CheckIn() {
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
   const [recentCheckIns, setRecentCheckIns] = useState([]);
-  const [success, setSuccess] = useState('');
+  const [success, setSuccess] = useState(null); // { name, visitsUsed, maxVisits } or string
   const [error, setError] = useState('');
   const inputRef = useRef(null);
 
@@ -137,23 +137,20 @@ export default function CheckIn() {
   const handleCheckIn = async (customerId) => {
     setActionLoading(customerId);
     setError('');
-    setSuccess('');
-    
+    setSuccess(null);
+    const customerName = searchResults.find(c => c.id === customerId)?.name || 'Customer';
+
     try {
-      await api.post(`/customers/${customerId}/check-in`);
-      setSuccess(`${searchResults.find(c => c.id === customerId)?.name || 'Customer'} checked in successfully!`);
+      const result = await api.post(`/customers/${customerId}/check-in`);
+      setSuccess({
+        name: customerName,
+        visitsUsed: result.visits_this_week ?? null,
+        maxVisits: result.max_visits ?? null,
+      });
       setSearchResults([]);
       setPhone('');
       loadRecentCheckIns();
-      
-      // Play success sound
-      try {
-        const audio = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU9vT18AAA');
-        audio.volume = 0.3;
-        audio.play().catch(() => {});
-      } catch (e) {}
-      
-      setTimeout(() => setSuccess(''), 3000);
+      setTimeout(() => setSuccess(null), 5000);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -169,11 +166,44 @@ export default function CheckIn() {
         <p className="text-gray-400">Search for a customer by phone number</p>
       </div>
 
-      {/* Messages */}
+      {/* Success banner */}
       {success && (
-        <div className="flex items-center gap-3 p-4 bg-green-500/10 border border-green-500/30 rounded-xl animate-slide-up">
-          <CheckCircle className="w-6 h-6 text-green-400" />
-          <span className="text-green-400 font-medium">{success}</span>
+        <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-xl animate-slide-up space-y-2">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="w-6 h-6 text-green-400 flex-shrink-0" />
+            <span className="text-green-400 font-semibold text-lg">{success.name} checked in!</span>
+          </div>
+
+          {/* Weekly visit tracker for 3-days/week plan */}
+          {success.maxVisits > 0 && (
+            <div className="ml-9 mt-1">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-gray-400">This week's visits</span>
+                <span className={clsx(
+                  'text-xs font-bold',
+                  success.visitsUsed >= success.maxVisits ? 'text-red-400' : 'text-yellow-400'
+                )}>
+                  {success.visitsUsed} / {success.maxVisits} used
+                  {success.visitsUsed < success.maxVisits
+                    ? ` · ${success.maxVisits - success.visitsUsed} remaining`
+                    : ' · Limit reached this week'}
+                </span>
+              </div>
+              <div className="flex gap-1.5">
+                {Array.from({ length: success.maxVisits }, (_, i) => (
+                  <div key={i} className={clsx(
+                    'flex-1 h-2 rounded-full transition-all',
+                    i < success.visitsUsed ? 'bg-yellow-400' : 'bg-gray-700'
+                  )} />
+                ))}
+              </div>
+              {success.visitsUsed >= success.maxVisits && (
+                <p className="text-xs text-red-400 mt-1">
+                  ⚠ Weekly limit reached — next visits allowed from Monday
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
 

@@ -1,12 +1,18 @@
-import express from 'express';
+﻿import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { runQuery, getOne, getAll, saveDatabase } from '../models/database.js';
+import { validateRegister, validateLogin, validateChangePassword } from '../middleware/validate.js';
+import { smsService } from '../services/smsService.js';
 
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'afro-gym-saas-secret-key-2024';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET environment variable is not set. Server will not start.');
+  process.exit(1);
+}
 const TRIAL_DAYS = 14;
 
 function authenticateToken(req, res, next) {
@@ -28,6 +34,11 @@ function authenticateToken(req, res, next) {
 
 // Check subscription status
 function checkSubscription(gym) {
+  // Free plan is always valid — just member-count limited, never "expired"
+  if (!gym.subscription_plan || gym.subscription_plan === 'free') {
+    return { valid: true, status: 'free', daysLeft: -1, maxMembers: gym.max_members || 10 };
+  }
+
   if (!gym.subscription_status) {
     return { valid: false, status: 'inactive', daysLeft: 0 };
   }
@@ -36,7 +47,7 @@ function checkSubscription(gym) {
     const endDate = new Date(gym.subscription_end);
     const today = new Date();
     const daysLeft = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
-    
+
     if (daysLeft <= 0) {
       return { valid: false, status: 'expired', daysLeft: 0 };
     }
@@ -49,7 +60,7 @@ function checkSubscription(gym) {
     endDate.setDate(endDate.getDate() + TRIAL_DAYS);
     const today = new Date();
     const daysLeft = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
-    
+
     if (daysLeft <= 0) {
       return { valid: false, status: 'trial_expired', daysLeft: 0 };
     }
@@ -60,7 +71,7 @@ function checkSubscription(gym) {
 }
 
 // Middleware to check subscription validity for write operations
-function requireActiveSubscription(req, res, next) {
+export function requireActiveSubscription(req, res, next) {
   const gym = getOne('SELECT * FROM gyms WHERE id = ?', [req.user.gym_id]);
   
   if (!gym) {
@@ -84,7 +95,7 @@ function requireActiveSubscription(req, res, next) {
 }
 
 // Register a new gym
-router.post('/register', async (req, res) => {
+router.post('/register', validateRegister, async (req, res) => {
   try {
     const { gymName, ownerName, email, phone, password, colorTheme, logo } = req.body;
 
@@ -193,7 +204,7 @@ function getFeatures(plan) {
 }
 
 // Login
-router.post('/login', (req, res) => {
+router.post('/login', validateLogin, (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -285,7 +296,7 @@ router.get('/me', authenticateToken, (req, res) => {
         subscription_end: gym.subscription_end,
         max_members: gym.max_members,
         sms_enabled: gym.sms_enabled,
-        sms_api_key: gym.sms_api_key ? '***' + gym.sms_api_key.slice(-4) : null
+        sms_available: !!process.env.GEEZSMS_API_KEY
       },
       user: {
         id: user.id,
@@ -322,7 +333,7 @@ router.get('/plans', (req, res) => {
       {
         id: 'starter',
         name: 'Starter',
-        price: 1600,
+        price: 1999,
         currency: 'ETB',
         period: 'month',
         max_members: 100,
@@ -331,23 +342,23 @@ router.get('/plans', (req, res) => {
           'Everything in Free',
           'Staff management',
           'SMS reminders',
-          'Email support'
+          'Reports & analytics'
         ]
       },
       {
         id: 'pro',
         name: 'Pro',
-        price: 5000,
+        price: 4999,
         currency: 'ETB',
         period: 'month',
         max_members: -1, // unlimited
         features: [
           'Unlimited members',
           'Everything in Starter',
-          'Reports & Analytics',
-          'Revenue tracking',
+          'Revenue analytics',
+          'CSV export',
           'Priority support',
-          'SMS reminders'
+          'QR code check-in'
         ]
       }
     ];
@@ -366,7 +377,7 @@ router.post('/subscribe', authenticateToken, (req, res) => {
 
     const plans = {
       'free': { price: 0, max_members: 10 },
-      'starter': { price: 1600, max_members: 100 },
+      'starter': { price: 1999, max_members: 100 },
       'pro': { price: 5000, max_members: -1 }
     };
 
@@ -457,7 +468,7 @@ router.get('/settings', authenticateToken, (req, res) => {
 // Update gym profile
 router.put('/gym', authenticateToken, (req, res) => {
   try {
-    const { name, phone, address, sms_enabled, sms_api_key } = req.body;
+    const { name, phone, address, sms_enabled } = req.body;
 
     const updates = [];
     const values = [];
@@ -477,10 +488,6 @@ router.put('/gym', authenticateToken, (req, res) => {
     if (sms_enabled !== undefined) {
       updates.push('sms_enabled = ?');
       values.push(sms_enabled ? 1 : 0);
-    }
-    if (sms_api_key !== undefined) {
-      updates.push('sms_api_key = ?');
-      values.push(sms_api_key);
     }
 
     if (updates.length > 0) {
@@ -502,7 +509,7 @@ router.put('/gym', authenticateToken, (req, res) => {
         phone: gym.phone,
         address: gym.address,
         sms_enabled: gym.sms_enabled,
-        sms_api_key: gym.sms_api_key ? '***' + gym.sms_api_key.slice(-4) : null
+        sms_available: !!process.env.GEEZSMS_API_KEY
       }
     });
   } catch (error) {
@@ -511,8 +518,121 @@ router.put('/gym', authenticateToken, (req, res) => {
   }
 });
 
+// Test SMS endpoint
+router.post('/test-sms', authenticateToken, async (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ error: 'Phone number is required' });
+
+    if (!process.env.GEEZSMS_API_KEY) {
+      return res.status(503).json({ error: 'SMS is not configured on this server. Contact Hullu Gyms support.' });
+    }
+
+    const gym = getOne('SELECT * FROM gyms WHERE id = ?', [req.user.gym_id]);
+    if (!gym) return res.status(404).json({ error: 'Gym not found' });
+    if (!['starter', 'pro'].includes(gym.subscription_plan)) {
+      return res.status(403).json({ error: 'SMS is available on Starter and Pro plans only. Upgrade to use SMS.' });
+    }
+    if (!gym.sms_enabled) return res.status(400).json({ error: 'SMS is not enabled for your gym. Turn it on in Settings first.' });
+
+    const result = await smsService.sendSms(
+      phone,
+      `Test from ${gym.name} — SMS notifications are working! 💪 Powered by Hullu Gyms.`
+    );
+
+    if (result.success) {
+      res.json({ message: 'Test SMS sent successfully' });
+    } else {
+      res.status(500).json({ error: result.message || 'Failed to send SMS' });
+    }
+  } catch (error) {
+    console.error('Test SMS error:', error);
+    res.status(500).json({ error: 'Failed to send test SMS' });
+  }
+});
+
+// Forgot password — generate OTP and send via SMS
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const user = getOne('SELECT * FROM gym_users WHERE username = ?', [email]);
+    if (!user) {
+      // Always return success to prevent email enumeration
+      return res.json({ message: 'If that email exists, an OTP has been sent via SMS.' });
+    }
+
+    const gym = getOne('SELECT * FROM gyms WHERE id = ?', [user.gym_id]);
+    if (!gym || !gym.phone) {
+      return res.json({ message: 'If that email exists, an OTP has been sent via SMS.' });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    const settingKey = `reset_otp_${email}`;
+
+    // Store OTP in settings table (upsert)
+    const existing = getOne('SELECT * FROM settings WHERE gym_id = ? AND key = ?', [user.gym_id, settingKey]);
+    if (existing) {
+      runQuery('UPDATE settings SET value = ? WHERE gym_id = ? AND key = ?',
+        [JSON.stringify({ otp, expiry }), user.gym_id, settingKey]);
+    } else {
+      runQuery('INSERT INTO settings (gym_id, key, value) VALUES (?, ?, ?)',
+        [user.gym_id, settingKey, JSON.stringify({ otp, expiry })]);
+    }
+
+    if (process.env.GEEZSMS_API_KEY && gym.phone) {
+      await smsService.sendSms(gym.phone, `Your Hullu Gym password reset OTP is: ${otp}. Valid for 15 minutes.`)
+        .catch(e => console.warn('OTP SMS failed:', e.message));
+    }
+
+    // OTP intentionally not logged to protect user privacy
+    res.json({ message: 'If that email exists, an OTP has been sent via SMS.' });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Failed to process password reset' });
+  }
+});
+
+// Reset password with OTP
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ error: 'Email, OTP, and new password are required' });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    const user = getOne('SELECT * FROM gym_users WHERE username = ?', [email]);
+    if (!user) return res.status(400).json({ error: 'Invalid or expired OTP' });
+
+    const settingKey = `reset_otp_${email}`;
+    const otpSetting = getOne('SELECT * FROM settings WHERE gym_id = ? AND key = ?', [user.gym_id, settingKey]);
+    if (!otpSetting) return res.status(400).json({ error: 'Invalid or expired OTP' });
+
+    let stored;
+    try { stored = JSON.parse(otpSetting.value); } catch { return res.status(400).json({ error: 'Invalid or expired OTP' }); }
+
+    if (stored.otp !== otp || new Date(stored.expiry) < new Date()) {
+      return res.status(400).json({ error: 'Invalid or expired OTP' });
+    }
+
+    const hashedPassword = bcrypt.hashSync(newPassword, 10);
+    runQuery('UPDATE gym_users SET password = ? WHERE id = ?', [hashedPassword, user.id]);
+    runQuery('DELETE FROM settings WHERE gym_id = ? AND key = ?', [user.gym_id, settingKey]);
+
+    res.json({ message: 'Password reset successfully. You can now log in.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
 // Change password
-router.post('/change-password', authenticateToken, (req, res) => {
+router.post('/change-password', authenticateToken, validateChangePassword, (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
