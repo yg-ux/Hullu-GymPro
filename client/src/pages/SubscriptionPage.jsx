@@ -49,31 +49,11 @@ const DURATION_OPTIONS = [
   { months: 12, label: '12 Months', discount: 15, available: false },
 ];
 
-// Inline SVG logos for Ethiopian payment providers
-const TelebirrLogo = () => (
-  <svg viewBox="0 0 120 36" className="h-7 w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="120" height="36" rx="6" fill="#5B2D8E"/>
-    <circle cx="18" cy="18" r="10" fill="#9B59D0"/>
-    <path d="M13 18 Q18 10 23 18 Q18 26 13 18Z" fill="white" opacity="0.9"/>
-    <text x="34" y="24" fontFamily="Arial, sans-serif" fontWeight="700" fontSize="14" fill="white" letterSpacing="0.5">telebirr</text>
-  </svg>
-);
-
-const CbeLogo = () => (
-  <svg viewBox="0 0 100 36" className="h-7 w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="100" height="36" rx="6" fill="#00703C"/>
-    <rect x="6" y="6" width="24" height="24" rx="3" fill="#FFD700"/>
-    <text x="10" y="23" fontFamily="Arial, sans-serif" fontWeight="900" fontSize="13" fill="#00703C">CBE</text>
-    <text x="36" y="15" fontFamily="Arial, sans-serif" fontWeight="700" fontSize="9" fill="white">Commercial</text>
-    <text x="36" y="27" fontFamily="Arial, sans-serif" fontWeight="700" fontSize="9" fill="white">Bank of Ethiopia</text>
-  </svg>
-);
-
 const PAYMENT_METHODS = [
-  { id: 'telebirr',      label: 'Telebirr',         Logo: TelebirrLogo, instant: true  },
-  { id: 'cbe_birr',     label: 'CBE Birr',          Logo: CbeLogo,      instant: false },
-  { id: 'bank_transfer', label: 'Bank Transfer',    Logo: null,         instant: false },
-  { id: 'cash',          label: 'Cash at Office',   Logo: null,         instant: false },
+  { id: 'telebirr',      label: 'Telebirr'      },
+  { id: 'cbe_birr',      label: 'CBE Birr'      },
+  { id: 'bank_transfer', label: 'Bank Transfer' },
+  { id: 'cash',          label: 'Cash at Office'},
 ];
 
 // Real payment account details
@@ -433,23 +413,13 @@ export default function SubscriptionPage() {
                   type="button"
                   onClick={() => setPaymentMethod(method.id)}
                   className={clsx(
-                    'p-3 rounded-xl border text-sm font-medium transition-all relative flex flex-col items-center gap-2',
+                    'p-3 rounded-xl border text-sm font-medium transition-all',
                     paymentMethod === method.id
                       ? 'border-gym-500 bg-gym-500/10 text-white'
                       : 'border-gray-700 text-gray-400 hover:border-gray-600'
                   )}
                 >
-                  {method.instant && (
-                    <span className="absolute -top-2 -right-2 bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                      <Zap className="w-2.5 h-2.5" /> Instant
-                    </span>
-                  )}
-                  {method.Logo ? <method.Logo /> : (
-                    <span className="text-sm font-semibold">{method.label}</span>
-                  )}
-                  {method.Logo && (
-                    <span className="text-xs text-gray-400">{method.label}</span>
-                  )}
+                  {method.label}
                 </button>
               ))}
             </div>
@@ -462,8 +432,6 @@ export default function SubscriptionPage() {
                   Send <span className="text-white font-bold">ETB {totalPrice.toLocaleString()}</span> to:
                 </p>
                 <div className="flex items-center gap-3">
-                  {paymentMethod === 'telebirr' && <TelebirrLogo />}
-                  {(paymentMethod === 'cbe_birr' || paymentMethod === 'bank_transfer') && <CbeLogo />}
                   <div>
                     <p className="text-xs text-gray-500">{PAYMENT_DETAILS[paymentMethod]?.label}</p>
                     <p className="text-white font-mono font-bold text-lg tracking-wider">
