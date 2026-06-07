@@ -7,9 +7,9 @@ class ReminderService {
     this.schedule = '0 0 * * *';
   }
 
-  _alreadySentToday(customerId, messageType) {
+  async _alreadySentToday(customerId, messageType) {
     const today = new Date().toISOString().split('T')[0];
-    const existing = getOne(`
+    const existing = await getOne(`
       SELECT id FROM sms_logs
       WHERE customer_id = ? AND message_type = ? AND date(created_at) = ?
     `, [customerId, messageType, today]);
@@ -17,21 +17,18 @@ class ReminderService {
   }
 
   _logSms(gymId, customerId, phone, messageType, message, status) {
-    try {
-      runQuery(`
-        INSERT INTO sms_logs (id, gym_id, customer_id, phone, message_type, message, status, sent_at, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      `, [uuidv4(), gymId, customerId, phone, messageType, message, status]);
-    } catch (e) {
-      console.warn('Failed to log SMS:', e.message);
-    }
+    runQuery(`
+      INSERT INTO sms_logs (id, gym_id, customer_id, phone, message_type, message, status, sent_at, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `, [uuidv4(), gymId, customerId, phone, messageType, message, status])
+      .catch(e => console.warn('Failed to log SMS:', e.message));
   }
 
   async checkMembershipExpirations() {
     console.log('🔔 Checking membership expirations...');
     try {
-      const expiringCustomers = getAll(`
-        SELECT c.*, g.name as gym_name, g.sms_enabled, g.subscription_plan, g.id as gym_id_ref
+      const expiringCustomers = await getAll(`
+        SELECT c.*, g.name as gym_name, g.sms_enabled, g.id as gym_id_ref
         FROM customers c
         JOIN gyms g ON c.gym_id = g.id
         WHERE c.status IN ('active', 'expiring')
@@ -42,7 +39,6 @@ class ReminderService {
             OR date(c.membership_end) = date('now')
           )
           AND g.sms_enabled = 1
-          AND g.subscription_plan IN ('starter', 'pro')
       `);
 
       console.log(`Found ${expiringCustomers.length} customers with expiring memberships`);
@@ -54,7 +50,7 @@ class ReminderService {
         const daysLeft = Math.ceil((expiryDate - new Date()) / (1000 * 60 * 60 * 24));
         const messageType = `expiry_${daysLeft}d`;
 
-        if (this._alreadySentToday(customer.id, messageType)) {
+        if (await this._alreadySentToday(customer.id, messageType)) {
           console.log(`Skipping duplicate reminder for ${customer.name} (${messageType})`);
           continue;
         }
@@ -62,7 +58,7 @@ class ReminderService {
         try {
           const result = await smsService.sendMembershipExpiryReminder(
             customer,
-            { name: customer.gym_name, sms_api_key: customer.sms_api_key },
+            { name: customer.gym_name },
             daysLeft
           );
           const status = result?.success ? 'sent' : 'failed';
@@ -83,7 +79,7 @@ class ReminderService {
   async checkSubscriptionRenewals() {
     console.log('📅 Checking subscription renewals...');
     try {
-      const expiringGyms = getAll(`
+      const expiringGyms = await getAll(`
         SELECT *
         FROM gyms
         WHERE subscription_status = 'active'
@@ -98,7 +94,7 @@ class ReminderService {
         if (!gym.phone) continue;
 
         const messageType = 'subscription_renewal_7d';
-        if (this._alreadySentToday(null, messageType + '_' + gym.id)) {
+        if (await this._alreadySentToday(null, messageType + '_' + gym.id)) {
           console.log(`Skipping duplicate subscription reminder for ${gym.name}`);
           continue;
         }

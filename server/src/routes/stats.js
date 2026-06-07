@@ -5,107 +5,92 @@ import { authenticateToken } from './auth.js';
 const router = express.Router();
 
 // Get dashboard stats for this gym
-router.get('/dashboard', authenticateToken, (req, res) => {
+router.get('/dashboard', authenticateToken, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
-    const today = new Date();
 
-    // Total customers
-    const totalCustomersResult = getOne('SELECT COUNT(*) as count FROM customers WHERE gym_id = ?', [gymId]);
+    const totalCustomersResult = await getOne('SELECT COUNT(*) as count FROM customers WHERE gym_id = ?', [gymId]);
     const totalCustomers = totalCustomersResult?.count || 0;
 
-    // Active customers
-    const activeResult = getOne(`
-      SELECT COUNT(*) as count FROM customers 
+    const activeResult = await getOne(`
+      SELECT COUNT(*) as count FROM customers
       WHERE gym_id = ? AND date(membership_end) >= date('now')
     `, [gymId]);
     const activeCustomers = activeResult?.count || 0;
 
-    // Expiring soon
-    const expiringResult = getOne(`
-      SELECT COUNT(*) as count FROM customers 
+    const expiringResult = await getOne(`
+      SELECT COUNT(*) as count FROM customers
       WHERE gym_id = ? AND date(membership_end) > date('now') AND date(membership_end) <= date('now', '+7 days')
     `, [gymId]);
     const expiringSoon = expiringResult?.count || 0;
 
-    // Expired
-    const expiredResult = getOne(`
-      SELECT COUNT(*) as count FROM customers 
+    const expiredResult = await getOne(`
+      SELECT COUNT(*) as count FROM customers
       WHERE gym_id = ? AND date(membership_end) < date('now')
     `, [gymId]);
     const expiredCustomers = expiredResult?.count || 0;
 
-    // Today's revenue
-    const todayRevenueResult = getOne(`
-      SELECT COALESCE(SUM(amount), 0) as total FROM payments 
+    const todayRevenueResult = await getOne(`
+      SELECT COALESCE(SUM(amount), 0) as total FROM payments
       WHERE gym_id = ? AND date(payment_date) = date('now')
     `, [gymId]);
     const todayRevenue = todayRevenueResult?.total || 0;
 
-    // This month's revenue
-    const monthRevenueResult = getOne(`
-      SELECT COALESCE(SUM(amount), 0) as total FROM payments 
+    const monthRevenueResult = await getOne(`
+      SELECT COALESCE(SUM(amount), 0) as total FROM payments
       WHERE gym_id = ? AND strftime('%Y-%m', payment_date) = strftime('%Y-%m', 'now')
     `, [gymId]);
     const monthRevenue = monthRevenueResult?.total || 0;
 
-    // Last 30 days revenue
-    const last30DaysResult = getOne(`
-      SELECT COALESCE(SUM(amount), 0) as total FROM payments 
+    const last30DaysResult = await getOne(`
+      SELECT COALESCE(SUM(amount), 0) as total FROM payments
       WHERE gym_id = ? AND date(payment_date) >= date('now', '-30 days')
     `, [gymId]);
     const last30DaysRevenue = last30DaysResult?.total || 0;
 
-    // All time revenue
-    const allTimeRevenueResult = getOne(`
+    const allTimeRevenueResult = await getOne(`
       SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE gym_id = ?
     `, [gymId]);
     const allTimeRevenue = allTimeRevenueResult?.total || 0;
 
-    // All time payment count
-    const allTimePaymentsResult = getOne(`
+    const allTimePaymentsResult = await getOne(`
       SELECT COUNT(*) as count FROM payments WHERE gym_id = ?
     `, [gymId]);
     const allTimePayments = allTimePaymentsResult?.count || 0;
 
-    // New this month
-    const newThisMonthResult = getOne(`
-      SELECT COUNT(*) as count FROM customers 
+    const newThisMonthResult = await getOne(`
+      SELECT COUNT(*) as count FROM customers
       WHERE gym_id = ? AND strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')
     `, [gymId]);
     const newThisMonth = newThisMonthResult?.count || 0;
 
-    // Recent payments
-    const recentPayments = getAll(`
-      SELECT p.*, c.name as customer_name 
-      FROM payments p 
-      LEFT JOIN customers c ON p.customer_id = c.id 
+    const recentPayments = await getAll(`
+      SELECT p.*, c.name as customer_name
+      FROM payments p
+      LEFT JOIN customers c ON p.customer_id = c.id
       WHERE p.gym_id = ?
       ORDER BY p.created_at DESC LIMIT 10
     `, [gymId]);
 
-    // Membership distribution
-    const membershipDistribution = getAll(`
-      SELECT membership_type, COUNT(*) as count 
-      FROM customers 
+    const membershipDistribution = await getAll(`
+      SELECT membership_type, COUNT(*) as count
+      FROM customers
       WHERE gym_id = ? AND date(membership_end) >= date('now')
       GROUP BY membership_type
     `, [gymId]);
 
-    // Monthly revenue trend
-    const monthlyTrend = getAll(`
-      SELECT 
+    const monthlyTrend = await getAll(`
+      SELECT
         strftime('%Y-%m', payment_date) as month,
         SUM(amount) as total,
         COUNT(*) as count
-      FROM payments 
+      FROM payments
       WHERE gym_id = ? AND date(payment_date) >= date('now', '-12 months')
       GROUP BY strftime('%Y-%m', payment_date)
       ORDER BY month
     `, [gymId]);
 
-    // Top paying customers
-    const topCustomers = getAll(`
+    const topCustomers = await getAll(`
       SELECT c.*, SUM(p.amount) as total_paid
       FROM customers c
       JOIN payments p ON c.id = p.customer_id AND p.gym_id = ?
@@ -115,8 +100,7 @@ router.get('/dashboard', authenticateToken, (req, res) => {
       LIMIT 10
     `, [gymId, gymId]);
 
-    // Payment methods
-    const paymentMethods = getAll(`
+    const paymentMethods = await getAll(`
       SELECT payment_method, COUNT(*) as count, SUM(amount) as total
       FROM payments
       WHERE gym_id = ?
@@ -151,20 +135,21 @@ router.get('/dashboard', authenticateToken, (req, res) => {
 });
 
 // Export data
-router.get('/export', authenticateToken, (req, res) => {
+router.get('/export', authenticateToken, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
 
-    const customers = getAll('SELECT * FROM customers WHERE gym_id = ? ORDER BY name', [gymId]);
-    const payments = getAll(`
-      SELECT p.*, c.name as customer_name 
-      FROM payments p 
-      LEFT JOIN customers c ON p.customer_id = c.id 
+    const customers = await getAll('SELECT * FROM customers WHERE gym_id = ? ORDER BY name', [gymId]);
+    const payments = await getAll(`
+      SELECT p.*, c.name as customer_name
+      FROM payments p
+      LEFT JOIN customers c ON p.customer_id = c.id
       WHERE p.gym_id = ?
       ORDER BY p.payment_date DESC
     `, [gymId]);
 
-    const allTimeRevenue = getOne('SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE gym_id = ?', [gymId])?.total || 0;
+    const allTimeRevenueRow = await getOne('SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE gym_id = ?', [gymId]);
+    const allTimeRevenue = allTimeRevenueRow?.total || 0;
 
     res.json({
       export_date: new Date().toISOString(),
@@ -184,19 +169,15 @@ router.get('/export', authenticateToken, (req, res) => {
 });
 
 // Reports endpoint for detailed analytics
-router.get('/reports', authenticateToken, (req, res) => {
+router.get('/reports', authenticateToken, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
     const range = req.query.range || 'this_month';
 
-    // Calculate date range
     let dateFilter = '';
-    let groupBy = 'strftime("%Y-%m", payment_date)';
-    
     switch (range) {
       case 'this_week':
         dateFilter = "date(payment_date) >= date('now', '-7 days')";
-        groupBy = 'date(payment_date)';
         break;
       case 'last_month':
         dateFilter = "strftime('%Y-%m', payment_date) = strftime('%Y-%m', 'now', '-1 month')";
@@ -213,65 +194,57 @@ router.get('/reports', authenticateToken, (req, res) => {
       case 'all_time':
         dateFilter = '1=1';
         break;
-      default: // this_month
+      default:
         dateFilter = "strftime('%Y-%m', payment_date) = strftime('%Y-%m', 'now')";
     }
 
-    // Total revenue
-    const revenueResult = getOne(`
-      SELECT COALESCE(SUM(amount), 0) as total 
-      FROM payments 
+    const revenueResult = await getOne(`
+      SELECT COALESCE(SUM(amount), 0) as total
+      FROM payments
       WHERE gym_id = ? AND ${dateFilter}
     `, [gymId]);
     const totalRevenue = revenueResult?.total || 0;
 
-    // Payment count
-    const paymentCountResult = getOne(`
-      SELECT COUNT(*) as count 
-      FROM payments 
+    const paymentCountResult = await getOne(`
+      SELECT COUNT(*) as count
+      FROM payments
       WHERE gym_id = ? AND ${dateFilter}
     `, [gymId]);
     const paymentCount = paymentCountResult?.count || 0;
 
-    // Average transaction
     const avgTransaction = paymentCount > 0 ? totalRevenue / paymentCount : 0;
 
-    // Revenue by method
-    const revenueByMethod = getAll(`
-      SELECT 
+    const revenueByMethod = await getAll(`
+      SELECT
         COALESCE(payment_method, 'cash') as method,
         SUM(amount) as total,
         COUNT(*) as count
-      FROM payments 
+      FROM payments
       WHERE gym_id = ? AND ${dateFilter}
       GROUP BY payment_method
       ORDER BY total DESC
     `, [gymId]);
 
-    // Monthly summary (last 12 months)
-    const monthlySummary = getAll(`
-      SELECT 
+    const monthlySummary = await getAll(`
+      SELECT
         strftime('%Y-%m', payment_date) as month,
         SUM(amount) as total,
         COUNT(*) as count
-      FROM payments 
+      FROM payments
       WHERE gym_id = ? AND date(payment_date) >= date('now', '-12 months')
       GROUP BY strftime('%Y-%m', payment_date)
       ORDER BY month DESC
       LIMIT 12
     `, [gymId]);
 
-    // Max month for percentage calculation
     const maxMonth = monthlySummary.length > 0 ? Math.max(...monthlySummary.map(m => m.total)) : 1;
 
-    // Member statistics
-    const activeMembersResult = getOne(`
-      SELECT COUNT(*) as count FROM customers 
+    const activeMembersResult = await getOne(`
+      SELECT COUNT(*) as count FROM customers
       WHERE gym_id = ? AND date(membership_end) >= date('now')
     `, [gymId]);
     const activeMembers = activeMembersResult?.count || 0;
 
-    // New members this period
     let newMembersFilter = "strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')";
     if (range === 'this_week') {
       newMembersFilter = "date(created_at) >= date('now', '-7 days')";
@@ -279,23 +252,21 @@ router.get('/reports', authenticateToken, (req, res) => {
       newMembersFilter = "1=1";
     }
 
-    const newMembersResult = getOne(`
+    const newMembersResult = await getOne(`
       SELECT COUNT(*) as count FROM customers WHERE gym_id = ? AND ${newMembersFilter}
     `, [gymId]);
     const newMembers = newMembersResult?.count || 0;
 
-    // Membership breakdown
-    const membershipBreakdown = getAll(`
-      SELECT 
+    const membershipBreakdown = await getAll(`
+      SELECT
         membership_type as type,
         COUNT(*) as count
-      FROM customers 
+      FROM customers
       WHERE gym_id = ? AND date(membership_end) >= date('now')
       GROUP BY membership_type
     `, [gymId]);
 
-    // Attendance data (check-ins last 30 days)
-    const attendanceData = getAll(`
+    const attendanceData = await getAll(`
       SELECT
         date(check_in) as date,
         COUNT(*) as count
@@ -305,13 +276,11 @@ router.get('/reports', authenticateToken, (req, res) => {
       ORDER BY date DESC
     `, [gymId]);
 
-    // Calculate attendance stats
     const totalCheckIns = attendanceData.reduce((sum, d) => sum + d.count, 0);
     const avgDaily = attendanceData.length > 0 ? Math.round(totalCheckIns / attendanceData.length) : 0;
     const peakDay = attendanceData.length > 0 ? attendanceData[0].date : 'N/A';
 
-    // Find busiest hour
-    const busiestHourResult = getOne(`
+    const busiestHourResult = await getOne(`
       SELECT strftime('%H', check_in) as hour, COUNT(*) as count
       FROM attendance
       WHERE gym_id = ? AND date(check_in) >= date('now', '-30 days')
@@ -321,9 +290,8 @@ router.get('/reports', authenticateToken, (req, res) => {
     `, [gymId]);
     const busiestHour = busiestHourResult ? `${busiestHourResult.hour}:00` : 'N/A';
 
-    // Top customers by payment
-    const topCustomers = getAll(`
-      SELECT 
+    const topCustomers = await getAll(`
+      SELECT
         c.id,
         c.name,
         c.phone,
@@ -342,7 +310,6 @@ router.get('/reports', authenticateToken, (req, res) => {
       LIMIT 20
     `, [gymId, gymId]);
 
-    // Calculate trends (compare to previous period)
     let previousPeriodFilter = '';
     switch (range) {
       case 'this_week':
@@ -364,16 +331,14 @@ router.get('/reports', authenticateToken, (req, res) => {
         previousPeriodFilter = dateFilter;
     }
 
-    const previousRevenueResult = getOne(`
-      SELECT COALESCE(SUM(amount), 0) as total 
-      FROM payments 
+    const previousRevenueResult = await getOne(`
+      SELECT COALESCE(SUM(amount), 0) as total
+      FROM payments
       WHERE gym_id = ? AND ${previousPeriodFilter}
     `, [gymId]);
     const previousRevenue = previousRevenueResult?.total || 0;
 
     const revenueTrend = previousRevenue > 0 ? ((totalRevenue - previousRevenue) / previousRevenue) * 100 : 0;
-    const paymentsTrend = revenueTrend; // Simplified
-    const avgTrend = revenueTrend; // Simplified
 
     res.json({
       revenue: {
@@ -381,11 +346,11 @@ router.get('/reports', authenticateToken, (req, res) => {
         average: Math.round(avgTransaction),
         maxMonth,
         trend: Math.round(revenueTrend * 10) / 10,
-        avgTrend: Math.round(avgTrend * 10) / 10
+        avgTrend: Math.round(revenueTrend * 10) / 10
       },
       payments: {
         count: paymentCount,
-        trend: Math.round(paymentsTrend * 10) / 10
+        trend: Math.round(revenueTrend * 10) / 10
       },
       members: {
         active: activeMembers,
@@ -413,41 +378,35 @@ router.get('/reports', authenticateToken, (req, res) => {
 });
 
 // Get revenue stats for revenue page
-router.get('/revenue', authenticateToken, (req, res) => {
+router.get('/revenue', authenticateToken, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
 
-    // Total revenue
-    const totalResult = getOne(`
+    const totalResult = await getOne(`
       SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE gym_id = ?
     `, [gymId]);
 
-    // This month
-    const monthResult = getOne(`
+    const monthResult = await getOne(`
       SELECT COALESCE(SUM(amount), 0) as total FROM payments
       WHERE gym_id = ? AND strftime('%Y-%m', payment_date) = strftime('%Y-%m', 'now')
     `, [gymId]);
 
-    // This week
-    const weekResult = getOne(`
+    const weekResult = await getOne(`
       SELECT COALESCE(SUM(amount), 0) as total FROM payments
       WHERE gym_id = ? AND date(payment_date) >= date('now', '-7 days')
     `, [gymId]);
 
-    // Today
-    const todayResult = getOne(`
+    const todayResult = await getOne(`
       SELECT COALESCE(SUM(amount), 0) as total FROM payments
       WHERE gym_id = ? AND date(payment_date) = date('now')
     `, [gymId]);
 
-    // Payment methods
-    const paymentMethods = getAll(`
+    const paymentMethods = await getAll(`
       SELECT COALESCE(payment_method, 'cash') as payment_method, COUNT(*) as count, SUM(amount) as total
       FROM payments WHERE gym_id = ? GROUP BY payment_method
     `, [gymId]);
 
-    // Top customers
-    const topCustomers = getAll(`
+    const topCustomers = await getAll(`
       SELECT c.id, c.name, COALESCE(SUM(p.amount), 0) as total_spent, COUNT(p.id) as payment_count
       FROM customers c
       LEFT JOIN payments p ON c.id = p.customer_id AND p.gym_id = ?
@@ -455,8 +414,7 @@ router.get('/revenue', authenticateToken, (req, res) => {
       GROUP BY c.id ORDER BY total_spent DESC LIMIT 10
     `, [gymId, gymId]);
 
-    // Recent transactions
-    const recentTransactions = getAll(`
+    const recentTransactions = await getAll(`
       SELECT p.id, p.customer_id, c.name as customer_name, p.amount, p.payment_date, p.payment_method
       FROM payments p
       LEFT JOIN customers c ON p.customer_id = c.id
@@ -464,8 +422,7 @@ router.get('/revenue', authenticateToken, (req, res) => {
       ORDER BY p.payment_date DESC LIMIT 10
     `, [gymId]);
 
-    // Monthly trend (last 12 months)
-    const monthlyTrend = getAll(`
+    const monthlyTrend = await getAll(`
       SELECT strftime('%Y-%m', payment_date) as label, SUM(amount) as total, COUNT(*) as count
       FROM payments
       WHERE gym_id = ? AND date(payment_date) >= date('now', '-12 months')
@@ -473,8 +430,7 @@ router.get('/revenue', authenticateToken, (req, res) => {
       ORDER BY label
     `, [gymId]);
 
-    // Daily trend (last 30 days)
-    const dailyTrend = getAll(`
+    const dailyTrend = await getAll(`
       SELECT date(payment_date) as label, SUM(amount) as total, COUNT(*) as count
       FROM payments
       WHERE gym_id = ? AND date(payment_date) >= date('now', '-30 days')
@@ -482,8 +438,7 @@ router.get('/revenue', authenticateToken, (req, res) => {
       ORDER BY label
     `, [gymId]);
 
-    // Weekly trend (last 13 weeks)
-    const weeklyTrend = getAll(`
+    const weeklyTrend = await getAll(`
       SELECT strftime('%Y-W%W', payment_date) as label, SUM(amount) as total, COUNT(*) as count
       FROM payments
       WHERE gym_id = ? AND date(payment_date) >= date('now', '-91 days')
@@ -491,8 +446,7 @@ router.get('/revenue', authenticateToken, (req, res) => {
       ORDER BY label
     `, [gymId]);
 
-    // Yearly trend (all years)
-    const yearlyTrend = getAll(`
+    const yearlyTrend = await getAll(`
       SELECT strftime('%Y', payment_date) as label, SUM(amount) as total, COUNT(*) as count
       FROM payments
       WHERE gym_id = ?
@@ -500,8 +454,7 @@ router.get('/revenue', authenticateToken, (req, res) => {
       ORDER BY label
     `, [gymId]);
 
-    // Forecast
-    const forecastResult = getOne(`
+    const forecastResult = await getOne(`
       SELECT COALESCE(SUM(amount), 0) as total FROM payments
       WHERE gym_id = ? AND date(payment_date) >= date('now', '-30 days')
     `, [gymId]);

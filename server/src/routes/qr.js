@@ -17,8 +17,7 @@ router.get('/:customerId', authenticateToken, async (req, res) => {
     const gymId = req.user.gym_id;
     const { customerId } = req.params;
 
-    // Check subscription
-    const gym = getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
+    const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
     if (!gym) {
       return res.status(404).json({ error: 'Gym not found' });
     }
@@ -30,20 +29,16 @@ router.get('/:customerId', authenticateToken, async (req, res) => {
       });
     }
 
-    // Verify customer belongs to this gym
-    const customer = getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [customerId, gymId]);
+    const customer = await getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [customerId, gymId]);
     if (!customer) {
       return res.status(404).json({ error: 'Customer not found' });
     }
 
-    // Check if QR code already exists
-    let qrRecord = getOne('SELECT * FROM qr_codes WHERE customer_id = ? AND is_active = 1', [customerId]);
+    let qrRecord = await getOne('SELECT * FROM qr_codes WHERE customer_id = ? AND is_active = 1', [customerId]);
 
     if (!qrRecord) {
-      // Generate new QR code
       const qrCode = `${gymId}-${customerId}-${uuidv4().substring(0, 8)}`;
 
-      // Generate QR image as base64 data URL
       const qrData = JSON.stringify({
         gym: gymId,
         customer: customerId,
@@ -61,12 +56,12 @@ router.get('/:customerId', authenticateToken, async (req, res) => {
       });
 
       const qrId = uuidv4();
-      runQuery(`
+      await runQuery(`
         INSERT INTO qr_codes (id, gym_id, customer_id, code, qr_image, is_active)
         VALUES (?, ?, ?, ?, ?, 1)
       `, [qrId, gymId, customerId, qrCode, qrImage]);
 
-      qrRecord = getOne('SELECT * FROM qr_codes WHERE id = ?', [qrId]);
+      qrRecord = await getOne('SELECT * FROM qr_codes WHERE id = ?', [qrId]);
     }
 
     res.json({
@@ -98,8 +93,7 @@ router.post('/scan', authenticateToken, requireActiveSubscription, async (req, r
       return res.status(400).json({ error: 'QR data is required' });
     }
 
-    // Check subscription
-    const gym = getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
+    const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
     if (!gym) {
       return res.status(404).json({ error: 'Gym not found' });
     }
@@ -118,24 +112,20 @@ router.post('/scan', authenticateToken, requireActiveSubscription, async (req, r
       return res.status(400).json({ error: 'Invalid QR code format' });
     }
 
-    // Verify QR belongs to this gym
     if (qrInfo.gym !== gymId) {
       return res.status(400).json({ error: 'QR code is not valid for this gym' });
     }
 
-    // Find customer
-    const customer = getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [qrInfo.customer, gymId]);
+    const customer = await getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [qrInfo.customer, gymId]);
     if (!customer) {
       return res.status(404).json({ error: 'Customer not found' });
     }
 
-    // Verify QR exists
-    const qrRecord = getOne('SELECT * FROM qr_codes WHERE customer_id = ? AND code = ? AND is_active = 1', [qrInfo.customer, qrInfo.code]);
+    const qrRecord = await getOne('SELECT * FROM qr_codes WHERE customer_id = ? AND code = ? AND is_active = 1', [qrInfo.customer, qrInfo.code]);
     if (!qrRecord) {
       return res.status(400).json({ error: 'Invalid or expired QR code' });
     }
 
-    // Check if customer membership is valid
     const today = new Date();
     const endDate = new Date(customer.membership_end);
     if (endDate < today) {
@@ -149,8 +139,7 @@ router.post('/scan', authenticateToken, requireActiveSubscription, async (req, r
       });
     }
 
-    // Check if already checked in
-    const existingCheckIn = getOne(`
+    const existingCheckIn = await getOne(`
       SELECT * FROM attendance
       WHERE customer_id = ? AND gym_id = ? AND check_out IS NULL
       ORDER BY check_in DESC LIMIT 1
@@ -168,11 +157,10 @@ router.post('/scan', authenticateToken, requireActiveSubscription, async (req, r
       });
     }
 
-    // Create check-in
     const attendanceId = uuidv4();
     const checkInTime = new Date().toISOString();
 
-    runQuery(`
+    await runQuery(`
       INSERT INTO attendance (id, gym_id, customer_id, check_in)
       VALUES (?, ?, ?, ?)
     `, [attendanceId, gymId, customer.id, checkInTime]);
@@ -200,8 +188,7 @@ router.post('/:customerId/regenerate', authenticateToken, requireActiveSubscript
     const gymId = req.user.gym_id;
     const { customerId } = req.params;
 
-    // Check subscription
-    const gym = getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
+    const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
     if (!gym) {
       return res.status(404).json({ error: 'Gym not found' });
     }
@@ -213,16 +200,13 @@ router.post('/:customerId/regenerate', authenticateToken, requireActiveSubscript
       });
     }
 
-    // Verify customer belongs to this gym
-    const customer = getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [customerId, gymId]);
+    const customer = await getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [customerId, gymId]);
     if (!customer) {
       return res.status(404).json({ error: 'Customer not found' });
     }
 
-    // Deactivate old QR codes
-    runQuery('UPDATE qr_codes SET is_active = 0 WHERE customer_id = ?', [customerId]);
+    await runQuery('UPDATE qr_codes SET is_active = 0 WHERE customer_id = ?', [customerId]);
 
-    // Generate new QR code
     const qrCode = `${gymId}-${customerId}-${uuidv4().substring(0, 8)}`;
 
     const qrData = JSON.stringify({
@@ -242,12 +226,12 @@ router.post('/:customerId/regenerate', authenticateToken, requireActiveSubscript
     });
 
     const qrId = uuidv4();
-    runQuery(`
+    await runQuery(`
       INSERT INTO qr_codes (id, gym_id, customer_id, code, qr_image, is_active)
       VALUES (?, ?, ?, ?, ?, 1)
     `, [qrId, gymId, customerId, qrCode, qrImage]);
 
-    const qrRecord = getOne('SELECT * FROM qr_codes WHERE id = ?', [qrId]);
+    const qrRecord = await getOne('SELECT * FROM qr_codes WHERE id = ?', [qrId]);
 
     res.json({
       message: 'QR code regenerated successfully',

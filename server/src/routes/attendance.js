@@ -6,11 +6,11 @@ import { authenticateToken, requireActiveSubscription } from './auth.js';
 const router = express.Router();
 
 // Get today's attendance
-router.get('/today', authenticateToken, (req, res) => {
+router.get('/today', authenticateToken, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
 
-    const todayAttendance = getAll(`
+    const todayAttendance = await getAll(`
       SELECT
         a.id,
         a.customer_id,
@@ -27,7 +27,6 @@ router.get('/today', authenticateToken, (req, res) => {
       ORDER BY a.check_in DESC
     `, [gymId]);
 
-    // Separate checked in and currently present
     const checkedIn = todayAttendance.filter(a => !a.check_out);
     const checkedOut = todayAttendance.filter(a => a.check_out);
 
@@ -45,11 +44,11 @@ router.get('/today', authenticateToken, (req, res) => {
 });
 
 // Get currently checked-in customers (no check_out yet)
-router.get('/current', authenticateToken, (req, res) => {
+router.get('/current', authenticateToken, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
 
-    const currentlyPresent = getAll(`
+    const currentlyPresent = await getAll(`
       SELECT
         a.id,
         a.customer_id,
@@ -77,7 +76,7 @@ router.get('/current', authenticateToken, (req, res) => {
 });
 
 // Check in customer by phone or ID
-router.post('/check-in', authenticateToken, requireActiveSubscription, (req, res) => {
+router.post('/check-in', authenticateToken, requireActiveSubscription, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
     const { phone, customer_id } = req.body;
@@ -88,9 +87,9 @@ router.post('/check-in', authenticateToken, requireActiveSubscription, (req, res
 
     let customer;
     if (customer_id) {
-      customer = getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [customer_id, gymId]);
+      customer = await getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [customer_id, gymId]);
     } else {
-      customer = getOne('SELECT * FROM customers WHERE phone LIKE ? AND gym_id = ?', [`%${phone}%`, gymId]);
+      customer = await getOne('SELECT * FROM customers WHERE phone LIKE ? AND gym_id = ?', [`%${phone}%`, gymId]);
     }
 
     if (!customer) {
@@ -112,7 +111,7 @@ router.post('/check-in', authenticateToken, requireActiveSubscription, (req, res
     }
 
     // Check if already checked in
-    const existingCheckIn = getOne(`
+    const existingCheckIn = await getOne(`
       SELECT * FROM attendance
       WHERE customer_id = ? AND gym_id = ? AND check_out IS NULL
       ORDER BY check_in DESC LIMIT 1
@@ -132,12 +131,12 @@ router.post('/check-in', authenticateToken, requireActiveSubscription, (req, res
     const attendanceId = uuidv4();
     const checkInTime = new Date().toISOString();
 
-    runQuery(`
+    await runQuery(`
       INSERT INTO attendance (id, gym_id, customer_id, check_in)
       VALUES (?, ?, ?, ?)
     `, [attendanceId, gymId, customer.id, checkInTime]);
 
-    const attendance = getOne(`
+    const attendance = await getOne(`
       SELECT a.*, c.name as customer_name, c.phone as customer_phone
       FROM attendance a
       JOIN customers c ON a.customer_id = c.id
@@ -155,7 +154,7 @@ router.post('/check-in', authenticateToken, requireActiveSubscription, (req, res
 });
 
 // Check out customer
-router.post('/check-out', authenticateToken, requireActiveSubscription, (req, res) => {
+router.post('/check-out', authenticateToken, requireActiveSubscription, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
     const { customer_id, phone } = req.body;
@@ -164,7 +163,7 @@ router.post('/check-out', authenticateToken, requireActiveSubscription, (req, re
     let customer;
 
     if (customer_id) {
-      attendance = getOne(`
+      attendance = await getOne(`
         SELECT a.*, c.name as customer_name
         FROM attendance a
         JOIN customers c ON a.customer_id = c.id
@@ -172,9 +171,9 @@ router.post('/check-out', authenticateToken, requireActiveSubscription, (req, re
         ORDER BY a.check_in DESC LIMIT 1
       `, [customer_id, gymId]);
     } else if (phone) {
-      customer = getOne('SELECT * FROM customers WHERE phone LIKE ? AND gym_id = ?', [`%${phone}%`, gymId]);
+      customer = await getOne('SELECT * FROM customers WHERE phone LIKE ? AND gym_id = ?', [`%${phone}%`, gymId]);
       if (customer) {
-        attendance = getOne(`
+        attendance = await getOne(`
           SELECT a.*, c.name as customer_name
           FROM attendance a
           JOIN customers c ON a.customer_id = c.id
@@ -193,14 +192,14 @@ router.post('/check-out', authenticateToken, requireActiveSubscription, (req, re
     }
 
     const checkOutTime = new Date().toISOString();
-    runQuery('UPDATE attendance SET check_out = ? WHERE id = ?', [checkOutTime, attendance.id]);
+    await runQuery('UPDATE attendance SET check_out = ? WHERE id = ?', [checkOutTime, attendance.id]);
 
     // Calculate duration
     const checkIn = new Date(attendance.check_in);
     const checkOut = new Date(checkOutTime);
     const durationMinutes = Math.round((checkOut - checkIn) / (1000 * 60));
 
-    const updated = getOne(`
+    const updated = await getOne(`
       SELECT a.*, c.name as customer_name
       FROM attendance a
       JOIN customers c ON a.customer_id = c.id
@@ -221,14 +220,13 @@ router.post('/check-out', authenticateToken, requireActiveSubscription, (req, re
 });
 
 // Get customer attendance history
-router.get('/history/:customerId', authenticateToken, (req, res) => {
+router.get('/history/:customerId', authenticateToken, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
     const { customerId } = req.params;
     const { limit = 50, start_date, end_date } = req.query;
 
-    // Verify customer belongs to this gym
-    const customer = getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [customerId, gymId]);
+    const customer = await getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [customerId, gymId]);
     if (!customer) {
       return res.status(404).json({ error: 'Customer not found' });
     }
@@ -245,7 +243,7 @@ router.get('/history/:customerId', authenticateToken, (req, res) => {
       params.push(end_date);
     }
 
-    const history = getAll(`
+    const history = await getAll(`
       SELECT
         a.*,
         ROUND((julianday(a.check_out) - julianday(a.check_in)) * 24 * 60) as duration_minutes
@@ -255,7 +253,6 @@ router.get('/history/:customerId', authenticateToken, (req, res) => {
       LIMIT ?
     `, [...params, parseInt(limit)]);
 
-    // Calculate stats
     const totalVisits = history.length;
     const completedVisits = history.filter(h => h.check_out);
     const totalMinutes = completedVisits.reduce((sum, v) => sum + (v.duration_minutes || 0), 0);
@@ -263,7 +260,6 @@ router.get('/history/:customerId', authenticateToken, (req, res) => {
       ? Math.round(totalMinutes / completedVisits.length)
       : 0;
 
-    // This month stats
     const thisMonthVisits = history.filter(h => {
       const checkIn = new Date(h.check_in);
       const now = new Date();
@@ -291,12 +287,11 @@ router.get('/history/:customerId', authenticateToken, (req, res) => {
 });
 
 // Get attendance statistics
-router.get('/stats', authenticateToken, (req, res) => {
+router.get('/stats', authenticateToken, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
 
-    // Today's stats
-    const todayStats = getOne(`
+    const todayStats = await getOne(`
       SELECT
         COUNT(*) as total_visits,
         SUM(CASE WHEN check_out IS NULL THEN 1 ELSE 0 END) as currently_present,
@@ -305,8 +300,7 @@ router.get('/stats', authenticateToken, (req, res) => {
       WHERE gym_id = ? AND date(check_in) = date('now')
     `, [gymId]);
 
-    // Weekly stats
-    const weeklyStats = getOne(`
+    const weeklyStats = await getOne(`
       SELECT
         COUNT(*) as total_visits,
         COUNT(DISTINCT customer_id) as unique_visitors
@@ -314,8 +308,7 @@ router.get('/stats', authenticateToken, (req, res) => {
       WHERE gym_id = ? AND date(check_in) >= date('now', '-7 days')
     `, [gymId]);
 
-    // Monthly stats
-    const monthlyStats = getOne(`
+    const monthlyStats = await getOne(`
       SELECT
         COUNT(*) as total_visits,
         COUNT(DISTINCT customer_id) as unique_visitors
@@ -323,8 +316,7 @@ router.get('/stats', authenticateToken, (req, res) => {
       WHERE gym_id = ? AND strftime('%Y-%m', check_in) = strftime('%Y-%m', 'now')
     `, [gymId]);
 
-    // Daily breakdown for last 7 days
-    const dailyBreakdown = getAll(`
+    const dailyBreakdown = await getAll(`
       SELECT
         date(check_in) as date,
         COUNT(*) as visits,
@@ -335,8 +327,7 @@ router.get('/stats', authenticateToken, (req, res) => {
       ORDER BY date DESC
     `, [gymId]);
 
-    // Peak hours (busiest times)
-    const peakHours = getAll(`
+    const peakHours = await getAll(`
       SELECT
         strftime('%H', check_in) as hour,
         COUNT(*) as visits

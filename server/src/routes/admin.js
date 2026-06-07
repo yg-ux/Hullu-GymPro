@@ -8,7 +8,7 @@ import { authenticateToken, JWT_SECRET } from './auth.js';
 const router = express.Router();
 
 // Admin login
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -16,7 +16,7 @@ router.post('/login', (req, res) => {
       return res.status(400).json({ error: 'Email and password required' });
     }
 
-    const admin = getOne('SELECT * FROM admins WHERE email = ?', [email]);
+    const admin = await getOne('SELECT * FROM admins WHERE email = ?', [email]);
 
     if (!admin) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -56,14 +56,14 @@ router.get('/verify', authenticateToken, (req, res) => {
 });
 
 // Get all gyms
-router.get('/gyms', authenticateToken, (req, res) => {
+router.get('/gyms', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
   }
 
   try {
-    const gyms = getAll(`
-      SELECT 
+    const gyms = await getAll(`
+      SELECT
         g.*,
         (SELECT COUNT(*) FROM customers WHERE gym_id = g.id) as member_count,
         (SELECT COUNT(*) FROM payments WHERE gym_id = g.id) as payment_count,
@@ -79,11 +79,10 @@ router.get('/gyms', authenticateToken, (req, res) => {
   }
 });
 
-// Get all subscription requests
 // Get current gym's own subscription request status
-router.get('/my-request', authenticateToken, (req, res) => {
+router.get('/my-request', authenticateToken, async (req, res) => {
   try {
-    const request = getOne(`
+    const request = await getOne(`
       SELECT id, requested_plan, amount_paid, payment_method, transaction_id, duration_months, status, admin_notes, created_at, reviewed_at
       FROM subscription_requests
       WHERE gym_id = ?
@@ -96,14 +95,15 @@ router.get('/my-request', authenticateToken, (req, res) => {
   }
 });
 
-router.get('/subscription-requests', authenticateToken, (req, res) => {
+// Get all subscription requests (admin only)
+router.get('/subscription-requests', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
   }
 
   try {
-    const requests = getAll(`
-      SELECT 
+    const requests = await getAll(`
+      SELECT
         sr.*,
         g.name as gym_name,
         g.email as gym_email,
@@ -121,7 +121,7 @@ router.get('/subscription-requests', authenticateToken, (req, res) => {
 });
 
 // Create subscription request (from gym owner)
-router.post('/subscription-request', authenticateToken, (req, res) => {
+router.post('/subscription-request', authenticateToken, async (req, res) => {
   try {
     const { plan_id, amount_paid, payment_method, transaction_id, duration_months } = req.body;
     const gymId = req.user.gym_id;
@@ -140,7 +140,7 @@ router.post('/subscription-request', authenticateToken, (req, res) => {
     }
 
     // Check if there's already a pending request
-    const existingRequest = getOne(`
+    const existingRequest = await getOne(`
       SELECT * FROM subscription_requests
       WHERE gym_id = ? AND status = 'pending'
     `, [gymId]);
@@ -150,7 +150,7 @@ router.post('/subscription-request', authenticateToken, (req, res) => {
     }
 
     // Check if transaction_id was already used
-    const duplicateTx = getOne(`
+    const duplicateTx = await getOne(`
       SELECT * FROM subscription_requests WHERE transaction_id = ?
     `, [transaction_id.trim()]);
 
@@ -160,7 +160,7 @@ router.post('/subscription-request', authenticateToken, (req, res) => {
 
     const months = parseInt(duration_months) || 1;
     const id = uuidv4();
-    runQuery(`
+    await runQuery(`
       INSERT INTO subscription_requests (id, gym_id, requested_plan, amount_paid, payment_method, transaction_id, duration_months, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
     `, [id, gymId, plan_id, amount_paid || plans[plan_id] * months, payment_method || 'telebirr', transaction_id.trim(), months]);
@@ -176,7 +176,7 @@ router.post('/subscription-request', authenticateToken, (req, res) => {
 });
 
 // Approve subscription request
-router.post('/approve-request/:id', authenticateToken, (req, res) => {
+router.post('/approve-request/:id', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
   }
@@ -185,7 +185,7 @@ router.post('/approve-request/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { admin_notes } = req.body;
 
-    const request = getOne('SELECT * FROM subscription_requests WHERE id = ?', [id]);
+    const request = await getOne('SELECT * FROM subscription_requests WHERE id = ?', [id]);
     if (!request) {
       return res.status(404).json({ error: 'Request not found' });
     }
@@ -194,14 +194,12 @@ router.post('/approve-request/:id', authenticateToken, (req, res) => {
       return res.status(400).json({ error: 'Request already processed' });
     }
 
-    // Update request status
-    runQuery(`
-      UPDATE subscription_requests 
+    await runQuery(`
+      UPDATE subscription_requests
       SET status = 'approved', admin_notes = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `, [admin_notes || null, req.user.id, id]);
 
-    // Update gym subscription
     const today = new Date();
     const months = parseInt(request.duration_months) || 1;
     const endDate = new Date(today);
@@ -212,7 +210,7 @@ router.post('/approve-request/:id', authenticateToken, (req, res) => {
       'pro': -1,
     };
 
-    runQuery(`
+    await runQuery(`
       UPDATE gyms SET
         subscription_status = 'active',
         subscription_plan = ?,
@@ -231,7 +229,7 @@ router.post('/approve-request/:id', authenticateToken, (req, res) => {
 });
 
 // Decline subscription request
-router.post('/decline-request/:id', authenticateToken, (req, res) => {
+router.post('/decline-request/:id', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
   }
@@ -240,7 +238,7 @@ router.post('/decline-request/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { admin_notes } = req.body;
 
-    const request = getOne('SELECT * FROM subscription_requests WHERE id = ?', [id]);
+    const request = await getOne('SELECT * FROM subscription_requests WHERE id = ?', [id]);
     if (!request) {
       return res.status(404).json({ error: 'Request not found' });
     }
@@ -249,8 +247,8 @@ router.post('/decline-request/:id', authenticateToken, (req, res) => {
       return res.status(400).json({ error: 'Request already processed' });
     }
 
-    runQuery(`
-      UPDATE subscription_requests 
+    await runQuery(`
+      UPDATE subscription_requests
       SET status = 'declined', admin_notes = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `, [admin_notes || null, req.user.id, id]);
@@ -263,36 +261,44 @@ router.post('/decline-request/:id', authenticateToken, (req, res) => {
 });
 
 // Get dashboard stats (admin overview)
-router.get('/stats', authenticateToken, (req, res) => {
+router.get('/stats', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
   }
 
   try {
-    const totalGyms = getOne('SELECT COUNT(*) as count FROM gyms')?.count || 0;
-    const activeGyms = getOne("SELECT COUNT(*) as count FROM gyms WHERE subscription_status = 'active'")?.count || 0;
-    const trialGyms = getOne("SELECT COUNT(*) as count FROM gyms WHERE subscription_status = 'trial'")?.count || 0;
-    const pendingRequests = getOne("SELECT COUNT(*) as count FROM subscription_requests WHERE status = 'pending'")?.count || 0;
+    const totalGymsRow = await getOne('SELECT COUNT(*) as count FROM gyms');
+    const totalGyms = totalGymsRow?.count || 0;
 
-    const totalRevenue = getOne('SELECT COALESCE(SUM(amount_paid), 0) as total FROM subscription_requests WHERE status = \'approved\'')?.total || 0;
-    const thisMonthRevenue = getOne(`
-      SELECT COALESCE(SUM(amount_paid), 0) as total 
-      FROM subscription_requests 
+    const activeGymsRow = await getOne("SELECT COUNT(*) as count FROM gyms WHERE subscription_status = 'active'");
+    const activeGyms = activeGymsRow?.count || 0;
+
+    const trialGymsRow = await getOne("SELECT COUNT(*) as count FROM gyms WHERE subscription_status = 'trial'");
+    const trialGyms = trialGymsRow?.count || 0;
+
+    const pendingRequestsRow = await getOne("SELECT COUNT(*) as count FROM subscription_requests WHERE status = 'pending'");
+    const pendingRequests = pendingRequestsRow?.count || 0;
+
+    const totalRevenueRow = await getOne("SELECT COALESCE(SUM(amount_paid), 0) as total FROM subscription_requests WHERE status = 'approved'");
+    const totalRevenue = totalRevenueRow?.total || 0;
+
+    const thisMonthRevenueRow = await getOne(`
+      SELECT COALESCE(SUM(amount_paid), 0) as total
+      FROM subscription_requests
       WHERE status = 'approved' AND date(reviewed_at) >= date('now', '-30 days')
-    `)?.total || 0;
+    `);
+    const thisMonthRevenue = thisMonthRevenueRow?.total || 0;
 
-    // Plan distribution
-    const planDistribution = getAll(`
-      SELECT subscription_plan, COUNT(*) as count 
-      FROM gyms 
+    const planDistribution = await getAll(`
+      SELECT subscription_plan, COUNT(*) as count
+      FROM gyms
       GROUP BY subscription_plan
     `);
 
-    // Recent registrations
-    const recentRegistrations = getAll(`
-      SELECT id, name, email, created_at, subscription_plan 
-      FROM gyms 
-      ORDER BY created_at DESC 
+    const recentRegistrations = await getAll(`
+      SELECT id, name, email, created_at, subscription_plan
+      FROM gyms
+      ORDER BY created_at DESC
       LIMIT 10
     `);
 
@@ -313,17 +319,17 @@ router.get('/stats', authenticateToken, (req, res) => {
 });
 
 // Migrate all gyms to correct plan (admin utility)
-router.post('/migrate-plans', authenticateToken, (req, res) => {
+router.post('/migrate-plans', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
   }
 
   try {
-    // Set all gyms with null or old plans to 'free'
-    runQuery("UPDATE gyms SET subscription_plan = 'free', subscription_status = 'active', max_members = 10 WHERE subscription_plan IS NULL OR subscription_plan = '' OR subscription_plan = 'starter' OR subscription_plan = 'pro'");
-    
-    const updatedCount = getOne('SELECT COUNT(*) as count FROM gyms')?.count || 0;
-    
+    await runQuery("UPDATE gyms SET subscription_plan = 'free', subscription_status = 'active', max_members = 10 WHERE subscription_plan IS NULL OR subscription_plan = '' OR subscription_plan = 'starter' OR subscription_plan = 'pro'");
+
+    const countRow = await getOne('SELECT COUNT(*) as count FROM gyms');
+    const updatedCount = countRow?.count || 0;
+
     res.json({
       message: 'All gyms migrated to free plan',
       total_gyms: updatedCount
@@ -335,9 +341,9 @@ router.post('/migrate-plans', authenticateToken, (req, res) => {
 });
 
 // Enable SMS for a gym (admin utility)
-router.post('/enable-sms', (req, res) => {
+router.post('/enable-sms', async (req, res) => {
   const { secret, gym_id, api_key } = req.body;
-  
+
   if (!process.env.ADMIN_SECRET || secret !== process.env.ADMIN_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
@@ -347,10 +353,10 @@ router.post('/enable-sms', (req, res) => {
       return res.status(400).json({ error: 'gym_id and api_key are required' });
     }
 
-    runQuery('UPDATE gyms SET sms_enabled = 1, sms_api_key = ? WHERE id = ?', [api_key, gym_id]);
-    
-    const gym = getOne('SELECT id, name, sms_enabled FROM gyms WHERE id = ?', [gym_id]);
-    
+    await runQuery('UPDATE gyms SET sms_enabled = 1, sms_api_key = ? WHERE id = ?', [api_key, gym_id]);
+
+    const gym = await getOne('SELECT id, name, sms_enabled FROM gyms WHERE id = ?', [gym_id]);
+
     res.json({ success: true, message: 'SMS enabled for gym', gym });
   } catch (error) {
     console.error('Enable SMS failed:', error);

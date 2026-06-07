@@ -32,7 +32,7 @@ const membershipMaxVisits = {
 };
 
 // Get all customers for this gym (with pagination)
-router.get('/', authenticateToken, (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
     const { status, search } = req.query;
     const page = Math.max(1, parseInt(req.query.page) || 1);
@@ -41,7 +41,7 @@ router.get('/', authenticateToken, (req, res) => {
     const gymId = req.user.gym_id;
 
     // Batch-update stale statuses using a single SQL statement (fixes N+1)
-    runQuery(`
+    await runQuery(`
       UPDATE customers SET
         status = CASE
           WHEN julianday(membership_end) - julianday('now') <= 0 THEN 'expired'
@@ -92,20 +92,21 @@ router.get('/', authenticateToken, (req, res) => {
       LIMIT ? OFFSET ?`;
     params.push(limit, offset);
 
-    const customers = getAll(sql, params);
-    const totalRow = getOne(countSql, countParams);
+    const customers = await getAll(sql, params);
+    const totalRow = await getOne(countSql, countParams);
     const total = totalRow?.total || 0;
 
     // Status counts (always across all customers for this gym)
-    const statusCounts = getAll(`
+    const statusRows = await getAll(`
       SELECT status, COUNT(*) as count FROM customers WHERE gym_id = ? GROUP BY status
-    `, [gymId]).reduce((acc, row) => { acc[row.status] = row.count; return acc; }, {});
+    `, [gymId]);
+    const statusCounts = statusRows.reduce((acc, row) => { acc[row.status] = row.count; return acc; }, {});
 
     res.json({
       data: customers,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
       summary: {
-        total: statusCounts.active + statusCounts.expiring + statusCounts.expired + statusCounts.inactive || 0,
+        total: (statusCounts.active || 0) + (statusCounts.expiring || 0) + (statusCounts.expired || 0) + (statusCounts.inactive || 0),
         active: statusCounts.active || 0,
         expiring: statusCounts.expiring || 0,
         expired: statusCounts.expired || 0,
@@ -121,16 +122,13 @@ router.get('/', authenticateToken, (req, res) => {
 // Normalize phone number: strip +, spaces, leading 0, and country code (251)
 function normalizePhone(phone) {
   if (!phone) return '';
-  // Remove all non-digit characters
   return phone.replace(/\D/g, '')
-    // Remove leading 251 (Ethiopia country code)
     .replace(/^251/, '')
-    // Remove leading 0
     .replace(/^0+/, '');
 }
 
 // Phone search endpoint for check-in
-router.get('/search/phone', authenticateToken, (req, res) => {
+router.get('/search/phone', authenticateToken, async (req, res) => {
   try {
     const { phone } = req.query;
     const gymId = req.user.gym_id;
@@ -141,8 +139,7 @@ router.get('/search/phone', authenticateToken, (req, res) => {
 
     const normalizedSearch = normalizePhone(phone);
 
-    // Use SQL LIKE with digits-only search (handles +251, 0, spaces etc)
-    const customers = getAll(`
+    const customers = await getAll(`
       SELECT *,
         CAST(julianday(membership_end) - julianday('now') AS INTEGER) as days_until_expiry
       FROM customers
@@ -172,16 +169,16 @@ router.get('/search/phone', authenticateToken, (req, res) => {
 });
 
 // Get single customer
-router.get('/:id', authenticateToken, (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const customer = getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [req.params.id, req.user.gym_id]);
+    const customer = await getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [req.params.id, req.user.gym_id]);
 
     if (!customer) {
       return res.status(404).json({ error: 'Customer not found' });
     }
 
-    const payments = getAll('SELECT * FROM payments WHERE customer_id = ? AND gym_id = ? ORDER BY payment_date DESC', [req.params.id, req.user.gym_id]);
-    const attendance = getAll('SELECT * FROM attendance WHERE customer_id = ? AND gym_id = ? ORDER BY check_in DESC LIMIT 30', [req.params.id, req.user.gym_id]);
+    const payments = await getAll('SELECT * FROM payments WHERE customer_id = ? AND gym_id = ? ORDER BY payment_date DESC', [req.params.id, req.user.gym_id]);
+    const attendance = await getAll('SELECT * FROM attendance WHERE customer_id = ? AND gym_id = ? ORDER BY check_in DESC LIMIT 30', [req.params.id, req.user.gym_id]);
 
     const today = new Date();
     const endDate = new Date(customer.membership_end);
@@ -212,12 +209,13 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreateCus
     }
 
     // Check member limit using live count (not stale column)
-    const gym = getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
+    const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
     const maxMembers = gym.max_members || 10;
-    const { count: totalCustomers } = getOne(
+    const countRow = await getOne(
       "SELECT COUNT(*) as count FROM customers WHERE gym_id = ? AND status != 'inactive'",
       [gymId]
-    ) || { count: 0 };
+    );
+    const totalCustomers = countRow?.count || 0;
 
     if (maxMembers !== -1 && totalCustomers >= maxMembers) {
       return res.status(403).json({
@@ -231,7 +229,6 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreateCus
     const customerId = uuidv4();
     const today = new Date();
     const membershipStart = today.toISOString().split('T')[0];
-    // For 3_days_week, use the separately chosen duration; otherwise use the type's own duration
     const durationKey = membership_type === '3_days_week' ? (membership_duration || '1_month') : membership_type;
     const duration = membershipDurations[durationKey] || 30;
     const membershipEnd = new Date(today.getTime() + duration * 24 * 60 * 60 * 1000)
@@ -241,34 +238,33 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreateCus
 
     const maxVisitsPerWeek = membershipMaxVisits[membership_type] || 0;
     const weekStart = maxVisitsPerWeek > 0 ? getWeekStart() : null;
-    runQuery(`
+    await runQuery(`
       INSERT INTO customers (id, gym_id, name, phone, email, photo, membership_type, membership_start, membership_end, status, emergency_contact, notes, max_visits_per_week, visits_this_week, week_start_date)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, 0, ?)
     `, [customerId, gymId, name, phone || null, email || null, photoUrl, membership_type, membershipStart, membershipEnd, emergency_contact || null, notes || null, maxVisitsPerWeek, weekStart]);
 
     // Increment total_customers counter
-    runQuery('UPDATE gyms SET total_customers = total_customers + 1 WHERE id = ?', [gymId]);
+    await runQuery('UPDATE gyms SET total_customers = total_customers + 1 WHERE id = ?', [gymId]);
 
     // If amount is provided, record payment
     if (amount && parseFloat(amount) > 0) {
       const paymentId = uuidv4();
-      runQuery(`
+      await runQuery(`
         INSERT INTO payments (id, gym_id, customer_id, amount, payment_method, payment_date, membership_type, start_date, end_date)
         VALUES (?, ?, ?, ?, 'cash', ?, ?, ?, ?)
       `, [paymentId, gymId, customerId, parseFloat(amount), membershipStart, membership_type, membershipStart, membershipEnd]);
     }
 
-    const customer = getOne('SELECT * FROM customers WHERE id = ?', [customerId]);
+    const customer = await getOne('SELECT * FROM customers WHERE id = ?', [customerId]);
 
     logCustomerAdded(gymId, req.user.id, customerId, name);
 
     // Send welcome SMS — requires SMS enabled + platform API key configured
     if (customer.phone && gym.sms_enabled && !customer.welcome_sms_sent) {
       try {
-        // Attach amount from request body since it's not stored on the customer row
         const customerWithAmount = { ...customer, amount: amount || null };
         await smsService.sendWelcomeSms(customerWithAmount, gym);
-        runQuery('UPDATE customers SET welcome_sms_sent = 1 WHERE id = ?', [customerId]);
+        await runQuery('UPDATE customers SET welcome_sms_sent = 1 WHERE id = ?', [customerId]);
       } catch (smsError) {
         console.warn('Failed to send welcome SMS:', smsError.message);
       }
@@ -286,11 +282,11 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreateCus
 });
 
 // Update customer
-router.put('/:id', authenticateToken, requireActiveSubscription, validateUpdateCustomer, (req, res) => {
+router.put('/:id', authenticateToken, requireActiveSubscription, validateUpdateCustomer, async (req, res) => {
   try {
     const { name, phone, email, membership_type, membership_start, membership_end, emergency_contact, notes, status, photo } = req.body;
 
-    const existingCustomer = getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [req.params.id, req.user.gym_id]);
+    const existingCustomer = await getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [req.params.id, req.user.gym_id]);
 
     if (!existingCustomer) {
       return res.status(404).json({ error: 'Customer not found' });
@@ -314,11 +310,11 @@ router.put('/:id', authenticateToken, requireActiveSubscription, validateUpdateC
       updates.push('updated_at = CURRENT_TIMESTAMP');
       values.push(req.params.id);
       values.push(req.user.gym_id);
-      
-      runQuery(`UPDATE customers SET ${updates.join(', ')} WHERE id = ? AND gym_id = ?`, values);
+
+      await runQuery(`UPDATE customers SET ${updates.join(', ')} WHERE id = ? AND gym_id = ?`, values);
     }
 
-    const customer = getOne('SELECT * FROM customers WHERE id = ?', [req.params.id]);
+    const customer = await getOne('SELECT * FROM customers WHERE id = ?', [req.params.id]);
     logCustomerUpdated(req.user.gym_id, req.user.id, req.params.id, customer?.name);
     res.json(customer);
   } catch (error) {
@@ -328,7 +324,7 @@ router.put('/:id', authenticateToken, requireActiveSubscription, validateUpdateC
 });
 
 // Delete customer
-router.delete('/:id', authenticateToken, requireActiveSubscription, (req, res) => {
+router.delete('/:id', authenticateToken, requireActiveSubscription, async (req, res) => {
   try {
     const { delete_code } = req.body;
     const gymId = req.user.gym_id;
@@ -337,29 +333,25 @@ router.delete('/:id', authenticateToken, requireActiveSubscription, (req, res) =
       return res.status(400).json({ error: 'Security code is required' });
     }
 
-    const validCode = getOne("SELECT value FROM settings WHERE key = 'delete_code' AND (gym_id = ? OR gym_id = 'global')", [gymId]);
+    const validCode = await getOne("SELECT value FROM settings WHERE key = 'delete_code' AND (gym_id = ? OR gym_id = 'global')", [gymId]);
 
     if (!validCode || validCode.value !== delete_code) {
       return res.status(403).json({ error: 'Invalid security code' });
     }
 
-    const customer = getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [req.params.id, gymId]);
+    const customer = await getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [req.params.id, gymId]);
     if (!customer) {
       return res.status(404).json({ error: 'Customer not found' });
     }
 
-    // Note: We do NOT decrement total_customers here
-    // Deleted customers still count towards the member limit
-
     logCustomerDeleted(gymId, req.user.id, req.params.id, customer.name);
-    runQuery('DELETE FROM payments WHERE customer_id = ? AND gym_id = ?', [req.params.id, gymId]);
-    runQuery('DELETE FROM attendance WHERE customer_id = ? AND gym_id = ?', [req.params.id, gymId]);
-    runQuery('DELETE FROM customers WHERE id = ? AND gym_id = ?', [req.params.id, gymId]);
+    await runQuery('DELETE FROM payments WHERE customer_id = ? AND gym_id = ?', [req.params.id, gymId]);
+    await runQuery('DELETE FROM attendance WHERE customer_id = ? AND gym_id = ?', [req.params.id, gymId]);
+    await runQuery('DELETE FROM customers WHERE id = ? AND gym_id = ?', [req.params.id, gymId]);
 
-    // Get updated counts for response
-    const gym = getOne('SELECT total_customers, max_members FROM gyms WHERE id = ?', [gymId]);
+    const gym = await getOne('SELECT total_customers, max_members FROM gyms WHERE id = ?', [gymId]);
 
-    res.json({ 
+    res.json({
       message: 'Customer deleted successfully',
       note: 'Deleted customers still count towards your member limit',
       total_customers: gym?.total_customers || 0,
@@ -372,7 +364,7 @@ router.delete('/:id', authenticateToken, requireActiveSubscription, (req, res) =
 });
 
 // Extend membership
-router.post('/:id/extend', authenticateToken, requireActiveSubscription, (req, res) => {
+router.post('/:id/extend', authenticateToken, requireActiveSubscription, async (req, res) => {
   try {
     const { membership_type } = req.body;
     const gymId = req.user.gym_id;
@@ -381,7 +373,7 @@ router.post('/:id/extend', authenticateToken, requireActiveSubscription, (req, r
       return res.status(400).json({ error: 'Valid membership type is required' });
     }
 
-    const customer = getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [req.params.id, gymId]);
+    const customer = await getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [req.params.id, gymId]);
 
     if (!customer) {
       return res.status(404).json({ error: 'Customer not found' });
@@ -396,7 +388,7 @@ router.post('/:id/extend', authenticateToken, requireActiveSubscription, (req, r
     const newEndDate = new Date(new Date(newStartDate).getTime() + duration * 24 * 60 * 60 * 1000)
       .toISOString().split('T')[0];
 
-    runQuery(`
+    await runQuery(`
       UPDATE customers SET
         membership_type = ?,
         membership_start = ?,
@@ -409,7 +401,7 @@ router.post('/:id/extend', authenticateToken, requireActiveSubscription, (req, r
       WHERE id = ?
     `, [membership_type, newStartDate, newEndDate, maxVisits, getWeekStart(), req.params.id]);
 
-    const updatedCustomer = getOne('SELECT * FROM customers WHERE id = ?', [req.params.id]);
+    const updatedCustomer = await getOne('SELECT * FROM customers WHERE id = ?', [req.params.id]);
     res.json(updatedCustomer);
   } catch (error) {
     console.error('Extend membership error:', error);
@@ -418,13 +410,13 @@ router.post('/:id/extend', authenticateToken, requireActiveSubscription, (req, r
 });
 
 // Check in
-router.post('/:id/check-in', authenticateToken, requireActiveSubscription, (req, res) => {
+router.post('/:id/check-in', authenticateToken, requireActiveSubscription, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
 
-    const existingCheckIn = getOne(`
-      SELECT * FROM attendance 
-      WHERE customer_id = ? AND gym_id = ? AND check_out IS NULL 
+    const existingCheckIn = await getOne(`
+      SELECT * FROM attendance
+      WHERE customer_id = ? AND gym_id = ? AND check_out IS NULL
       ORDER BY check_in DESC LIMIT 1
     `, [req.params.id, gymId]);
 
@@ -432,8 +424,7 @@ router.post('/:id/check-in', authenticateToken, requireActiveSubscription, (req,
       return res.status(400).json({ error: 'Customer is already checked in', attendance: existingCheckIn });
     }
 
-    // Get customer info to check visit limits
-    const customer = getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [req.params.id, gymId]);
+    const customer = await getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [req.params.id, gymId]);
     if (!customer) {
       return res.status(404).json({ error: 'Customer not found' });
     }
@@ -448,16 +439,16 @@ router.post('/:id/check-in', authenticateToken, requireActiveSubscription, (req,
     // Check visit limits for limited membership types
     if (customer.max_visits_per_week && customer.max_visits_per_week > 0) {
       const currentWeekStart = getWeekStart();
-      
+
       // Reset visits if new week
       if (customer.week_start_date !== currentWeekStart) {
-        runQuery('UPDATE customers SET visits_this_week = 0, week_start_date = ? WHERE id = ?', 
+        await runQuery('UPDATE customers SET visits_this_week = 0, week_start_date = ? WHERE id = ?',
           [currentWeekStart, customer.id]);
         customer.visits_this_week = 0;
       }
 
       if (customer.visits_this_week >= customer.max_visits_per_week) {
-        return res.status(403).json({ 
+        return res.status(403).json({
           error: `Weekly visit limit reached (${customer.max_visits_per_week}/${customer.max_visits_per_week} visits)`,
           visits_this_week: customer.visits_this_week,
           max_visits: customer.max_visits_per_week,
@@ -469,7 +460,7 @@ router.post('/:id/check-in', authenticateToken, requireActiveSubscription, (req,
     const attendanceId = uuidv4();
     const checkInTime = new Date().toISOString();
 
-    runQuery(`
+    await runQuery(`
       INSERT INTO attendance (id, gym_id, customer_id, check_in)
       VALUES (?, ?, ?, ?)
     `, [attendanceId, gymId, req.params.id, checkInTime]);
@@ -478,11 +469,11 @@ router.post('/:id/check-in', authenticateToken, requireActiveSubscription, (req,
     if (customer.max_visits_per_week && customer.max_visits_per_week > 0) {
       const currentWeekStart = getWeekStart();
       const newVisits = (customer.visits_this_week || 0) + 1;
-      runQuery('UPDATE customers SET visits_this_week = ?, week_start_date = ? WHERE id = ?', 
+      await runQuery('UPDATE customers SET visits_this_week = ?, week_start_date = ? WHERE id = ?',
         [newVisits, currentWeekStart, customer.id]);
     }
 
-    const attendance = getOne('SELECT * FROM attendance WHERE id = ?', [attendanceId]);
+    const attendance = await getOne('SELECT * FROM attendance WHERE id = ?', [attendanceId]);
     logCheckIn(gymId, req.user.id, req.params.id, customer.name);
     res.status(201).json({
       ...attendance,
@@ -496,13 +487,13 @@ router.post('/:id/check-in', authenticateToken, requireActiveSubscription, (req,
 });
 
 // Check out
-router.post('/:id/check-out', authenticateToken, requireActiveSubscription, (req, res) => {
+router.post('/:id/check-out', authenticateToken, requireActiveSubscription, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
 
-    const attendance = getOne(`
-      SELECT * FROM attendance 
-      WHERE customer_id = ? AND gym_id = ? AND check_out IS NULL 
+    const attendance = await getOne(`
+      SELECT * FROM attendance
+      WHERE customer_id = ? AND gym_id = ? AND check_out IS NULL
       ORDER BY check_in DESC LIMIT 1
     `, [req.params.id, gymId]);
 
@@ -511,11 +502,11 @@ router.post('/:id/check-out', authenticateToken, requireActiveSubscription, (req
     }
 
     const checkOutTime = new Date().toISOString();
-    runQuery('UPDATE attendance SET check_out = ? WHERE id = ?', [checkOutTime, attendance.id]);
+    await runQuery('UPDATE attendance SET check_out = ? WHERE id = ?', [checkOutTime, attendance.id]);
 
-    const customer = getOne('SELECT name FROM customers WHERE id = ?', [req.params.id]);
+    const customer = await getOne('SELECT name FROM customers WHERE id = ?', [req.params.id]);
     logCheckOut(gymId, req.user.id, req.params.id, customer?.name);
-    const updated = getOne('SELECT * FROM attendance WHERE id = ?', [attendance.id]);
+    const updated = await getOne('SELECT * FROM attendance WHERE id = ?', [attendance.id]);
     res.json(updated);
   } catch (error) {
     console.error('Check out error:', error);

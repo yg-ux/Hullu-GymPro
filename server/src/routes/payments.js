@@ -17,7 +17,7 @@ const membershipDurations = {
 };
 
 // Get all payments for this gym (with pagination)
-router.get('/', authenticateToken, (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
     const { customer_id, start_date, end_date } = req.query;
     const page = Math.max(1, parseInt(req.query.page) || 1);
@@ -45,10 +45,11 @@ router.get('/', authenticateToken, (req, res) => {
       countParams.push(end_date);
     }
 
-    const total = getOne(`SELECT COUNT(*) as total FROM payments p ${where}`, countParams)?.total || 0;
+    const totalRow = await getOne(`SELECT COUNT(*) as total FROM payments p ${where}`, countParams);
+    const total = totalRow?.total || 0;
     params.push(limit, offset);
 
-    const payments = getAll(`
+    const payments = await getAll(`
       SELECT p.*, c.name as customer_name, c.phone as customer_phone
       FROM payments p
       LEFT JOIN customers c ON p.customer_id = c.id
@@ -74,8 +75,8 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreatePay
       return res.status(400).json({ error: 'Customer ID and amount are required' });
     }
 
-    const customer = getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [customer_id, gymId]);
-    const gym = getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
+    const customer = await getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [customer_id, gymId]);
+    const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
 
     if (!customer) {
       return res.status(404).json({ error: 'Customer not found' });
@@ -101,12 +102,12 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreatePay
         .toISOString().split('T')[0];
     }
 
-    runQuery(`
+    await runQuery(`
       INSERT INTO payments (id, gym_id, customer_id, amount, payment_method, payment_date, membership_type, start_date, end_date, notes)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [paymentId, gymId, customer_id, amount, payment_method, paymentDate, selectedType, newStartDate, newEndDate, notes || null]);
 
-    runQuery(`
+    await runQuery(`
       UPDATE customers SET
         membership_type = ?,
         membership_start = ?,
@@ -116,8 +117,8 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreatePay
       WHERE id = ?
     `, [selectedType, newStartDate, newEndDate, customer_id]);
 
-    const updatedCustomer = getOne('SELECT * FROM customers WHERE id = ?', [customer_id]);
-    const payment = getOne('SELECT * FROM payments WHERE id = ?', [paymentId]);
+    const updatedCustomer = await getOne('SELECT * FROM customers WHERE id = ?', [customer_id]);
+    const payment = await getOne('SELECT * FROM payments WHERE id = ?', [paymentId]);
 
     logPaymentRecorded(gymId, req.user.id, paymentId, amount, updatedCustomer.name);
 
@@ -142,17 +143,17 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreatePay
 });
 
 // Delete payment
-router.delete('/:id', authenticateToken, requireActiveSubscription, (req, res) => {
+router.delete('/:id', authenticateToken, requireActiveSubscription, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
 
-    const payment = getOne('SELECT * FROM payments WHERE id = ? AND gym_id = ?', [req.params.id, gymId]);
+    const payment = await getOne('SELECT * FROM payments WHERE id = ? AND gym_id = ?', [req.params.id, gymId]);
 
     if (!payment) {
       return res.status(404).json({ error: 'Payment not found' });
     }
 
-    runQuery('DELETE FROM payments WHERE id = ? AND gym_id = ?', [req.params.id, gymId]);
+    await runQuery('DELETE FROM payments WHERE id = ? AND gym_id = ?', [req.params.id, gymId]);
     logPaymentDeleted(gymId, req.user.id, req.params.id);
     res.json({ message: 'Payment deleted successfully' });
   } catch (error) {

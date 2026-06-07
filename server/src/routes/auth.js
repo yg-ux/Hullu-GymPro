@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
@@ -71,27 +71,32 @@ function checkSubscription(gym) {
 }
 
 // Middleware to check subscription validity for write operations
-export function requireActiveSubscription(req, res, next) {
-  const gym = getOne('SELECT * FROM gyms WHERE id = ?', [req.user.gym_id]);
-  
-  if (!gym) {
-    return res.status(404).json({ error: 'Gym not found' });
+export async function requireActiveSubscription(req, res, next) {
+  try {
+    const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [req.user.gym_id]);
+
+    if (!gym) {
+      return res.status(404).json({ error: 'Gym not found' });
+    }
+
+    const subscription = checkSubscription(gym);
+
+    if (!subscription.valid) {
+      return res.status(403).json({
+        error: `Your subscription has ${subscription.status === 'trial_expired' ? 'trial has expired' : 'expired'}. Please renew to continue using the system.`,
+        subscription_status: subscription.status,
+        subscription_valid: false
+      });
+    }
+
+    // Attach subscription info to request
+    req.subscription = subscription;
+    req.gym = gym;
+    next();
+  } catch (error) {
+    console.error('requireActiveSubscription error:', error);
+    res.status(500).json({ error: 'Failed to verify subscription' });
   }
-  
-  const subscription = checkSubscription(gym);
-  
-  if (!subscription.valid) {
-    return res.status(403).json({ 
-      error: `Your subscription has ${subscription.status === 'trial_expired' ? 'trial has expired' : 'expired'}. Please renew to continue using the system.`,
-      subscription_status: subscription.status,
-      subscription_valid: false
-    });
-  }
-  
-  // Attach subscription info to request
-  req.subscription = subscription;
-  req.gym = gym;
-  next();
 }
 
 // Register a new gym
@@ -104,7 +109,7 @@ router.post('/register', validateRegister, async (req, res) => {
     }
 
     // Check if email already exists
-    const existingUser = getOne('SELECT * FROM gym_users WHERE username = ?', [email]);
+    const existingUser = await getOne('SELECT * FROM gym_users WHERE username = ?', [email]);
     if (existingUser) {
       return res.status(400).json({ error: 'Email already registered' });
     }
@@ -112,29 +117,26 @@ router.post('/register', validateRegister, async (req, res) => {
     // Create gym
     const gymId = uuidv4();
     let slug = gymName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
-    
+
     // Make slug unique if it already exists
-    let existingSlug = getOne('SELECT id FROM gyms WHERE slug = ?', [slug]);
+    const existingSlug = await getOne('SELECT id FROM gyms WHERE slug = ?', [slug]);
     if (existingSlug) {
       slug = `${slug}-${Date.now().toString(36)}`;
     }
-    
-    const today = new Date();
-    const trialEnd = new Date(today);
-    trialEnd.setDate(trialEnd.getDate() + TRIAL_DAYS);
 
+    const today = new Date();
     const gymInsertSql = `
       INSERT INTO gyms (id, name, slug, email, phone, subscription_status, subscription_plan, subscription_start, subscription_end, color_theme, logo, max_members)
       VALUES (?, ?, ?, ?, ?, 'active', 'free', ?, ?, ?, ?, 10)
     `;
     const gymParams = [gymId, gymName, slug, email, phone || null, today.toISOString().split('T')[0], today.toISOString().split('T')[0], colorTheme || 'default', logo || null];
-    
-    runQuery(gymInsertSql, gymParams);
+
+    await runQuery(gymInsertSql, gymParams);
 
     // Create admin user for the gym
     const userId = uuidv4();
     const hashedPassword = bcrypt.hashSync(password, 10);
-    runQuery(`
+    await runQuery(`
       INSERT INTO gym_users (id, gym_id, username, password, role)
       VALUES (?, ?, ?, ?, 'owner')
     `, [userId, gymId, email, hashedPassword]);
@@ -204,7 +206,7 @@ function getFeatures(plan) {
 }
 
 // Login
-router.post('/login', validateLogin, (req, res) => {
+router.post('/login', validateLogin, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -212,7 +214,7 @@ router.post('/login', validateLogin, (req, res) => {
       return res.status(400).json({ error: 'Email and password required' });
     }
 
-    const user = getOne('SELECT * FROM gym_users WHERE username = ?', [email]);
+    const user = await getOne('SELECT * FROM gym_users WHERE username = ?', [email]);
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -223,7 +225,7 @@ router.post('/login', validateLogin, (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const gym = getOne('SELECT * FROM gyms WHERE id = ?', [user.gym_id]);
+    const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [user.gym_id]);
     if (!gym) {
       return res.status(404).json({ error: 'Gym not found' });
     }
@@ -265,14 +267,14 @@ router.post('/login', validateLogin, (req, res) => {
 });
 
 // Get current user and gym info
-router.get('/me', authenticateToken, (req, res) => {
+router.get('/me', authenticateToken, async (req, res) => {
   try {
-    const user = getOne('SELECT * FROM gym_users WHERE id = ?', [req.user.id]);
+    const user = await getOne('SELECT * FROM gym_users WHERE id = ?', [req.user.id]);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const gym = getOne('SELECT * FROM gyms WHERE id = ?', [user.gym_id]);
+    const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [user.gym_id]);
     if (!gym) {
       return res.status(404).json({ error: 'Gym not found' });
     }
@@ -371,7 +373,7 @@ router.get('/plans', (req, res) => {
 });
 
 // Update gym subscription (submit request to admin)
-router.post('/subscribe', authenticateToken, (req, res) => {
+router.post('/subscribe', authenticateToken, async (req, res) => {
   try {
     const { plan_id, amount_paid, payment_proof, payment_method } = req.body;
 
@@ -388,8 +390,8 @@ router.post('/subscribe', authenticateToken, (req, res) => {
     // Check if there's already a pending request
     let existingRequest = null;
     try {
-      existingRequest = getOne(`
-        SELECT * FROM subscription_requests 
+      existingRequest = await getOne(`
+        SELECT * FROM subscription_requests
         WHERE gym_id = ? AND status = 'pending'
       `, [req.user.gym_id]);
     } catch (e) {
@@ -402,7 +404,7 @@ router.post('/subscribe', authenticateToken, (req, res) => {
 
     // For free plan, activate immediately
     if (plan_id === 'free') {
-      runQuery(`
+      await runQuery(`
         UPDATE gyms SET
           subscription_status = 'active',
           subscription_plan = 'free',
@@ -411,7 +413,7 @@ router.post('/subscribe', authenticateToken, (req, res) => {
         WHERE id = ?
       `, [req.user.gym_id]);
 
-      const gym = getOne('SELECT * FROM gyms WHERE id = ?', [req.user.gym_id]);
+      const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [req.user.gym_id]);
       return res.json({
         message: 'Free plan activated successfully',
         gym: {
@@ -424,17 +426,17 @@ router.post('/subscribe', authenticateToken, (req, res) => {
 
     // For paid plans, create a subscription request
     const requestId = uuidv4();
-    
+
     try {
-      runQuery(`
+      await runQuery(`
         INSERT INTO subscription_requests (id, gym_id, requested_plan, amount_paid, payment_proof, payment_method, status)
         VALUES (?, ?, ?, ?, ?, ?, 'pending')
       `, [requestId, req.user.gym_id, plan_id, amount_paid || plans[plan_id].price, payment_proof, payment_method]);
     } catch (e) {
       console.error('Failed to create subscription request:', e.message);
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: 'Database error. Please contact support.',
-        details: e.message 
+        details: e.message
       });
     }
 
@@ -451,9 +453,9 @@ router.post('/subscribe', authenticateToken, (req, res) => {
 });
 
 // Get gym settings
-router.get('/settings', authenticateToken, (req, res) => {
+router.get('/settings', authenticateToken, async (req, res) => {
   try {
-    const settings = getAll('SELECT * FROM settings WHERE gym_id = ? OR gym_id = "global"', [req.user.gym_id]);
+    const settings = await getAll('SELECT * FROM settings WHERE gym_id = ? OR gym_id = "global"', [req.user.gym_id]);
     const settingsObj = {};
     settings.forEach(s => {
       settingsObj[s.key] = s.value;
@@ -466,7 +468,7 @@ router.get('/settings', authenticateToken, (req, res) => {
 });
 
 // Update gym profile
-router.put('/gym', authenticateToken, (req, res) => {
+router.put('/gym', authenticateToken, async (req, res) => {
   try {
     const { name, phone, address, sms_enabled } = req.body;
 
@@ -493,11 +495,11 @@ router.put('/gym', authenticateToken, (req, res) => {
     if (updates.length > 0) {
       updates.push('updated_at = CURRENT_TIMESTAMP');
       values.push(req.user.gym_id);
-      
-      runQuery(`UPDATE gyms SET ${updates.join(', ')} WHERE id = ?`, values);
+
+      await runQuery(`UPDATE gyms SET ${updates.join(', ')} WHERE id = ?`, values);
     }
 
-    const gym = getOne('SELECT * FROM gyms WHERE id = ?', [req.user.gym_id]);
+    const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [req.user.gym_id]);
 
     res.json({
       message: 'Gym profile updated',
@@ -528,7 +530,7 @@ router.post('/test-sms', authenticateToken, async (req, res) => {
       return res.status(503).json({ error: 'SMS is not configured on this server. Contact Hullu Gyms support.' });
     }
 
-    const gym = getOne('SELECT * FROM gyms WHERE id = ?', [req.user.gym_id]);
+    const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [req.user.gym_id]);
     if (!gym) return res.status(404).json({ error: 'Gym not found' });
     if (!gym.sms_enabled) return res.status(400).json({ error: 'SMS is not enabled for your gym. Turn it on in Settings first.' });
 
@@ -554,13 +556,12 @@ router.post('/forgot-password', async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Email is required' });
 
-    const user = getOne('SELECT * FROM gym_users WHERE username = ?', [email]);
+    const user = await getOne('SELECT * FROM gym_users WHERE username = ?', [email]);
     if (!user) {
-      // Always return success to prevent email enumeration
       return res.json({ message: 'If that email exists, an OTP has been sent via SMS.' });
     }
 
-    const gym = getOne('SELECT * FROM gyms WHERE id = ?', [user.gym_id]);
+    const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [user.gym_id]);
     if (!gym || !gym.phone) {
       return res.json({ message: 'If that email exists, an OTP has been sent via SMS.' });
     }
@@ -570,12 +571,12 @@ router.post('/forgot-password', async (req, res) => {
     const settingKey = `reset_otp_${email}`;
 
     // Store OTP in settings table (upsert)
-    const existing = getOne('SELECT * FROM settings WHERE gym_id = ? AND key = ?', [user.gym_id, settingKey]);
+    const existing = await getOne('SELECT * FROM settings WHERE gym_id = ? AND key = ?', [user.gym_id, settingKey]);
     if (existing) {
-      runQuery('UPDATE settings SET value = ? WHERE gym_id = ? AND key = ?',
+      await runQuery('UPDATE settings SET value = ? WHERE gym_id = ? AND key = ?',
         [JSON.stringify({ otp, expiry }), user.gym_id, settingKey]);
     } else {
-      runQuery('INSERT INTO settings (gym_id, key, value) VALUES (?, ?, ?)',
+      await runQuery('INSERT INTO settings (gym_id, key, value) VALUES (?, ?, ?)',
         [user.gym_id, settingKey, JSON.stringify({ otp, expiry })]);
     }
 
@@ -584,7 +585,6 @@ router.post('/forgot-password', async (req, res) => {
         .catch(e => console.warn('OTP SMS failed:', e.message));
     }
 
-    // OTP intentionally not logged to protect user privacy
     res.json({ message: 'If that email exists, an OTP has been sent via SMS.' });
   } catch (error) {
     console.error('Forgot password error:', error);
@@ -603,11 +603,11 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
 
-    const user = getOne('SELECT * FROM gym_users WHERE username = ?', [email]);
+    const user = await getOne('SELECT * FROM gym_users WHERE username = ?', [email]);
     if (!user) return res.status(400).json({ error: 'Invalid or expired OTP' });
 
     const settingKey = `reset_otp_${email}`;
-    const otpSetting = getOne('SELECT * FROM settings WHERE gym_id = ? AND key = ?', [user.gym_id, settingKey]);
+    const otpSetting = await getOne('SELECT * FROM settings WHERE gym_id = ? AND key = ?', [user.gym_id, settingKey]);
     if (!otpSetting) return res.status(400).json({ error: 'Invalid or expired OTP' });
 
     let stored;
@@ -618,8 +618,8 @@ router.post('/reset-password', async (req, res) => {
     }
 
     const hashedPassword = bcrypt.hashSync(newPassword, 10);
-    runQuery('UPDATE gym_users SET password = ? WHERE id = ?', [hashedPassword, user.id]);
-    runQuery('DELETE FROM settings WHERE gym_id = ? AND key = ?', [user.gym_id, settingKey]);
+    await runQuery('UPDATE gym_users SET password = ? WHERE id = ?', [hashedPassword, user.id]);
+    await runQuery('DELETE FROM settings WHERE gym_id = ? AND key = ?', [user.gym_id, settingKey]);
 
     res.json({ message: 'Password reset successfully. You can now log in.' });
   } catch (error) {
@@ -629,7 +629,7 @@ router.post('/reset-password', async (req, res) => {
 });
 
 // Change password
-router.post('/change-password', authenticateToken, validateChangePassword, (req, res) => {
+router.post('/change-password', authenticateToken, validateChangePassword, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
@@ -637,14 +637,14 @@ router.post('/change-password', authenticateToken, validateChangePassword, (req,
       return res.status(400).json({ error: 'Current and new password required' });
     }
 
-    const user = getOne('SELECT * FROM gym_users WHERE id = ?', [req.user.id]);
+    const user = await getOne('SELECT * FROM gym_users WHERE id = ?', [req.user.id]);
 
     if (!bcrypt.compareSync(currentPassword, user.password)) {
       return res.status(401).json({ error: 'Current password is incorrect' });
     }
 
     const hashedPassword = bcrypt.hashSync(newPassword, 10);
-    runQuery('UPDATE gym_users SET password = ? WHERE id = ?', [hashedPassword, req.user.id]);
+    await runQuery('UPDATE gym_users SET password = ? WHERE id = ?', [hashedPassword, req.user.id]);
 
     res.json({ message: 'Password changed successfully' });
   } catch (error) {

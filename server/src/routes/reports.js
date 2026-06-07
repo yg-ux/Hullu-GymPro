@@ -11,13 +11,12 @@ function checkReportsFeature(gym) {
 }
 
 // Generate monthly PDF report
-router.get('/monthly', authenticateToken, (req, res) => {
+router.get('/monthly', authenticateToken, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
     const { month = null, year = null } = req.query;
 
-    // Check subscription
-    const gym = getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
+    const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
     if (!gym) {
       return res.status(404).json({ error: 'Gym not found' });
     }
@@ -29,17 +28,12 @@ router.get('/monthly', authenticateToken, (req, res) => {
       });
     }
 
-    // Determine the month/year
     const now = new Date();
     const reportMonth = month || (now.getMonth() + 1).toString().padStart(2, '0');
     const reportYear = year || now.getFullYear().toString();
     const periodFilter = `${reportYear}-${reportMonth}`;
 
-    // Get gym info
-    const gymInfo = getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
-
-    // Get revenue data
-    const revenueData = getOne(`
+    const revenueData = await getOne(`
       SELECT
         COALESCE(SUM(amount), 0) as total_revenue,
         COUNT(*) as total_payments,
@@ -48,8 +42,7 @@ router.get('/monthly', authenticateToken, (req, res) => {
       WHERE gym_id = ? AND strftime('%Y-%m', payment_date) = ?
     `, [gymId, periodFilter]);
 
-    // Get revenue by payment method
-    const revenueByMethod = getAll(`
+    const revenueByMethod = await getAll(`
       SELECT
         COALESCE(payment_method, 'cash') as method,
         SUM(amount) as total,
@@ -59,8 +52,7 @@ router.get('/monthly', authenticateToken, (req, res) => {
       GROUP BY payment_method
     `, [gymId, periodFilter]);
 
-    // Get member stats
-    const memberStats = getOne(`
+    const memberStats = await getOne(`
       SELECT
         COUNT(*) as total_members,
         SUM(CASE WHEN date(membership_end) >= date('now') THEN 1 ELSE 0 END) as active_members,
@@ -69,14 +61,12 @@ router.get('/monthly', authenticateToken, (req, res) => {
       WHERE gym_id = ?
     `, [gymId]);
 
-    // New members this month
-    const newMembersThisMonth = getOne(`
+    const newMembersThisMonth = await getOne(`
       SELECT COUNT(*) as count FROM customers
       WHERE gym_id = ? AND strftime('%Y-%m', created_at) = ?
     `, [gymId, periodFilter]);
 
-    // Attendance stats
-    const attendanceStats = getOne(`
+    const attendanceStats = await getOne(`
       SELECT
         COUNT(*) as total_visits,
         COUNT(DISTINCT customer_id) as unique_visitors
@@ -84,8 +74,7 @@ router.get('/monthly', authenticateToken, (req, res) => {
       WHERE gym_id = ? AND strftime('%Y-%m', check_in) = ?
     `, [gymId, periodFilter]);
 
-    // Top customers
-    const topCustomers = getAll(`
+    const topCustomers = await getAll(`
       SELECT
         c.name,
         c.phone,
@@ -108,7 +97,7 @@ router.get('/monthly', authenticateToken, (req, res) => {
     doc.pipe(res);
 
     // Header
-    doc.fontSize(24).font('Helvetica-Bold').text(gymInfo?.name || 'Gym Report', { align: 'center' });
+    doc.fontSize(24).font('Helvetica-Bold').text(gym?.name || 'Gym Report', { align: 'center' });
     doc.moveDown(0.5);
     doc.fontSize(14).font('Helvetica').text(`Monthly Report: ${periodFilter}`, { align: 'center' });
     doc.moveDown(2);
@@ -206,13 +195,12 @@ router.get('/monthly', authenticateToken, (req, res) => {
 });
 
 // Customer list export
-router.get('/customers', authenticateToken, (req, res) => {
+router.get('/customers', authenticateToken, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
     const { format = 'json', status = 'all' } = req.query;
 
-    // Check subscription
-    const gym = getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
+    const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
     if (!gym) {
       return res.status(404).json({ error: 'Gym not found' });
     }
@@ -243,7 +231,7 @@ router.get('/customers', authenticateToken, (req, res) => {
 
     sql += ' GROUP BY c.id ORDER BY c.name ASC';
 
-    const customers = getAll(sql, params);
+    const customers = await getAll(sql, params);
 
     if (format === 'csv') {
       const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
@@ -268,7 +256,6 @@ router.get('/customers', authenticateToken, (req, res) => {
       res.setHeader('Content-Disposition', 'attachment; filename="customers-export.csv"');
       res.send('﻿' + csvRows.join('\r\n')); // BOM for Excel UTF-8 compatibility
     } else {
-      // JSON format
       res.json({
         export_date: new Date().toISOString(),
         total_customers: customers.length,

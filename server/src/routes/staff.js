@@ -1,7 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
-import { runQuery, getOne, getAll, getDb } from '../models/database.js';
+import { runQuery, getOne, getAll } from '../models/database.js';
 import { authenticateToken, requireActiveSubscription } from './auth.js';
 
 const router = express.Router();
@@ -17,17 +17,16 @@ function getStaffLimit(plan) {
 }
 
 // Get all staff for the gym
-router.get('/', authenticateToken, (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
 
-    // Check subscription
-    const gym = getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
+    const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
     if (!gym) {
       return res.status(404).json({ error: 'Gym not found' });
     }
 
-    const staff = getAll(`
+    const staff = await getAll(`
       SELECT id, gym_id, username, name, email, role, created_at, updated_at
       FROM gym_users
       WHERE gym_id = ? AND role != 'owner'
@@ -49,26 +48,24 @@ router.get('/', authenticateToken, (req, res) => {
 });
 
 // Add new staff member
-router.post('/', authenticateToken, requireActiveSubscription, (req, res) => {
+router.post('/', authenticateToken, requireActiveSubscription, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
     const { username, name, email, phone, password, role = 'receptionist' } = req.body;
 
-    // Accept either username or email as the login identifier
     const loginUsername = username || email;
     if (!loginUsername || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // Check subscription
-    const gym = getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
+    const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
     if (!gym) {
       return res.status(404).json({ error: 'Gym not found' });
     }
 
     // Check staff limit
     const staffLimit = getStaffLimit(gym.subscription_plan);
-    const currentStaff = getAll('SELECT * FROM gym_users WHERE gym_id = ?', [gymId]);
+    const currentStaff = await getAll('SELECT * FROM gym_users WHERE gym_id = ?', [gymId]);
 
     if (staffLimit !== -1 && currentStaff.length >= staffLimit) {
       return res.status(403).json({
@@ -79,7 +76,7 @@ router.post('/', authenticateToken, requireActiveSubscription, (req, res) => {
     }
 
     // Check if username already exists
-    const existingUser = getOne('SELECT * FROM gym_users WHERE username = ?', [loginUsername]);
+    const existingUser = await getOne('SELECT * FROM gym_users WHERE username = ?', [loginUsername]);
     if (existingUser) {
       return res.status(400).json({ error: 'A staff member with this email already exists' });
     }
@@ -93,12 +90,12 @@ router.post('/', authenticateToken, requireActiveSubscription, (req, res) => {
     const staffId = uuidv4();
     const hashedPassword = bcrypt.hashSync(password, 10);
 
-    runQuery(`
+    await runQuery(`
       INSERT INTO gym_users (id, gym_id, username, name, email, password, role)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `, [staffId, gymId, loginUsername, name || loginUsername, email || loginUsername, hashedPassword, role]);
 
-    const newStaff = getOne(`
+    const newStaff = await getOne(`
       SELECT id, gym_id, username, name, email, role, created_at
       FROM gym_users WHERE id = ?
     `, [staffId]);
@@ -114,19 +111,17 @@ router.post('/', authenticateToken, requireActiveSubscription, (req, res) => {
 });
 
 // Update staff member
-router.put('/:id', authenticateToken, requireActiveSubscription, (req, res) => {
+router.put('/:id', authenticateToken, requireActiveSubscription, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
     const staffId = req.params.id;
-    const { username, role, active } = req.body;
+    const { username, role } = req.body;
 
-    // Check if staff belongs to this gym
-    const staff = getOne('SELECT * FROM gym_users WHERE id = ? AND gym_id = ?', [staffId, gymId]);
+    const staff = await getOne('SELECT * FROM gym_users WHERE id = ? AND gym_id = ?', [staffId, gymId]);
     if (!staff) {
       return res.status(404).json({ error: 'Staff member not found' });
     }
 
-    // Cannot modify owner
     if (staff.role === 'owner') {
       return res.status(403).json({ error: 'Cannot modify owner account' });
     }
@@ -135,8 +130,7 @@ router.put('/:id', authenticateToken, requireActiveSubscription, (req, res) => {
     const values = [];
 
     if (username) {
-      // Check if new username is taken
-      const existing = getOne('SELECT * FROM gym_users WHERE username = ? AND id != ?', [username, staffId]);
+      const existing = await getOne('SELECT * FROM gym_users WHERE username = ? AND id != ?', [username, staffId]);
       if (existing) {
         return res.status(400).json({ error: 'Username already exists' });
       }
@@ -158,10 +152,10 @@ router.put('/:id', authenticateToken, requireActiveSubscription, (req, res) => {
       values.push(staffId);
       values.push(gymId);
 
-      runQuery(`UPDATE gym_users SET ${updates.join(', ')} WHERE id = ? AND gym_id = ?`, values);
+      await runQuery(`UPDATE gym_users SET ${updates.join(', ')} WHERE id = ? AND gym_id = ?`, values);
     }
 
-    const updatedStaff = getOne(`
+    const updatedStaff = await getOne(`
       SELECT id, gym_id, username, role, created_at, updated_at
       FROM gym_users WHERE id = ?
     `, [staffId]);
@@ -177,28 +171,25 @@ router.put('/:id', authenticateToken, requireActiveSubscription, (req, res) => {
 });
 
 // Delete staff member
-router.delete('/:id', authenticateToken, requireActiveSubscription, (req, res) => {
+router.delete('/:id', authenticateToken, requireActiveSubscription, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
     const staffId = req.params.id;
 
-    // Check if staff belongs to this gym
-    const staff = getOne('SELECT * FROM gym_users WHERE id = ? AND gym_id = ?', [staffId, gymId]);
+    const staff = await getOne('SELECT * FROM gym_users WHERE id = ? AND gym_id = ?', [staffId, gymId]);
     if (!staff) {
       return res.status(404).json({ error: 'Staff member not found' });
     }
 
-    // Cannot delete owner
     if (staff.role === 'owner') {
       return res.status(403).json({ error: 'Cannot delete owner account' });
     }
 
-    // Cannot delete self
     if (staffId === req.user.id) {
       return res.status(403).json({ error: 'Cannot delete your own account' });
     }
 
-    runQuery('DELETE FROM gym_users WHERE id = ? AND gym_id = ?', [staffId, gymId]);
+    await runQuery('DELETE FROM gym_users WHERE id = ? AND gym_id = ?', [staffId, gymId]);
 
     res.json({ message: 'Staff member removed successfully' });
   } catch (error) {
@@ -208,19 +199,17 @@ router.delete('/:id', authenticateToken, requireActiveSubscription, (req, res) =
 });
 
 // Reset staff password
-router.post('/:id/reset-password', authenticateToken, requireActiveSubscription, (req, res) => {
+router.post('/:id/reset-password', authenticateToken, requireActiveSubscription, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
     const staffId = req.params.id;
     const { new_password } = req.body;
 
-    // Check if staff belongs to this gym
-    const staff = getOne('SELECT * FROM gym_users WHERE id = ? AND gym_id = ?', [staffId, gymId]);
+    const staff = await getOne('SELECT * FROM gym_users WHERE id = ? AND gym_id = ?', [staffId, gymId]);
     if (!staff) {
       return res.status(404).json({ error: 'Staff member not found' });
     }
 
-    // Cannot modify owner
     if (staff.role === 'owner' && staffId !== req.user.id) {
       return res.status(403).json({ error: 'Only owner can change their own password' });
     }
@@ -234,7 +223,7 @@ router.post('/:id/reset-password', authenticateToken, requireActiveSubscription,
     }
 
     const hashedPassword = bcrypt.hashSync(new_password, 10);
-    runQuery('UPDATE gym_users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [hashedPassword, staffId]);
+    await runQuery('UPDATE gym_users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [hashedPassword, staffId]);
 
     res.json({ message: 'Password reset successfully' });
   } catch (error) {
