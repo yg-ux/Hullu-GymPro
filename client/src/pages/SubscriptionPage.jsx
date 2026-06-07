@@ -43,10 +43,10 @@ const PLANS = [
 ];
 
 const DURATION_OPTIONS = [
-  { months: 1, label: '1 Month', discount: 0 },
-  { months: 3, label: '3 Months', discount: 5 },
-  { months: 6, label: '6 Months', discount: 10 },
-  { months: 12, label: '12 Months', discount: 15 },
+  { months: 1,  label: '1 Month',   discount: 0,  available: true  },
+  { months: 3,  label: '3 Months',  discount: 5,  available: true  },
+  { months: 6,  label: '6 Months',  discount: 10, available: false },
+  { months: 12, label: '12 Months', discount: 15, available: false },
 ];
 
 const PAYMENT_METHODS = [
@@ -363,20 +363,27 @@ export default function SubscriptionPage() {
                 <button
                   key={opt.months}
                   type="button"
-                  onClick={() => setDurationMonths(opt.months)}
+                  onClick={() => opt.available && setDurationMonths(opt.months)}
+                  disabled={!opt.available}
                   className={clsx(
-                    'p-3 rounded-xl border text-center transition-all',
-                    durationMonths === opt.months
-                      ? 'border-gym-500 bg-gym-500/10 text-white'
-                      : 'border-gray-700 text-gray-400 hover:border-gray-600'
+                    'p-3 rounded-xl border text-center transition-all relative',
+                    !opt.available
+                      ? 'border-gray-800 bg-dark-200/40 opacity-50 cursor-not-allowed'
+                      : durationMonths === opt.months
+                        ? 'border-gym-500 bg-gym-500/10 text-white'
+                        : 'border-gray-700 text-gray-400 hover:border-gray-600'
                   )}
                 >
                   <p className="font-semibold text-sm">{opt.label}</p>
-                  {opt.discount > 0 && (
+                  {!opt.available ? (
+                    <p className="text-xs text-gray-500 mt-0.5">Coming soon</p>
+                  ) : opt.discount > 0 ? (
                     <p className="text-xs text-green-400 mt-0.5">{opt.discount}% off</p>
-                  )}
+                  ) : null}
                   <p className="text-xs text-gray-500 mt-1">
-                    ETB {Math.round(selectedPlanData.price * opt.months * (1 - opt.discount / 100)).toLocaleString()}
+                    {opt.available
+                      ? `ETB ${Math.round(selectedPlanData.price * opt.months * (1 - opt.discount / 100)).toLocaleString()}`
+                      : '—'}
                   </p>
                 </button>
               ))}
