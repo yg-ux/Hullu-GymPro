@@ -8,9 +8,11 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 
+const ADMIN_API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+
 function adminFetch(path, options = {}) {
   const token = localStorage.getItem('adminToken');
-  return fetch(`/api/admin${path}`, {
+  return fetch(`${ADMIN_API_BASE}/admin${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
