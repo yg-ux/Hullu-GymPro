@@ -41,6 +41,18 @@ export default function AdminDashboard() {
   // Review modal
   const [reviewModal, setReviewModal] = useState(null); // { request, action: 'approve'|'decline' }
   const [adminNotes, setAdminNotes] = useState('');
+  const [declineReason, setDeclineReason] = useState('');
+
+  const DECLINE_REASONS = [
+    'Transaction ID not found in records',
+    'Transaction amount does not match',
+    'Transaction ID already used',
+    'Payment not received',
+    'Invalid or expired transaction',
+    'Wrong payment method',
+    'Duplicate request',
+    'Other',
+  ];
 
   // Gym detail modal
   const [gymDetail, setGymDetail] = useState(null);
@@ -84,16 +96,27 @@ export default function AdminDashboard() {
   const openReview = (request, action) => {
     setReviewModal({ request, action });
     setAdminNotes('');
+    setDeclineReason('');
   };
 
   const handleReview = async () => {
     if (!reviewModal) return;
     const { request, action } = reviewModal;
+
+    // For declines, build the final note from dropdown + optional custom text
+    let finalNote = '';
+    if (action === 'decline') {
+      if (!declineReason) return;
+      finalNote = declineReason === 'Other'
+        ? (adminNotes.trim() || 'Other')
+        : declineReason + (adminNotes.trim() ? ` — ${adminNotes.trim()}` : '');
+    }
+
     setProcessing(request.id);
     try {
       await adminFetch(`/${action === 'approve' ? 'approve' : 'decline'}-request/${request.id}`, {
         method: 'POST',
-        body: JSON.stringify({ admin_notes: adminNotes }),
+        body: JSON.stringify({ admin_notes: finalNote || null }),
       });
       setReviewModal(null);
       loadData();
@@ -482,20 +505,51 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                {reviewModal.action === 'decline' ? 'Reason for decline (required)' : 'Admin notes (optional)'}
-              </label>
-              <textarea
-                value={adminNotes}
-                onChange={e => setAdminNotes(e.target.value)}
-                className="input-field h-24 resize-none"
-                placeholder={reviewModal.action === 'approve'
-                  ? 'e.g. Verified via Telebirr dashboard'
-                  : 'e.g. Transaction ID not found in Telebirr records'
-                }
-              />
-            </div>
+            {reviewModal.action === 'decline' ? (
+              <div className="mb-4 space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Reason for decline <span className="text-red-400">*</span>
+                  </label>
+                  <select
+                    value={declineReason}
+                    onChange={e => { setDeclineReason(e.target.value); setAdminNotes(''); }}
+                    className="input-field"
+                  >
+                    <option value="">— Select a reason —</option>
+                    {DECLINE_REASONS.map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
+                {declineReason === 'Other' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Describe the reason <span className="text-red-400">*</span>
+                    </label>
+                    <textarea
+                      value={adminNotes}
+                      onChange={e => setAdminNotes(e.target.value)}
+                      className="input-field h-20 resize-none"
+                      placeholder="Explain why this request is being declined…"
+                    />
+                  </div>
+                )}
+                {declineReason && declineReason !== 'Other' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      Additional details (optional)
+                    </label>
+                    <textarea
+                      value={adminNotes}
+                      onChange={e => setAdminNotes(e.target.value)}
+                      className="input-field h-16 resize-none"
+                      placeholder="Add any extra context for the gym owner…"
+                    />
+                  </div>
+                )}
+              </div>
+            ) : null}
 
             <div className="flex gap-3">
               <button
@@ -506,7 +560,7 @@ export default function AdminDashboard() {
               </button>
               <button
                 onClick={handleReview}
-                disabled={processing || (reviewModal.action === 'decline' && !adminNotes.trim())}
+                disabled={processing || (reviewModal.action === 'decline' && (!declineReason || (declineReason === 'Other' && !adminNotes.trim())))}
                 className={clsx(
                   'flex-1 px-4 py-2.5 rounded-xl font-medium transition-all disabled:opacity-50 flex items-center justify-center gap-2',
                   reviewModal.action === 'approve'
