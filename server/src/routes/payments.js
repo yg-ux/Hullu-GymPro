@@ -121,9 +121,8 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreatePay
 
     logPaymentRecorded(gymId, req.user.id, paymentId, amount, updatedCustomer.name);
 
-    // Send payment confirmation SMS — requires Starter or Pro plan + SMS enabled
-    const smsPlanAllowed = ['starter', 'pro'].includes(gym.subscription_plan);
-    if (updatedCustomer.phone && smsPlanAllowed && gym.sms_enabled) {
+    // Send payment confirmation SMS — requires SMS enabled + platform API key configured
+    if (updatedCustomer.phone && gym.sms_enabled) {
       try {
         await smsService.sendPaymentConfirmation(updatedCustomer, payment, gym);
       } catch (smsError) {

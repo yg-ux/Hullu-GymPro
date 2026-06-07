@@ -530,9 +530,6 @@ router.post('/test-sms', authenticateToken, async (req, res) => {
 
     const gym = getOne('SELECT * FROM gyms WHERE id = ?', [req.user.gym_id]);
     if (!gym) return res.status(404).json({ error: 'Gym not found' });
-    if (!['starter', 'pro'].includes(gym.subscription_plan)) {
-      return res.status(403).json({ error: 'SMS is available on Starter and Pro plans only. Upgrade to use SMS.' });
-    }
     if (!gym.sms_enabled) return res.status(400).json({ error: 'SMS is not enabled for your gym. Turn it on in Settings first.' });
 
     const result = await smsService.sendSms(

@@ -262,9 +262,8 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreateCus
 
     logCustomerAdded(gymId, req.user.id, customerId, name);
 
-    // Send welcome SMS — requires Starter or Pro plan + SMS enabled
-    const smsPlanAllowed = ['starter', 'pro'].includes(gym.subscription_plan);
-    if (customer.phone && smsPlanAllowed && gym.sms_enabled && !customer.welcome_sms_sent) {
+    // Send welcome SMS — requires SMS enabled + platform API key configured
+    if (customer.phone && gym.sms_enabled && !customer.welcome_sms_sent) {
       try {
         // Attach amount from request body since it's not stored on the customer row
         const customerWithAmount = { ...customer, amount: amount || null };
