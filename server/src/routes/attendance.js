@@ -23,7 +23,7 @@ router.get('/today', authenticateToken, async (req, res) => {
         c.photo
       FROM attendance a
       JOIN customers c ON a.customer_id = c.id
-      WHERE a.gym_id = ? AND date(a.check_in) = date('now')
+      WHERE a.gym_id = ? AND a.check_in::date = CURRENT_DATE
       ORDER BY a.check_in DESC
     `, [gymId]);
 
@@ -235,18 +235,18 @@ router.get('/history/:customerId', authenticateToken, async (req, res) => {
     const params = [customerId, gymId];
 
     if (start_date) {
-      dateFilter += ' AND date(a.check_in) >= ?';
+      dateFilter += ' AND a.check_in::date >= ?::date';
       params.push(start_date);
     }
     if (end_date) {
-      dateFilter += ' AND date(a.check_in) <= ?';
+      dateFilter += ' AND a.check_in::date <= ?::date';
       params.push(end_date);
     }
 
     const history = await getAll(`
       SELECT
         a.*,
-        ROUND((julianday(a.check_out) - julianday(a.check_in)) * 24 * 60) as duration_minutes
+        ROUND(EXTRACT(EPOCH FROM (a.check_out - a.check_in)) / 60)::integer as duration_minutes
       FROM attendance a
       WHERE a.customer_id = ? AND a.gym_id = ? ${dateFilter}
       ORDER BY a.check_in DESC
@@ -297,7 +297,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
         SUM(CASE WHEN check_out IS NULL THEN 1 ELSE 0 END) as currently_present,
         SUM(CASE WHEN check_out IS NOT NULL THEN 1 ELSE 0 END) as completed
       FROM attendance
-      WHERE gym_id = ? AND date(check_in) = date('now')
+      WHERE gym_id = ? AND check_in::date = CURRENT_DATE
     `, [gymId]);
 
     const weeklyStats = await getOne(`
@@ -305,7 +305,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
         COUNT(*) as total_visits,
         COUNT(DISTINCT customer_id) as unique_visitors
       FROM attendance
-      WHERE gym_id = ? AND date(check_in) >= date('now', '-7 days')
+      WHERE gym_id = ? AND check_in::date >= CURRENT_DATE - INTERVAL '7 days'
     `, [gymId]);
 
     const monthlyStats = await getOne(`
@@ -313,27 +313,27 @@ router.get('/stats', authenticateToken, async (req, res) => {
         COUNT(*) as total_visits,
         COUNT(DISTINCT customer_id) as unique_visitors
       FROM attendance
-      WHERE gym_id = ? AND strftime('%Y-%m', check_in) = strftime('%Y-%m', 'now')
+      WHERE gym_id = ? AND TO_CHAR(check_in, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')
     `, [gymId]);
 
     const dailyBreakdown = await getAll(`
       SELECT
-        date(check_in) as date,
+        check_in::date as date,
         COUNT(*) as visits,
         COUNT(DISTINCT customer_id) as unique_visitors
       FROM attendance
-      WHERE gym_id = ? AND date(check_in) >= date('now', '-7 days')
-      GROUP BY date(check_in)
+      WHERE gym_id = ? AND check_in::date >= CURRENT_DATE - INTERVAL '7 days'
+      GROUP BY check_in::date
       ORDER BY date DESC
     `, [gymId]);
 
     const peakHours = await getAll(`
       SELECT
-        strftime('%H', check_in) as hour,
+        TO_CHAR(check_in, 'HH24') as hour,
         COUNT(*) as visits
       FROM attendance
-      WHERE gym_id = ? AND date(check_in) >= date('now', '-30 days')
-      GROUP BY strftime('%H', check_in)
+      WHERE gym_id = ? AND check_in::date >= CURRENT_DATE - INTERVAL '30 days'
+      GROUP BY TO_CHAR(check_in, 'HH24')
       ORDER BY visits DESC
       LIMIT 5
     `, [gymId]);

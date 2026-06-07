@@ -14,37 +14,37 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
 
     const activeResult = await getOne(`
       SELECT COUNT(*) as count FROM customers
-      WHERE gym_id = ? AND date(membership_end) >= date('now')
+      WHERE gym_id = ? AND membership_end::date >= CURRENT_DATE
     `, [gymId]);
     const activeCustomers = activeResult?.count || 0;
 
     const expiringResult = await getOne(`
       SELECT COUNT(*) as count FROM customers
-      WHERE gym_id = ? AND date(membership_end) > date('now') AND date(membership_end) <= date('now', '+7 days')
+      WHERE gym_id = ? AND membership_end::date > CURRENT_DATE AND membership_end::date <= CURRENT_DATE + INTERVAL '7 days'
     `, [gymId]);
     const expiringSoon = expiringResult?.count || 0;
 
     const expiredResult = await getOne(`
       SELECT COUNT(*) as count FROM customers
-      WHERE gym_id = ? AND date(membership_end) < date('now')
+      WHERE gym_id = ? AND membership_end::date < CURRENT_DATE
     `, [gymId]);
     const expiredCustomers = expiredResult?.count || 0;
 
     const todayRevenueResult = await getOne(`
       SELECT COALESCE(SUM(amount), 0) as total FROM payments
-      WHERE gym_id = ? AND date(payment_date) = date('now')
+      WHERE gym_id = ? AND payment_date::date = CURRENT_DATE
     `, [gymId]);
     const todayRevenue = todayRevenueResult?.total || 0;
 
     const monthRevenueResult = await getOne(`
       SELECT COALESCE(SUM(amount), 0) as total FROM payments
-      WHERE gym_id = ? AND strftime('%Y-%m', payment_date) = strftime('%Y-%m', 'now')
+      WHERE gym_id = ? AND TO_CHAR(payment_date::date, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')
     `, [gymId]);
     const monthRevenue = monthRevenueResult?.total || 0;
 
     const last30DaysResult = await getOne(`
       SELECT COALESCE(SUM(amount), 0) as total FROM payments
-      WHERE gym_id = ? AND date(payment_date) >= date('now', '-30 days')
+      WHERE gym_id = ? AND payment_date::date >= CURRENT_DATE - INTERVAL '30 days'
     `, [gymId]);
     const last30DaysRevenue = last30DaysResult?.total || 0;
 
@@ -60,7 +60,7 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
 
     const newThisMonthResult = await getOne(`
       SELECT COUNT(*) as count FROM customers
-      WHERE gym_id = ? AND strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')
+      WHERE gym_id = ? AND TO_CHAR(created_at, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')
     `, [gymId]);
     const newThisMonth = newThisMonthResult?.count || 0;
 
@@ -75,18 +75,18 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     const membershipDistribution = await getAll(`
       SELECT membership_type, COUNT(*) as count
       FROM customers
-      WHERE gym_id = ? AND date(membership_end) >= date('now')
+      WHERE gym_id = ? AND membership_end::date >= CURRENT_DATE
       GROUP BY membership_type
     `, [gymId]);
 
     const monthlyTrend = await getAll(`
       SELECT
-        strftime('%Y-%m', payment_date) as month,
+        TO_CHAR(payment_date::date, 'YYYY-MM') as month,
         SUM(amount) as total,
         COUNT(*) as count
       FROM payments
-      WHERE gym_id = ? AND date(payment_date) >= date('now', '-12 months')
-      GROUP BY strftime('%Y-%m', payment_date)
+      WHERE gym_id = ? AND payment_date::date >= CURRENT_DATE - INTERVAL '12 months'
+      GROUP BY TO_CHAR(payment_date::date, 'YYYY-MM')
       ORDER BY month
     `, [gymId]);
 
@@ -177,25 +177,25 @@ router.get('/reports', authenticateToken, async (req, res) => {
     let dateFilter = '';
     switch (range) {
       case 'this_week':
-        dateFilter = "date(payment_date) >= date('now', '-7 days')";
+        dateFilter = "payment_date::date >= CURRENT_DATE - INTERVAL '7 days'";
         break;
       case 'last_month':
-        dateFilter = "strftime('%Y-%m', payment_date) = strftime('%Y-%m', 'now', '-1 month')";
+        dateFilter = "TO_CHAR(payment_date::date, 'YYYY-MM') = TO_CHAR(NOW() - INTERVAL '1 month', 'YYYY-MM')";
         break;
       case 'last_3_months':
-        dateFilter = "date(payment_date) >= date('now', '-3 months')";
+        dateFilter = "payment_date::date >= CURRENT_DATE - INTERVAL '3 months'";
         break;
       case 'last_6_months':
-        dateFilter = "date(payment_date) >= date('now', '-6 months')";
+        dateFilter = "payment_date::date >= CURRENT_DATE - INTERVAL '6 months'";
         break;
       case 'this_year':
-        dateFilter = "strftime('%Y', payment_date) = strftime('%Y', 'now')";
+        dateFilter = "TO_CHAR(payment_date::date, 'YYYY') = TO_CHAR(NOW(), 'YYYY')";
         break;
       case 'all_time':
         dateFilter = '1=1';
         break;
       default:
-        dateFilter = "strftime('%Y-%m', payment_date) = strftime('%Y-%m', 'now')";
+        dateFilter = "TO_CHAR(payment_date::date, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')";
     }
 
     const revenueResult = await getOne(`
@@ -227,12 +227,12 @@ router.get('/reports', authenticateToken, async (req, res) => {
 
     const monthlySummary = await getAll(`
       SELECT
-        strftime('%Y-%m', payment_date) as month,
+        TO_CHAR(payment_date::date, 'YYYY-MM') as month,
         SUM(amount) as total,
         COUNT(*) as count
       FROM payments
-      WHERE gym_id = ? AND date(payment_date) >= date('now', '-12 months')
-      GROUP BY strftime('%Y-%m', payment_date)
+      WHERE gym_id = ? AND payment_date::date >= CURRENT_DATE - INTERVAL '12 months'
+      GROUP BY TO_CHAR(payment_date::date, 'YYYY-MM')
       ORDER BY month DESC
       LIMIT 12
     `, [gymId]);
@@ -241,15 +241,15 @@ router.get('/reports', authenticateToken, async (req, res) => {
 
     const activeMembersResult = await getOne(`
       SELECT COUNT(*) as count FROM customers
-      WHERE gym_id = ? AND date(membership_end) >= date('now')
+      WHERE gym_id = ? AND membership_end::date >= CURRENT_DATE
     `, [gymId]);
     const activeMembers = activeMembersResult?.count || 0;
 
-    let newMembersFilter = "strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')";
+    let newMembersFilter = "TO_CHAR(created_at, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')";
     if (range === 'this_week') {
-      newMembersFilter = "date(created_at) >= date('now', '-7 days')";
+      newMembersFilter = "created_at::date >= CURRENT_DATE - INTERVAL '7 days'";
     } else if (range === 'this_year' || range === 'all_time') {
-      newMembersFilter = "1=1";
+      newMembersFilter = '1=1';
     }
 
     const newMembersResult = await getOne(`
@@ -262,29 +262,29 @@ router.get('/reports', authenticateToken, async (req, res) => {
         membership_type as type,
         COUNT(*) as count
       FROM customers
-      WHERE gym_id = ? AND date(membership_end) >= date('now')
+      WHERE gym_id = ? AND membership_end::date >= CURRENT_DATE
       GROUP BY membership_type
     `, [gymId]);
 
     const attendanceData = await getAll(`
       SELECT
-        date(check_in) as date,
+        check_in::date as date,
         COUNT(*) as count
       FROM attendance
-      WHERE gym_id = ? AND date(check_in) >= date('now', '-30 days')
-      GROUP BY date(check_in)
+      WHERE gym_id = ? AND check_in::date >= CURRENT_DATE - INTERVAL '30 days'
+      GROUP BY check_in::date
       ORDER BY date DESC
     `, [gymId]);
 
-    const totalCheckIns = attendanceData.reduce((sum, d) => sum + d.count, 0);
+    const totalCheckIns = attendanceData.reduce((sum, d) => sum + parseInt(d.count), 0);
     const avgDaily = attendanceData.length > 0 ? Math.round(totalCheckIns / attendanceData.length) : 0;
     const peakDay = attendanceData.length > 0 ? attendanceData[0].date : 'N/A';
 
     const busiestHourResult = await getOne(`
-      SELECT strftime('%H', check_in) as hour, COUNT(*) as count
+      SELECT TO_CHAR(check_in, 'HH24') as hour, COUNT(*) as count
       FROM attendance
-      WHERE gym_id = ? AND date(check_in) >= date('now', '-30 days')
-      GROUP BY strftime('%H', check_in)
+      WHERE gym_id = ? AND check_in::date >= CURRENT_DATE - INTERVAL '30 days'
+      GROUP BY TO_CHAR(check_in, 'HH24')
       ORDER BY count DESC
       LIMIT 1
     `, [gymId]);
@@ -313,19 +313,19 @@ router.get('/reports', authenticateToken, async (req, res) => {
     let previousPeriodFilter = '';
     switch (range) {
       case 'this_week':
-        previousPeriodFilter = "date(payment_date) >= date('now', '-14 days') AND date(payment_date) < date('now', '-7 days')";
+        previousPeriodFilter = "payment_date::date >= CURRENT_DATE - INTERVAL '14 days' AND payment_date::date < CURRENT_DATE - INTERVAL '7 days'";
         break;
       case 'this_month':
-        previousPeriodFilter = "strftime('%Y-%m', payment_date) = strftime('%Y-%m', 'now', '-1 month')";
+        previousPeriodFilter = "TO_CHAR(payment_date::date, 'YYYY-MM') = TO_CHAR(NOW() - INTERVAL '1 month', 'YYYY-MM')";
         break;
       case 'last_month':
-        previousPeriodFilter = "strftime('%Y-%m', payment_date) = strftime('%Y-%m', 'now', '-2 months')";
+        previousPeriodFilter = "TO_CHAR(payment_date::date, 'YYYY-MM') = TO_CHAR(NOW() - INTERVAL '2 months', 'YYYY-MM')";
         break;
       case 'last_3_months':
-        previousPeriodFilter = "date(payment_date) >= date('now', '-6 months') AND date(payment_date) < date('now', '-3 months')";
+        previousPeriodFilter = "payment_date::date >= CURRENT_DATE - INTERVAL '6 months' AND payment_date::date < CURRENT_DATE - INTERVAL '3 months'";
         break;
       case 'last_6_months':
-        previousPeriodFilter = "date(payment_date) >= date('now', '-12 months') AND date(payment_date) < date('now', '-6 months')";
+        previousPeriodFilter = "payment_date::date >= CURRENT_DATE - INTERVAL '12 months' AND payment_date::date < CURRENT_DATE - INTERVAL '6 months'";
         break;
       default:
         previousPeriodFilter = dateFilter;
@@ -355,7 +355,7 @@ router.get('/reports', authenticateToken, async (req, res) => {
       members: {
         active: activeMembers,
         new: newMembers,
-        renewals: membershipBreakdown.reduce((sum, m) => sum + m.count, 0),
+        renewals: membershipBreakdown.reduce((sum, m) => sum + parseInt(m.count), 0),
         trend: 0,
         newTrend: 0
       },
@@ -388,17 +388,17 @@ router.get('/revenue', authenticateToken, async (req, res) => {
 
     const monthResult = await getOne(`
       SELECT COALESCE(SUM(amount), 0) as total FROM payments
-      WHERE gym_id = ? AND strftime('%Y-%m', payment_date) = strftime('%Y-%m', 'now')
+      WHERE gym_id = ? AND TO_CHAR(payment_date::date, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')
     `, [gymId]);
 
     const weekResult = await getOne(`
       SELECT COALESCE(SUM(amount), 0) as total FROM payments
-      WHERE gym_id = ? AND date(payment_date) >= date('now', '-7 days')
+      WHERE gym_id = ? AND payment_date::date >= CURRENT_DATE - INTERVAL '7 days'
     `, [gymId]);
 
     const todayResult = await getOne(`
       SELECT COALESCE(SUM(amount), 0) as total FROM payments
-      WHERE gym_id = ? AND date(payment_date) = date('now')
+      WHERE gym_id = ? AND payment_date::date = CURRENT_DATE
     `, [gymId]);
 
     const paymentMethods = await getAll(`
@@ -423,40 +423,40 @@ router.get('/revenue', authenticateToken, async (req, res) => {
     `, [gymId]);
 
     const monthlyTrend = await getAll(`
-      SELECT strftime('%Y-%m', payment_date) as label, SUM(amount) as total, COUNT(*) as count
+      SELECT TO_CHAR(payment_date::date, 'YYYY-MM') as label, SUM(amount) as total, COUNT(*) as count
       FROM payments
-      WHERE gym_id = ? AND date(payment_date) >= date('now', '-12 months')
-      GROUP BY strftime('%Y-%m', payment_date)
+      WHERE gym_id = ? AND payment_date::date >= CURRENT_DATE - INTERVAL '12 months'
+      GROUP BY TO_CHAR(payment_date::date, 'YYYY-MM')
       ORDER BY label
     `, [gymId]);
 
     const dailyTrend = await getAll(`
-      SELECT date(payment_date) as label, SUM(amount) as total, COUNT(*) as count
+      SELECT payment_date::date as label, SUM(amount) as total, COUNT(*) as count
       FROM payments
-      WHERE gym_id = ? AND date(payment_date) >= date('now', '-30 days')
-      GROUP BY date(payment_date)
+      WHERE gym_id = ? AND payment_date::date >= CURRENT_DATE - INTERVAL '30 days'
+      GROUP BY payment_date::date
       ORDER BY label
     `, [gymId]);
 
     const weeklyTrend = await getAll(`
-      SELECT strftime('%Y-W%W', payment_date) as label, SUM(amount) as total, COUNT(*) as count
+      SELECT TO_CHAR(payment_date::date, 'IYYY-"W"IW') as label, SUM(amount) as total, COUNT(*) as count
       FROM payments
-      WHERE gym_id = ? AND date(payment_date) >= date('now', '-91 days')
-      GROUP BY strftime('%Y-%W', payment_date)
+      WHERE gym_id = ? AND payment_date::date >= CURRENT_DATE - INTERVAL '91 days'
+      GROUP BY TO_CHAR(payment_date::date, 'IYYY-"W"IW')
       ORDER BY label
     `, [gymId]);
 
     const yearlyTrend = await getAll(`
-      SELECT strftime('%Y', payment_date) as label, SUM(amount) as total, COUNT(*) as count
+      SELECT TO_CHAR(payment_date::date, 'YYYY') as label, SUM(amount) as total, COUNT(*) as count
       FROM payments
       WHERE gym_id = ?
-      GROUP BY strftime('%Y', payment_date)
+      GROUP BY TO_CHAR(payment_date::date, 'YYYY')
       ORDER BY label
     `, [gymId]);
 
     const forecastResult = await getOne(`
       SELECT COALESCE(SUM(amount), 0) as total FROM payments
-      WHERE gym_id = ? AND date(payment_date) >= date('now', '-30 days')
+      WHERE gym_id = ? AND payment_date::date >= CURRENT_DATE - INTERVAL '30 days'
     `, [gymId]);
     const monthlyAvg = forecastResult?.total || 0;
 

@@ -196,7 +196,7 @@ router.post('/approve-request/:id', authenticateToken, async (req, res) => {
 
     await runQuery(`
       UPDATE subscription_requests
-      SET status = 'approved', admin_notes = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP
+      SET status = 'approved', admin_notes = ?, reviewed_by = ?, reviewed_at = NOW()
       WHERE id = ?
     `, [admin_notes || null, req.user.id, id]);
 
@@ -217,7 +217,7 @@ router.post('/approve-request/:id', authenticateToken, async (req, res) => {
         subscription_start = ?,
         subscription_end = ?,
         max_members = ?,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = NOW()
       WHERE id = ?
     `, [request.requested_plan, today.toISOString().split('T')[0], endDate.toISOString().split('T')[0], planLimits[request.requested_plan], request.gym_id]);
 
@@ -249,7 +249,7 @@ router.post('/decline-request/:id', authenticateToken, async (req, res) => {
 
     await runQuery(`
       UPDATE subscription_requests
-      SET status = 'declined', admin_notes = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP
+      SET status = 'declined', admin_notes = ?, reviewed_by = ?, reviewed_at = NOW()
       WHERE id = ?
     `, [admin_notes || null, req.user.id, id]);
 
@@ -285,7 +285,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
     const thisMonthRevenueRow = await getOne(`
       SELECT COALESCE(SUM(amount_paid), 0) as total
       FROM subscription_requests
-      WHERE status = 'approved' AND date(reviewed_at) >= date('now', '-30 days')
+      WHERE status = 'approved' AND reviewed_at::date >= CURRENT_DATE - INTERVAL '30 days'
     `);
     const thisMonthRevenue = thisMonthRevenueRow?.total || 0;
 

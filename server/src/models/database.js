@@ -1,54 +1,53 @@
-import { createClient } from '@libsql/client';
+import pg from 'pg';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 
-let client = null;
+const { Pool } = pg;
 
-function getClient() {
-  if (!client) {
-    const url = process.env.TURSO_DATABASE_URL;
-    if (!url) throw new Error('TURSO_DATABASE_URL environment variable is not set');
-    client = createClient({
-      url,
-      authToken: process.env.TURSO_AUTH_TOKEN || '',
+let pool = null;
+
+function getPool() {
+  if (!pool) {
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) throw new Error('DATABASE_URL environment variable is not set');
+    pool = new Pool({
+      connectionString,
+      ssl: { rejectUnauthorized: false },
+      max: 10,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
     });
+    pool.on('error', (err) => console.error('PG pool error:', err));
   }
-  return client;
+  return pool;
 }
 
-// Convert Turso Row → plain JS object, BigInt → Number
-function toObj(columns, row) {
-  const obj = {};
-  for (let i = 0; i < columns.length; i++) {
-    const v = row[i];
-    obj[columns[i]] = typeof v === 'bigint' ? Number(v) : v;
-  }
-  return obj;
+// Convert SQLite ? placeholders to PostgreSQL $1, $2, ...
+function convertPlaceholders(sql) {
+  let i = 0;
+  return sql.replace(/\?/g, () => `$${++i}`);
 }
 
 export async function runQuery(sql, params = []) {
-  await getClient().execute({ sql, args: params });
+  await getPool().query(convertPlaceholders(sql), params);
 }
 
 export async function getOne(sql, params = []) {
-  const r = await getClient().execute({ sql, args: params });
-  if (!r.rows || r.rows.length === 0) return null;
-  return toObj(r.columns, r.rows[0]);
+  const result = await getPool().query(convertPlaceholders(sql), params);
+  return result.rows[0] || null;
 }
 
 export async function getAll(sql, params = []) {
-  const r = await getClient().execute({ sql, args: params });
-  if (!r.rows) return [];
-  return r.rows.map(row => toObj(r.columns, row));
+  const result = await getPool().query(convertPlaceholders(sql), params);
+  return result.rows;
 }
 
-// No-op — Turso auto-persists
+// No-op — PostgreSQL auto-persists
 export function saveDatabase() {}
-
-export function getDb() { return getClient(); }
+export function getDb() { return getPool(); }
 
 export async function initDatabase() {
-  const c = getClient();
+  const p = getPool();
 
   const tables = [
     `CREATE TABLE IF NOT EXISTS gyms (
@@ -68,8 +67,8 @@ export async function initDatabase() {
       total_customers INTEGER DEFAULT 0,
       sms_enabled INTEGER DEFAULT 0,
       sms_api_key TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
     )`,
     `CREATE TABLE IF NOT EXISTS gym_users (
       id TEXT PRIMARY KEY,
@@ -79,8 +78,8 @@ export async function initDatabase() {
       name TEXT,
       email TEXT,
       role TEXT DEFAULT 'admin',
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ,
       FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
     )`,
     `CREATE TABLE IF NOT EXISTS customers (
@@ -100,8 +99,8 @@ export async function initDatabase() {
       week_start_date TEXT,
       max_visits_per_week INTEGER DEFAULT 0,
       welcome_sms_sent INTEGER DEFAULT 0,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
       FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
     )`,
     `CREATE TABLE IF NOT EXISTS payments (
@@ -110,12 +109,12 @@ export async function initDatabase() {
       customer_id TEXT NOT NULL,
       amount REAL NOT NULL,
       payment_method TEXT DEFAULT 'cash',
-      payment_date TEXT DEFAULT (date('now')),
+      payment_date TEXT DEFAULT TO_CHAR(NOW(), 'YYYY-MM-DD'),
       membership_type TEXT,
       start_date TEXT,
       end_date TEXT,
       notes TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
       FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE,
       FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
     )`,
@@ -123,8 +122,8 @@ export async function initDatabase() {
       id TEXT PRIMARY KEY,
       gym_id TEXT NOT NULL,
       customer_id TEXT NOT NULL,
-      check_in TEXT DEFAULT CURRENT_TIMESTAMP,
-      check_out TEXT,
+      check_in TIMESTAMPTZ DEFAULT NOW(),
+      check_out TIMESTAMPTZ,
       FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE,
       FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
     )`,
@@ -146,8 +145,8 @@ export async function initDatabase() {
       status TEXT DEFAULT 'pending',
       admin_notes TEXT,
       reviewed_by TEXT,
-      reviewed_at TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      reviewed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
       FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
     )`,
     `CREATE TABLE IF NOT EXISTS admins (
@@ -155,7 +154,7 @@ export async function initDatabase() {
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
       name TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMPTZ DEFAULT NOW()
     )`,
     `CREATE TABLE IF NOT EXISTS revenue_tracking (
       id TEXT PRIMARY KEY,
@@ -165,7 +164,7 @@ export async function initDatabase() {
       source TEXT NOT NULL,
       payment_method TEXT DEFAULT 'cash',
       customer_id TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
       FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
     )`,
     `CREATE TABLE IF NOT EXISTS sms_logs (
@@ -176,8 +175,8 @@ export async function initDatabase() {
       message_type TEXT NOT NULL,
       message TEXT NOT NULL,
       status TEXT DEFAULT 'pending',
-      sent_at TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      sent_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
       FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
     )`,
     `CREATE TABLE IF NOT EXISTS activity_log (
@@ -188,7 +187,7 @@ export async function initDatabase() {
       entity_type TEXT,
       entity_id TEXT,
       details TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
       FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
     )`,
     `CREATE TABLE IF NOT EXISTS qr_codes (
@@ -198,7 +197,7 @@ export async function initDatabase() {
       code TEXT UNIQUE NOT NULL,
       qr_image TEXT,
       is_active INTEGER DEFAULT 1,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
       FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE,
       FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
     )`,
@@ -209,8 +208,8 @@ export async function initDatabase() {
       period_start TEXT NOT NULL,
       period_end TEXT NOT NULL,
       file_path TEXT,
-      generated_at TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      generated_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
       FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
     )`,
     // Indexes
@@ -230,7 +229,7 @@ export async function initDatabase() {
   ];
 
   for (const sql of tables) {
-    await c.execute(sql);
+    await p.query(sql);
   }
 
   // Seed default global settings
@@ -248,13 +247,13 @@ export async function initDatabase() {
     const id = uuidv4();
     const hash = bcrypt.hashSync('admin123', 10);
     await runQuery(
-      "INSERT INTO admins (id, email, password, name) VALUES (?, ?, ?, ?)",
+      "INSERT INTO admins (id, email, password, name) VALUES ($1, $2, $3, $4)",
       [id, 'admin@hullugyms.com', hash, 'System Admin']
     );
     console.log('✅ Default admin created');
   }
 
-  console.log('✅ Turso database ready');
+  console.log('✅ PostgreSQL database ready');
 }
 
 // ========== Activity Log ==========

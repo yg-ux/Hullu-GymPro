@@ -39,7 +39,7 @@ router.get('/monthly', authenticateToken, async (req, res) => {
         COUNT(*) as total_payments,
         AVG(amount) as avg_payment
       FROM payments
-      WHERE gym_id = ? AND strftime('%Y-%m', payment_date) = ?
+      WHERE gym_id = ? AND TO_CHAR(payment_date::date, 'YYYY-MM') = ?
     `, [gymId, periodFilter]);
 
     const revenueByMethod = await getAll(`
@@ -48,22 +48,22 @@ router.get('/monthly', authenticateToken, async (req, res) => {
         SUM(amount) as total,
         COUNT(*) as count
       FROM payments
-      WHERE gym_id = ? AND strftime('%Y-%m', payment_date) = ?
+      WHERE gym_id = ? AND TO_CHAR(payment_date::date, 'YYYY-MM') = ?
       GROUP BY payment_method
     `, [gymId, periodFilter]);
 
     const memberStats = await getOne(`
       SELECT
         COUNT(*) as total_members,
-        SUM(CASE WHEN date(membership_end) >= date('now') THEN 1 ELSE 0 END) as active_members,
-        SUM(CASE WHEN date(membership_end) < date('now') THEN 1 ELSE 0 END) as expired_members
+        SUM(CASE WHEN membership_end::date >= CURRENT_DATE THEN 1 ELSE 0 END) as active_members,
+        SUM(CASE WHEN membership_end::date < CURRENT_DATE THEN 1 ELSE 0 END) as expired_members
       FROM customers
       WHERE gym_id = ?
     `, [gymId]);
 
     const newMembersThisMonth = await getOne(`
       SELECT COUNT(*) as count FROM customers
-      WHERE gym_id = ? AND strftime('%Y-%m', created_at) = ?
+      WHERE gym_id = ? AND TO_CHAR(created_at, 'YYYY-MM') = ?
     `, [gymId, periodFilter]);
 
     const attendanceStats = await getOne(`
@@ -71,7 +71,7 @@ router.get('/monthly', authenticateToken, async (req, res) => {
         COUNT(*) as total_visits,
         COUNT(DISTINCT customer_id) as unique_visitors
       FROM attendance
-      WHERE gym_id = ? AND strftime('%Y-%m', check_in) = ?
+      WHERE gym_id = ? AND TO_CHAR(check_in, 'YYYY-MM') = ?
     `, [gymId, periodFilter]);
 
     const topCustomers = await getAll(`
@@ -81,9 +81,9 @@ router.get('/monthly', authenticateToken, async (req, res) => {
         COALESCE(SUM(p.amount), 0) as total_paid,
         COUNT(p.id) as payment_count
       FROM customers c
-      LEFT JOIN payments p ON c.id = p.customer_id AND p.gym_id = ? AND strftime('%Y-%m', p.payment_date) = ?
+      LEFT JOIN payments p ON c.id = p.customer_id AND p.gym_id = ? AND TO_CHAR(p.payment_date::date, 'YYYY-MM') = ?
       WHERE c.gym_id = ?
-      GROUP BY c.id
+      GROUP BY c.id, c.name, c.phone
       ORDER BY total_paid DESC
       LIMIT 10
     `, [gymId, periodFilter, gymId]);

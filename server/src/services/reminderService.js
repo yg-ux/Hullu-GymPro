@@ -11,7 +11,7 @@ class ReminderService {
     const today = new Date().toISOString().split('T')[0];
     const existing = await getOne(`
       SELECT id FROM sms_logs
-      WHERE customer_id = ? AND message_type = ? AND date(created_at) = ?
+      WHERE customer_id = ? AND message_type = ? AND created_at::date = ?::date
     `, [customerId, messageType, today]);
     return !!existing;
   }
@@ -19,7 +19,7 @@ class ReminderService {
   _logSms(gymId, customerId, phone, messageType, message, status) {
     runQuery(`
       INSERT INTO sms_logs (id, gym_id, customer_id, phone, message_type, message, status, sent_at, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
     `, [uuidv4(), gymId, customerId, phone, messageType, message, status])
       .catch(e => console.warn('Failed to log SMS:', e.message));
   }
@@ -34,9 +34,9 @@ class ReminderService {
         WHERE c.status IN ('active', 'expiring')
           AND c.membership_end IS NOT NULL
           AND (
-            date(c.membership_end) = date('now', '+7 days')
-            OR date(c.membership_end) = date('now', '+1 day')
-            OR date(c.membership_end) = date('now')
+            c.membership_end::date = CURRENT_DATE + INTERVAL '7 days'
+            OR c.membership_end::date = CURRENT_DATE + INTERVAL '1 day'
+            OR c.membership_end::date = CURRENT_DATE
           )
           AND g.sms_enabled = 1
       `);
@@ -84,7 +84,7 @@ class ReminderService {
         FROM gyms
         WHERE subscription_status = 'active'
           AND subscription_end IS NOT NULL
-          AND date(subscription_end) = date('now', '+7 days')
+          AND subscription_end::date = CURRENT_DATE + INTERVAL '7 days'
           AND sms_enabled = 1
       `);
 
