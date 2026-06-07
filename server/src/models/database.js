@@ -119,7 +119,7 @@ export async function initDatabase() {
         `);
         const adminId = uuidv4();
         const hashedPassword = bcrypt.hashSync('admin123', 10);
-        db.run("INSERT INTO admins (id, email, password, name) VALUES (?, ?, ?, ?)", [adminId, 'admin@Hullu Gyms.com', hashedPassword, 'System Admin']);
+        db.run("INSERT INTO admins (id, email, password, name) VALUES (?, ?, ?, ?)", [adminId, 'admin@hullugyms.com', hashedPassword, 'System Admin']);
       }
     } catch (e) { /* Table exists or migration done */ }
 
@@ -289,12 +289,14 @@ export async function initDatabase() {
 
     // Add default admin if not exists
     try {
-      const existingAdmin = db.exec("SELECT * FROM admins WHERE email = 'admin@Hullu Gyms.com'");
+      const existingAdmin = db.exec("SELECT * FROM admins WHERE email = 'admin@hullugyms.com'");
       if (existingAdmin.length === 0 || existingAdmin[0].values.length === 0) {
         const adminId = uuidv4();
         const hashedPassword = bcrypt.hashSync('admin123', 10);
-        db.run("INSERT INTO admins (id, email, password, name) VALUES (?, ?, ?, ?)", [adminId, 'admin@Hullu Gyms.com', hashedPassword, 'System Admin']);
+        db.run("INSERT INTO admins (id, email, password, name) VALUES (?, ?, ?, ?)", [adminId, 'admin@hullugyms.com', hashedPassword, 'System Admin']);
       }
+      // Also fix any existing admin with the old spaced email
+      try { db.run("UPDATE admins SET email = 'admin@hullugyms.com' WHERE email = 'admin@Hullu Gyms.com'"); } catch(e) {}
     } catch (e) { /* Admin exists */ }
 
     // QR codes for member access

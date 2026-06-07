@@ -73,7 +73,7 @@ export default function AdminLogin() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@Hullu Gyms.com"
+                placeholder="admin@hullugyms.com"
                 className="w-full px-4 py-3 bg-dark-200 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-gym-500 transition-colors"
                 required
               />
@@ -115,7 +115,7 @@ export default function AdminLogin() {
 
         <div className="mt-6 p-4 bg-dark-200/60 rounded-xl border border-gray-800 text-center">
           <p className="text-xs text-gray-500 mb-1">Default admin credentials</p>
-          <p className="text-xs text-gray-400 font-mono">admin@Hullu Gyms.com · admin123</p>
+          <p className="text-xs text-gray-400 font-mono">admin@hullugyms.com · admin123</p>
         </div>
       </div>
     </div>
