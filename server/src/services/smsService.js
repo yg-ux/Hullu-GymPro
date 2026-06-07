@@ -133,13 +133,6 @@ class SmsService {
       ? new Date(payment.end_date).toLocaleDateString('en-ET', { day: 'numeric', month: 'short', year: 'numeric' })
       : null;
 
-    // Daily walk-in renewal gets its own focused message
-    if (customer.membership_type === 'daily') {
-      let message = `Hi ${bi(customer.name)}, daily pass confirmed! ✅ ETB ${amount} received at ${bi(gym.name)}. Valid today only. See you inside! 💪`;
-      if (gym.phone) message += ` Questions? Call ${gym.phone}.`;
-      return await this.sendSms(customer.phone, message);
-    }
-
     let message = `Hi ${bi(customer.name)}, payment confirmed! ✅ ETB ${amount} received for your ${bi(duration)} at ${bi(gym.name)}.`;
     if (endDate) message += ` You're covered until ${endDate}.`;
     message += ` Keep showing up — you've got this! 💪`;

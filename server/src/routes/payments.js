@@ -123,8 +123,8 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreatePay
 
     logPaymentRecorded(gymId, req.user.id, paymentId, amount, updatedCustomer.name);
 
-    // Send payment confirmation SMS — requires SMS enabled + platform API key configured
-    if (updatedCustomer.phone && gym.sms_enabled) {
+    // Send payment confirmation SMS — skip for daily walk-in renewals (they get one-time welcome only)
+    if (updatedCustomer.phone && gym.sms_enabled && selectedType !== 'daily') {
       try {
         await smsService.sendPaymentConfirmation(updatedCustomer, payment, gym);
       } catch (smsError) {
