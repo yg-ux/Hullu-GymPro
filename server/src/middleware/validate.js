@@ -38,7 +38,7 @@ export const validateCreateCustomer = [
   body('name').trim().notEmpty().withMessage('Customer name is required').isLength({ min: 2, max: 100 }).withMessage('Name must be 2-100 characters'),
   body('phone').optional({ nullable: true, checkFalsy: true }).isLength({ min: 7, max: 20 }).withMessage('Phone number must be 7-20 characters'),
   body('email').optional({ nullable: true, checkFalsy: true }).isEmail().withMessage('Valid email is required'),
-  body('membership_type').optional().isIn(['1_month', '2_months', '3_months', '6_months', '1_year', '3_days_week']).withMessage('Invalid membership type'),
+  body('membership_type').optional().isIn(['daily', '1_month', '2_months', '3_months', '6_months', '1_year', '3_days_week']).withMessage('Invalid membership type'),
   body('amount').optional({ nullable: true, checkFalsy: true }).isFloat({ min: 0 }).withMessage('Amount must be a positive number'),
   handleValidation
 ];
@@ -47,7 +47,7 @@ export const validateUpdateCustomer = [
   body('name').optional().trim().isLength({ min: 2, max: 100 }).withMessage('Name must be 2-100 characters'),
   body('phone').optional({ nullable: true, checkFalsy: true }).isLength({ min: 7, max: 20 }).withMessage('Phone number must be 7-20 characters'),
   body('email').optional({ nullable: true, checkFalsy: true }).isEmail().withMessage('Valid email is required'),
-  body('membership_type').optional().isIn(['1_month', '2_months', '3_months', '6_months', '1_year', '3_days_week']).withMessage('Invalid membership type'),
+  body('membership_type').optional().isIn(['daily', '1_month', '2_months', '3_months', '6_months', '1_year', '3_days_week']).withMessage('Invalid membership type'),
   handleValidation
 ];
 
@@ -56,7 +56,7 @@ export const validateCreatePayment = [
   body('customer_id').trim().notEmpty().withMessage('Customer ID is required'),
   body('amount').notEmpty().withMessage('Amount is required').isFloat({ min: 1 }).withMessage('Amount must be greater than 0'),
   body('payment_method').optional().isIn(['cash', 'card', 'mobile']).withMessage('Invalid payment method'),
-  body('membership_type').optional().isIn(['1_month', '2_months', '3_months', '6_months', '1_year', '3_days_week']).withMessage('Invalid membership type'),
+  body('membership_type').optional().isIn(['daily', '1_month', '2_months', '3_months', '6_months', '1_year', '3_days_week']).withMessage('Invalid membership type'),
   handleValidation
 ];
 
