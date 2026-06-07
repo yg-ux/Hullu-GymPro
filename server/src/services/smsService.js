@@ -5,6 +5,19 @@
 
 const GEEZSMS_BASE_URL = 'https://api.geezsms.com/api/v1/sms';
 
+// Convert ASCII letters/digits to Unicode Mathematical Bold Italic equivalents
+// so they render as bold+italic on modern smartphones.
+// Non-ASCII characters (e.g. Amharic) are passed through unchanged.
+function bi(text) {
+  return String(text).split('').map(c => {
+    const code = c.charCodeAt(0);
+    if (code >= 65 && code <= 90) return String.fromCodePoint(0x1D468 + code - 65); // A-Z
+    if (code >= 97 && code <= 122) return String.fromCodePoint(0x1D482 + code - 97); // a-z
+    if (code >= 48 && code <= 57)  return String.fromCodePoint(0x1D7CE + code - 48); // 0-9
+    return c;
+  }).join('');
+}
+
 class SmsService {
   /**
    * Send SMS to a phone number.
@@ -84,18 +97,24 @@ class SmsService {
    * @param {object} gym - Gym object
    */
   async sendWelcomeSms(customer, gym) {
-    const amount = customer.amount ? `ETB ${parseFloat(customer.amount).toLocaleString()}` : null;
+    const amount = customer.amount ? `ETB ${bi(parseFloat(customer.amount).toLocaleString())}` : null;
     const end = customer.membership_end
       ? new Date(customer.membership_end).toLocaleDateString('en-ET', { day: 'numeric', month: 'short', year: 'numeric' })
       : null;
+    const isDaily = customer.membership_type === 'daily';
     const duration = customer.membership_type
       ? customer.membership_type.replace(/_/g, ' ')
       : 'monthly';
 
-    let message = `Hi ${customer.name}, you're officially a member of ${gym.name}! 💪`;
-    if (amount) message += ` Your ${duration} membership is active — ${amount} received.`;
-    if (end) message += ` Valid until ${end}.`;
-    message += ` Show up, put in the work, and let's lift some weights!`;
+    let message = `Hi ${bi(customer.name)}, you're officially registered at ${bi(gym.name)}! 💪`;
+    if (isDaily) {
+      if (amount) message += ` Daily walk-in pass — ${amount} received. Valid today only.`;
+      message += ` See you on the gym floor!`;
+    } else {
+      if (amount) message += ` Your ${bi(duration)} membership is active — ${amount} received.`;
+      if (end) message += ` Valid until ${end}.`;
+      message += ` Show up, put in the work, and let's lift some weights!`;
+    }
     if (gym.phone) message += ` Any questions? Call us at ${gym.phone}.`;
 
     return await this.sendSms(customer.phone, message);
@@ -108,13 +127,20 @@ class SmsService {
    * @param {object} gym - Gym object
    */
   async sendPaymentConfirmation(customer, payment, gym) {
-    const amount = parseFloat(payment.amount).toLocaleString();
+    const amount = bi(parseFloat(payment.amount).toLocaleString());
     const duration = customer.membership_type ? customer.membership_type.replace(/_/g, ' ') : 'membership';
     const endDate = payment.end_date
       ? new Date(payment.end_date).toLocaleDateString('en-ET', { day: 'numeric', month: 'short', year: 'numeric' })
       : null;
 
-    let message = `Hi ${customer.name}, payment confirmed! ✅ ETB ${amount} received for your ${duration} at ${gym.name}.`;
+    // Daily walk-in renewal gets its own focused message
+    if (customer.membership_type === 'daily') {
+      let message = `Hi ${bi(customer.name)}, daily pass confirmed! ✅ ETB ${amount} received at ${bi(gym.name)}. Valid today only. See you inside! 💪`;
+      if (gym.phone) message += ` Questions? Call ${gym.phone}.`;
+      return await this.sendSms(customer.phone, message);
+    }
+
+    let message = `Hi ${bi(customer.name)}, payment confirmed! ✅ ETB ${amount} received for your ${bi(duration)} at ${bi(gym.name)}.`;
     if (endDate) message += ` You're covered until ${endDate}.`;
     message += ` Keep showing up — you've got this! 💪`;
     if (gym.phone) message += ` Questions? Call ${gym.phone}.`;

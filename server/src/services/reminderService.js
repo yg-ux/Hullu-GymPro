@@ -33,6 +33,7 @@ class ReminderService {
         JOIN gyms g ON c.gym_id = g.id
         WHERE c.status IN ('active', 'expiring')
           AND c.membership_end IS NOT NULL
+          AND c.membership_type != 'daily'
           AND (
             c.membership_end::date = CURRENT_DATE + INTERVAL '3 days'
             OR c.membership_end::date = CURRENT_DATE
