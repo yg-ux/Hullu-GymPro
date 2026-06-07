@@ -116,14 +116,22 @@ export default function SubscriptionPage() {
 
     setSubmitting(true);
     try {
-      await api.post('/admin/subscription-request', {
+      const result = await api.post('/admin/subscription-request', {
         plan_id: selectedPlan,
         amount_paid: totalPrice,
         payment_method: paymentMethod,
         transaction_id: transactionId.trim(),
         duration_months: durationMonths,
       });
-      toast.success('Request submitted! We\'ll activate your plan shortly.');
+
+      if (result.auto_approved) {
+        toast.success(`✅ Payment verified! Your ${selectedPlan} plan is now active.`);
+        // Refresh auth so the new subscription is reflected immediately
+        if (refreshAuth) await refreshAuth();
+      } else {
+        toast.success('Request submitted! We\'ll review and activate your plan shortly.');
+      }
+
       await loadData();
       setStep('plans');
       setTransactionId('');
@@ -456,7 +464,9 @@ export default function SubscriptionPage() {
             className="w-full btn-primary py-4 text-base font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {submitting ? (
-              <><Loader className="w-5 h-5 animate-spin" /> Submitting Request...</>
+              paymentMethod === 'telebirr'
+                ? <><Loader className="w-5 h-5 animate-spin" /> Verifying with Telebirr...</>
+                : <><Loader className="w-5 h-5 animate-spin" /> Submitting Request...</>
             ) : (
               <>Submit Subscription Request <ChevronRight className="w-5 h-5" /></>
             )}

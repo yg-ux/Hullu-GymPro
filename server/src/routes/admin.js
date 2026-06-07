@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { runQuery, getOne, getAll, saveDatabase } from '../models/database.js';
 import { authenticateToken, JWT_SECRET } from './auth.js';
+import { verifyTelebirrTransaction } from '../services/telebirrService.js';
 
 const router = express.Router();
 
@@ -159,15 +160,72 @@ router.post('/subscription-request', authenticateToken, async (req, res) => {
     }
 
     const months = parseInt(duration_months) || 1;
+    const expectedAmount = amount_paid || plans[plan_id] * months;
     const id = uuidv4();
+
+    // Insert as pending first
     await runQuery(`
       INSERT INTO subscription_requests (id, gym_id, requested_plan, amount_paid, payment_method, transaction_id, duration_months, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
-    `, [id, gymId, plan_id, amount_paid || plans[plan_id] * months, payment_method || 'telebirr', transaction_id.trim(), months]);
+    `, [id, gymId, plan_id, expectedAmount, payment_method || 'telebirr', transaction_id.trim(), months]);
+
+    // Auto-verify Telebirr transactions instantly
+    if ((payment_method || 'telebirr') === 'telebirr') {
+      try {
+        const result = await verifyTelebirrTransaction(transaction_id.trim());
+
+        if (result.verified && result.amount !== null) {
+          // Allow ±5 ETB tolerance for rounding differences
+          const amountMatches = Math.abs(result.amount - expectedAmount) <= 5;
+
+          if (amountMatches) {
+            // Auto-approve the request
+            const today = new Date();
+            const endDate = new Date(today);
+            endDate.setMonth(endDate.getMonth() + months);
+
+            const planLimits = { 'starter': 100, 'pro': -1 };
+
+            await runQuery(`
+              UPDATE subscription_requests
+              SET status = 'approved', admin_notes = ?, reviewed_at = NOW()
+              WHERE id = ?
+            `, ['Auto-approved via Telebirr transaction verification', id]);
+
+            await runQuery(`
+              UPDATE gyms SET
+                subscription_status = 'active',
+                subscription_plan = ?,
+                subscription_start = ?,
+                subscription_end = ?,
+                max_members = ?,
+                updated_at = NOW()
+              WHERE id = ?
+            `, [plan_id, today.toISOString().split('T')[0], endDate.toISOString().split('T')[0], planLimits[plan_id] ?? 10, gymId]);
+
+            return res.status(201).json({
+              message: `Payment verified! Your ${plan_id} plan is now active until ${endDate.toISOString().split('T')[0]}.`,
+              request_id: id,
+              auto_approved: true,
+              plan_active_until: endDate.toISOString().split('T')[0],
+            });
+          } else {
+            // Transaction found but amount doesn't match — flag it
+            await runQuery(`
+              UPDATE subscription_requests SET admin_notes = ? WHERE id = ?
+            `, [`Telebirr amount mismatch: expected ETB ${expectedAmount}, received ETB ${result.amount}`, id]);
+          }
+        }
+      } catch (verifyError) {
+        // Verification error is non-fatal — request stays pending for manual review
+        console.warn('Telebirr auto-verify failed:', verifyError.message);
+      }
+    }
 
     res.status(201).json({
-      message: 'Request submitted successfully. We will review and activate your plan shortly.',
-      request_id: id
+      message: 'Request submitted! We\'ll review and activate your plan shortly.',
+      request_id: id,
+      auto_approved: false,
     });
   } catch (error) {
     console.error('Create subscription request error:', error);
