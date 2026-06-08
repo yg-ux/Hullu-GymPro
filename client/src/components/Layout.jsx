@@ -120,8 +120,10 @@ export default function Layout() {
       const diffDays = Math.floor((Date.now() - new Date(dateStr + 'T00:00:00Z')) / 86400000);
       return `${diffDays}d ago`;
     }
-    // Full timestamp — append Z if no timezone info so browser treats it as UTC
-    const normalized = /[Z+\-]\d{2}:?\d{2}$/.test(dateStr) ? dateStr : dateStr + 'Z';
+    // Full timestamp — normalise to ISO UTC so all browsers parse it correctly
+    // Replace PostgreSQL space separator with T, then add Z if no timezone present
+    const iso = dateStr.replace(' ', 'T');
+    const normalized = /Z$|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : iso + 'Z';
     const diff = Date.now() - new Date(normalized).getTime();
     const m = Math.floor(diff / 60000);
     const h = Math.floor(diff / 3600000);
