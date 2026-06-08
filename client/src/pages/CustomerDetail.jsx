@@ -1024,8 +1024,8 @@ export default function CustomerDetail() {
                 className="input-field"
               >
                 <option value="cash">Cash</option>
-                <option value="card">Card</option>
-                <option value="mobile_money">Mobile Money</option>
+                <option value="mobile_transfer">Mobile Transfer</option>
+                <option value="bank_transfer">Bank Transfer</option>
               </select>
             </div>
 
