@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"D:/Hullu Ceramics/Gym\" log --oneline -15)",
+      "Bash(npx vite *)",
+      "Bash(curl -s http://localhost:3000/api/admin/gyms -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjU4ZGRmZWY3LTk5NTktNGRjOS05ZjM2LTdiNDQ5NGM4MzI0NiIsImVtYWlsIjoiYWRtaW5AaHVsbHVneW1zLmNvbSIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc4MDc2MjM2MCwiZXhwIjoxNzgxMzY3MTYwfQ.tuxjsjbsuiARdbHjmq_MxLlxDn2r7N4sUMIWk8R6Cn4')",
+      "Bash(npm install *)",
+      "Bash(curl -s -X POST http://localhost:3000/api/seed-demo -H \"Content-Type: application/json\" -d \"{\\\\\"secret\\\\\":\\\\\"change_me\\\\\"}\")",
+      "Bash(curl -s 'http://localhost:3000/api/customers?limit=5' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImZiODA5YjRkLWIwNGItNDFjNi05NmQ3LTcyNTAyMDE2ZmI3MCIsImd5bV9pZCI6IjQyNDAzYzkxLWNjOGUtNDkxMy1hZWE5LTk4MGY0YTNjYjk3NiIsInVzZXJuYW1lIjoiZGVtb0BhZnJvZml0bmVzcy5jb20iLCJyb2xlIjoib3duZXIiLCJpYXQiOjE3ODA4MDc1NTYsImV4cCI6MTc4MTQxMjM1Nn0.5p8tt1fHerz-QZc4VW6Tk-MUmtadFTQhUu-HZnmDfWs')",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(git commit -m 'fix: admin login and dashboard use VITE_API_URL instead of hardcoded relative URL *)",
+      "Bash(git commit -m 'Upgrade @libsql/client to 0.14.x, require Node 20 *)",
+      "Bash(git commit *)"
+    ]
+  }
+}

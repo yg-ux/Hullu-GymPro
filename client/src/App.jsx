@@ -20,6 +20,8 @@ import AddStaff from './pages/AddStaff';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import Settings from './pages/Settings';
+import Receipt from './pages/Receipt';
+import Kiosk from './pages/Kiosk';
 
 // Pages each role can access (must match Layout.jsx nav roles)
 const ROLE_PAGES = {
@@ -76,6 +78,10 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/admin-login" element={<AdminLogin />} />
       <Route path="/admin-dashboard" element={<AdminDashboard />} />
+
+      {/* Full-screen protected routes (no sidebar layout) */}
+      <Route path="/receipt/:id" element={<ProtectedRoute><Receipt /></ProtectedRoute>} />
+      <Route path="/kiosk" element={<ProtectedRoute><Kiosk /></ProtectedRoute>} />
       
       {/* Protected routes */}
       <Route path="/" element={

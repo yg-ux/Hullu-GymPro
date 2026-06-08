@@ -96,6 +96,15 @@ router.post('/check-in', authenticateToken, requireActiveSubscription, async (re
       return res.status(404).json({ error: 'Customer not found' });
     }
 
+    // Block check-in if membership is frozen
+    if (customer.is_frozen) {
+      return res.status(400).json({
+        error: `Membership is frozen until ${customer.frozen_until}. Please unfreeze first.`,
+        customer: { id: customer.id, name: customer.name },
+        frozen_until: customer.frozen_until,
+      });
+    }
+
     // Check if customer membership is valid
     const today = new Date();
     if (customer.membership_type === '3_days_week') {

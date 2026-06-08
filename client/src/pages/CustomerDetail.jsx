@@ -20,7 +20,11 @@ import {
   LogOut,
   FileText,
   Wifi,
-  WifiOff
+  WifiOff,
+  Snowflake,
+  Play,
+  Printer,
+  History
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -40,6 +44,13 @@ export default function CustomerDetail() {
   // Delete form state
   const [deleteCode, setDeleteCode] = useState('');
   
+  // Freeze form state
+  const [showFreezeModal, setShowFreezeModal] = useState(false);
+  const [freezeDays, setFreezeDays] = useState('');
+  const [freezeReason, setFreezeReason] = useState('');
+  const [freezeHistory, setFreezeHistory] = useState([]);
+  const [freezeHistoryLoading, setFreezeHistoryLoading] = useState(false);
+
   // Extend form state
   const [extendMembershipType, setExtendMembershipType] = useState('1_month');
   const [extendDurationKey, setExtendDurationKey] = useState('1_month'); // for 3_days_week
@@ -56,7 +67,58 @@ export default function CustomerDetail() {
   
   useEffect(() => {
     loadCustomer();
+    loadFreezeHistory();
   }, [id]);
+
+  const loadFreezeHistory = async () => {
+    setFreezeHistoryLoading(true);
+    try {
+      const data = await api.get(`/customers/${id}/freezes`);
+      setFreezeHistory(Array.isArray(data) ? data : []);
+    } catch {
+      setFreezeHistory([]);
+    } finally {
+      setFreezeHistoryLoading(false);
+    }
+  };
+
+  const handleFreeze = async (e) => {
+    e.preventDefault();
+    if (!freezeDays || parseInt(freezeDays) < 1) {
+      toast.error('Enter at least 1 day');
+      return;
+    }
+    try {
+      setActionLoading(true);
+      const res = await api.post(`/customers/${id}/freeze`, {
+        days: parseInt(freezeDays),
+        reason: freezeReason || undefined,
+      });
+      setCustomer(res.customer);
+      setShowFreezeModal(false);
+      setFreezeDays('');
+      setFreezeReason('');
+      await loadFreezeHistory();
+      toast.success(res.message || 'Membership frozen');
+    } catch (error) {
+      toast.error(error.message || 'Failed to freeze membership');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUnfreeze = async () => {
+    try {
+      setActionLoading(true);
+      const res = await api.post(`/customers/${id}/unfreeze`, {});
+      setCustomer(res.customer);
+      toast.success(res.message || 'Membership unfrozen');
+    } catch (error) {
+      toast.error(error.message || 'Failed to unfreeze');
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const loadCustomer = async () => {
     try {
@@ -518,6 +580,77 @@ export default function CustomerDetail() {
             )}
           </div>
 
+          {/* Payments History */}
+          {customer.payments && customer.payments.length > 0 && (
+            <div className="card p-6">
+              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <Receipt className="w-5 h-5 text-gym-400" />
+                Payment History
+              </h2>
+              <div className="space-y-3">
+                {customer.payments.map((payment) => (
+                  <div key={payment.id} className="flex items-center justify-between p-3 bg-dark-200 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
+                        <CreditCard className="w-4 h-4 text-emerald-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-white">{formatCurrency(payment.amount)}</p>
+                        <p className="text-xs text-gray-500">{formatDate(payment.payment_date)} · {payment.payment_method}</p>
+                      </div>
+                    </div>
+                    <a
+                      href={`/receipt/${payment.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gym-500/10 border border-gym-500/20 text-gym-400 text-xs hover:bg-gym-500/20 transition-all"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      Receipt
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Freeze History */}
+          {(freezeHistory.length > 0 || freezeHistoryLoading) && (
+            <div className="card p-6">
+              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <History className="w-5 h-5 text-blue-400" />
+                Freeze History
+              </h2>
+              {freezeHistoryLoading ? (
+                <div className="space-y-2">
+                  {[1, 2].map(i => (
+                    <div key={i} className="h-14 bg-dark-200 rounded-xl animate-pulse" />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {freezeHistory.map(f => (
+                    <div key={f.id} className="flex items-start gap-3 p-3 bg-dark-200 rounded-xl">
+                      <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Snowflake className="w-4 h-4 text-blue-400" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm text-white">
+                          Frozen for <span className="font-semibold">{f.duration_days} day{f.duration_days !== 1 ? 's' : ''}</span>
+                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {formatDate(f.frozen_at)} → {formatDate(f.unfreeze_at)}
+                          {f.created_by_name && ` · by ${f.created_by_name}`}
+                        </p>
+                        {f.reason && <p className="text-xs text-gray-400 mt-0.5 italic">"{f.reason}"</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Check-in/Check-out History */}
           <div className="card p-6">
             <h2 className="text-lg font-semibold text-white mb-4">Check-in/Check-out History</h2>
@@ -572,13 +705,50 @@ export default function CustomerDetail() {
             <div className="space-y-3">
               <button
                 onClick={() => setShowExtendModal(true)}
-                className="btn-primary w-full justify-center bg-green-600 hover:bg-green-700 border-green-600"
+                className="btn-primary w-full justify-center"
+                disabled={customer.is_frozen}
               >
                 <Calendar className="w-5 h-5" />
                 Extend Membership
               </button>
+
+              {customer.is_frozen ? (
+                <button
+                  onClick={handleUnfreeze}
+                  disabled={actionLoading}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-500/15 border border-blue-500/30 text-blue-400 hover:bg-blue-500/25 transition-all text-sm font-medium"
+                >
+                  <Play className="w-4 h-4" />
+                  {actionLoading ? 'Unfreezing…' : 'Unfreeze Membership'}
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowFreezeModal(true)}
+                  disabled={customer.status === 'expired'}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-dark-300 border border-gray-700 text-gray-300 hover:border-blue-500/40 hover:text-blue-400 transition-all text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Snowflake className="w-4 h-4" />
+                  Freeze Membership
+                </button>
+              )}
             </div>
           </div>
+
+          {/* Frozen status card */}
+          {customer.is_frozen && (
+            <div className="card p-5 border border-blue-500/30 bg-blue-500/5">
+              <div className="flex items-start gap-3">
+                <Snowflake className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-blue-400">Membership Frozen</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Frozen until <span className="text-white font-medium">{formatDate(customer.frozen_until)}</span>
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">Check-in is disabled during freeze.</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Membership Info */}
           <div className="card p-6">
@@ -867,6 +1037,69 @@ export default function CustomerDetail() {
                   customer.membership_type === 'daily' ? 'Pay & Add Pass'
                   : customer.membership_type === '3_days_week' ? 'Pay & Add Sessions'
                   : 'Pay & Extend'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Freeze Modal */}
+      {showFreezeModal && (
+        <Modal onClose={() => setShowFreezeModal(false)} title="Freeze Membership">
+          <form onSubmit={handleFreeze} className="space-y-4">
+            <div className="flex items-start gap-3 p-4 bg-blue-500/10 border border-blue-500/25 rounded-xl">
+              <Snowflake className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm text-blue-300 font-medium">Pauses the membership</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  The membership end date will be extended by the freeze duration.
+                  Check-ins will be blocked while frozen.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Freeze Duration (days)</label>
+              <input
+                type="number"
+                value={freezeDays}
+                onChange={e => setFreezeDays(e.target.value)}
+                placeholder="e.g. 14"
+                className="input-field"
+                min="1"
+                max="365"
+                required
+              />
+              {freezeDays && parseInt(freezeDays) > 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Will unfreeze on {new Date(Date.now() + parseInt(freezeDays) * 86400000)
+                    .toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Reason <span className="text-gray-600">(optional)</span></label>
+              <input
+                type="text"
+                value={freezeReason}
+                onChange={e => setFreezeReason(e.target.value)}
+                placeholder="e.g. Holiday, Injury…"
+                className="input-field"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button type="button" onClick={() => setShowFreezeModal(false)} className="btn-secondary flex-1">
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={actionLoading || !freezeDays || parseInt(freezeDays) < 1}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-500/20 border border-blue-500/40 text-blue-300 hover:bg-blue-500/30 transition-all font-medium disabled:opacity-40"
+              >
+                <Snowflake className="w-4 h-4" />
+                {actionLoading ? 'Freezing…' : 'Freeze Membership'}
               </button>
             </div>
           </form>

@@ -49,7 +49,7 @@ router.get('/', authenticateToken, async (req, res) => {
         END,
         updated_at = NOW()
       WHERE gym_id = ?
-        AND status != 'inactive'
+        AND status NOT IN ('inactive', 'frozen')
         AND membership_end IS NOT NULL
         AND membership_type != 'daily'
         AND status != CASE
@@ -64,7 +64,7 @@ router.get('/', authenticateToken, async (req, res) => {
       UPDATE customers SET status = 'expired', updated_at = NOW()
       WHERE gym_id = ? AND membership_type IN ('3_days_week', 'daily')
         AND total_sessions > 0 AND sessions_used >= total_sessions
-        AND status NOT IN ('expired', 'inactive')
+        AND status NOT IN ('expired', 'inactive', 'frozen')
     `, [gymId]);
     // Expiring when ≤3 sessions remain (and not already expired by date)
     await runQuery(`
@@ -448,6 +448,105 @@ router.post('/:id/check-out', authenticateToken, requireActiveSubscription, asyn
   } catch (error) {
     console.error('Check out error:', error);
     res.status(500).json({ error: 'Failed to check out' });
+  }
+});
+
+// ── Membership Freeze ─────────────────────────────────────────────────────────
+
+router.post('/:id/freeze', authenticateToken, requireActiveSubscription, async (req, res) => {
+  try {
+    const gymId = req.user.gym_id;
+    const { days, reason } = req.body;
+    if (!days || parseInt(days) < 1) {
+      return res.status(400).json({ error: 'days must be at least 1' });
+    }
+    const customer = await getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [req.params.id, gymId]);
+    if (!customer) return res.status(404).json({ error: 'Customer not found' });
+    if (customer.is_frozen) return res.status(400).json({ error: 'Membership is already frozen' });
+
+    const daysInt = parseInt(days);
+    const today = new Date().toISOString().split('T')[0];
+    const unfreezeAt = new Date(Date.now() + daysInt * 86400000).toISOString().split('T')[0];
+
+    // Extend membership_end by the freeze duration
+    const currentEnd = new Date(customer.membership_end);
+    const now = new Date();
+    const baseEnd = currentEnd > now ? currentEnd : now;
+    const newEnd = new Date(baseEnd.getTime() + daysInt * 86400000).toISOString().split('T')[0];
+
+    await runQuery(`
+      UPDATE customers SET
+        is_frozen = TRUE,
+        frozen_until = ?,
+        membership_end = ?,
+        status = 'frozen',
+        updated_at = NOW()
+      WHERE id = ?
+    `, [unfreezeAt, newEnd, req.params.id]);
+
+    const freezeId = uuidv4();
+    await runQuery(`
+      INSERT INTO membership_freezes (id, gym_id, customer_id, frozen_at, unfreeze_at, duration_days, reason, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [freezeId, gymId, req.params.id, today, unfreezeAt, daysInt, reason || null, req.user.id]);
+
+    const updated = await getOne(`SELECT *,
+      FLOOR(EXTRACT(EPOCH FROM (membership_end::timestamp - NOW())) / 86400)::integer as days_until_expiry
+      FROM customers WHERE id = ?`, [req.params.id]);
+    res.json({ customer: updated, message: `Membership frozen until ${unfreezeAt}` });
+  } catch (error) {
+    console.error('Freeze error:', error);
+    res.status(500).json({ error: 'Failed to freeze membership' });
+  }
+});
+
+router.post('/:id/unfreeze', authenticateToken, requireActiveSubscription, async (req, res) => {
+  try {
+    const gymId = req.user.gym_id;
+    const customer = await getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [req.params.id, gymId]);
+    if (!customer) return res.status(404).json({ error: 'Customer not found' });
+    if (!customer.is_frozen) return res.status(400).json({ error: 'Membership is not frozen' });
+
+    const membershipEnd = new Date(customer.membership_end);
+    const today = new Date();
+    const daysLeft = Math.ceil((membershipEnd - today) / 86400000);
+    const newStatus = daysLeft <= 0 ? 'expired' : daysLeft <= 7 ? 'expiring' : 'active';
+
+    await runQuery(`
+      UPDATE customers SET
+        is_frozen = FALSE,
+        frozen_until = NULL,
+        status = ?,
+        updated_at = NOW()
+      WHERE id = ?
+    `, [newStatus, req.params.id]);
+
+    const updated = await getOne(`SELECT *,
+      FLOOR(EXTRACT(EPOCH FROM (membership_end::timestamp - NOW())) / 86400)::integer as days_until_expiry
+      FROM customers WHERE id = ?`, [req.params.id]);
+    res.json({ customer: updated, message: 'Membership unfrozen' });
+  } catch (error) {
+    console.error('Unfreeze error:', error);
+    res.status(500).json({ error: 'Failed to unfreeze membership' });
+  }
+});
+
+router.get('/:id/freezes', authenticateToken, async (req, res) => {
+  try {
+    const gymId = req.user.gym_id;
+    const customer = await getOne('SELECT id FROM customers WHERE id = ? AND gym_id = ?', [req.params.id, gymId]);
+    if (!customer) return res.status(404).json({ error: 'Customer not found' });
+    const freezes = await getAll(`
+      SELECT mf.*, u.username as created_by_name
+      FROM membership_freezes mf
+      LEFT JOIN gym_users u ON mf.created_by = u.id
+      WHERE mf.customer_id = ? AND mf.gym_id = ?
+      ORDER BY mf.created_at DESC
+    `, [req.params.id, gymId]);
+    res.json(freezes);
+  } catch (error) {
+    console.error('Freeze history error:', error);
+    res.status(500).json({ error: 'Failed to get freeze history' });
   }
 });
 

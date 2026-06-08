@@ -337,6 +337,10 @@
   .status-inactive {
     @apply bg-gray-500/20 text-gray-400 border border-gray-500/30;
   }
+
+  .status-frozen {
+    @apply bg-blue-500/20 text-blue-400 border border-blue-500/30;
+  }
   
   /* Glassmorphism - Enhanced */
   .glass-effect {

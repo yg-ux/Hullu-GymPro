@@ -214,6 +214,20 @@ export async function initDatabase() {
       created_at TIMESTAMPTZ DEFAULT NOW(),
       FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
     )`,
+    `CREATE TABLE IF NOT EXISTS membership_freezes (
+  id TEXT PRIMARY KEY,
+  gym_id TEXT NOT NULL,
+  customer_id TEXT NOT NULL,
+  frozen_at DATE NOT NULL,
+  unfreeze_at DATE NOT NULL,
+  duration_days INTEGER NOT NULL,
+  reason TEXT,
+  created_by TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE,
+  FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+)`,
+    `CREATE INDEX IF NOT EXISTS idx_membership_freezes_customer ON membership_freezes(customer_id)`,
     // Indexes
     `CREATE INDEX IF NOT EXISTS idx_customers_gym_id ON customers(gym_id)`,
     `CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone)`,
@@ -237,6 +251,8 @@ export async function initDatabase() {
   // Add session columns to existing customers table (safe no-op if they already exist)
   await p.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS total_sessions INTEGER DEFAULT 0');
   await p.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS sessions_used INTEGER DEFAULT 0');
+  await p.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS is_frozen BOOLEAN DEFAULT FALSE');
+  await p.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS frozen_until DATE');
 
   // Seed default global settings
   const globalSettings = await getOne("SELECT gym_id FROM settings WHERE gym_id = 'global' AND key = 'delete_code'");

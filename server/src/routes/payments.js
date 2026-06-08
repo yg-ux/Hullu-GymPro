@@ -77,6 +77,27 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
+// Get single payment with full details (for receipt)
+router.get('/:id', authenticateToken, async (req, res) => {
+  try {
+    const gymId = req.user.gym_id;
+    const payment = await getOne(`
+      SELECT p.*,
+        c.name as customer_name, c.phone as customer_phone, c.email as customer_email, c.membership_type as customer_membership_type,
+        g.name as gym_name, g.phone as gym_phone, g.email as gym_email, g.address as gym_address, g.logo as gym_logo
+      FROM payments p
+      LEFT JOIN customers c ON p.customer_id = c.id
+      LEFT JOIN gyms g ON p.gym_id = g.id
+      WHERE p.id = ? AND p.gym_id = ?
+    `, [req.params.id, gymId]);
+    if (!payment) return res.status(404).json({ error: 'Payment not found' });
+    res.json(payment);
+  } catch (error) {
+    console.error('Get payment error:', error);
+    res.status(500).json({ error: 'Failed to get payment' });
+  }
+});
+
 // Record payment
 router.post('/', authenticateToken, requireActiveSubscription, validateCreatePayment, async (req, res) => {
   try {

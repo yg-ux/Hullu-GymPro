@@ -82,6 +82,7 @@ export const getStatusColor = (status) => {
     expiring: 'status-expiring',
     expired: 'status-expired',
     inactive: 'status-inactive',
+    frozen: 'status-frozen',
   };
   return colors[status] || 'status-inactive';
 };

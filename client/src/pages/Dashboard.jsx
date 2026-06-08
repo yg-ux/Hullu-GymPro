@@ -4,11 +4,11 @@ import { api, formatDate, formatCurrency, getMembershipLabel } from '../utils/ap
 import { useAuth } from '../context/AuthContext';
 import { StatCardSkeleton } from '../components/Skeleton';
 import { 
-  Users, 
-  UserCheck, 
-  Clock, 
+  Users,
+  UserCheck,
+  Clock,
   AlertTriangle,
-  DollarSign, 
+  DollarSign,
   TrendingUp,
   Plus,
   ArrowRight,
@@ -26,7 +26,9 @@ import {
   Award,
   ChevronRight,
   CheckCircle,
-  Dumbbell
+  Dumbbell,
+  Radio,
+  LogIn as KioskIcon
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -93,11 +95,24 @@ export default function Dashboard() {
   const [animated, setAnimated] = useState(false);
   const [activities, setActivities] = useState([]);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
+  const [liveAttendance, setLiveAttendance] = useState(null);
 
   useEffect(() => {
     loadStats();
     loadActivities();
+    loadLiveAttendance();
+    const interval = setInterval(loadLiveAttendance, 30000);
+    return () => clearInterval(interval);
   }, []);
+
+  const loadLiveAttendance = async () => {
+    try {
+      const data = await api.get('/attendance/current');
+      setLiveAttendance(data);
+    } catch (e) {
+      console.warn('Failed to load live attendance:', e);
+    }
+  };
 
   useEffect(() => {
     if (stats) {
@@ -289,6 +304,50 @@ export default function Dashboard() {
           </Link>
         </div>
       </div>
+
+      {/* Live "In Gym Now" banner */}
+      {liveAttendance !== null && (
+        <div className="glass-card px-5 py-4 flex items-center justify-between gap-4 border border-gym-500/20">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-shrink-0">
+              <div className="w-11 h-11 rounded-xl bg-gym-500/20 flex items-center justify-center">
+                <Radio className="w-5 h-5 text-gym-400" />
+              </div>
+              {liveAttendance.count > 0 && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-400 border-2 border-dark-100 animate-pulse" />
+              )}
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">In Gym Right Now</p>
+              <div className="flex items-center gap-3 mt-0.5">
+                <span className="text-2xl font-bold text-white">{liveAttendance.count ?? 0}</span>
+                {liveAttendance.count > 0 && (
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {(liveAttendance.currently_present || []).slice(0, 5).map((a, i) => (
+                      <span key={a.id} className="text-xs text-gray-400 bg-dark-300 px-2 py-0.5 rounded-full">
+                        {a.customer_name?.split(' ')[0]}
+                      </span>
+                    ))}
+                    {liveAttendance.count > 5 && (
+                      <span className="text-xs text-gray-500">+{liveAttendance.count - 5} more</span>
+                    )}
+                  </div>
+                )}
+                {liveAttendance.count === 0 && (
+                  <span className="text-sm text-gray-600">Gym is empty</span>
+                )}
+              </div>
+            </div>
+          </div>
+          <Link
+            to="/kiosk"
+            className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-gym-500/15 border border-gym-500/30 rounded-xl text-gym-400 text-sm font-medium hover:bg-gym-500/25 transition-all"
+          >
+            <KioskIcon className="w-4 h-4" />
+            Kiosk
+          </Link>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
