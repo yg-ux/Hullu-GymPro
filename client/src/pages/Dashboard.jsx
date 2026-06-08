@@ -113,7 +113,7 @@ export default function Dashboard() {
         setActivities(prev => [...prev, {
           id: 'expiring',
           icon: Clock,
-          color: 'from-yellow-500 to-orange-500',
+          color: 'from-amber-500 to-amber-600',
           type: 'expiring',
           title: `${stats.overview.expiring_soon} memberships expiring soon`,
           time: new Date().toISOString(),
@@ -150,7 +150,7 @@ export default function Dashboard() {
           activityItems.push({
             id: `customer-${customer.id}`,
             icon: UserPlus,
-            color: 'from-blue-500 to-cyan-500',
+            color: 'from-gym-500 to-gym-600',
             type: 'new_member',
             title: `New member: ${customer.name}`,
             time: customer.created_at,
@@ -165,7 +165,7 @@ export default function Dashboard() {
           activityItems.push({
             id: `payment-${payment.id}`,
             icon: DollarSign,
-            color: 'from-green-500 to-emerald-500',
+            color: 'from-emerald-500 to-emerald-600',
             type: 'payment',
             title: `Payment received: ${formatCurrency(payment.amount)}`,
             time: payment.payment_date,
@@ -185,7 +185,7 @@ export default function Dashboard() {
           activityItems.push({
             id: `checkin-${record.id}`,
             icon: UserCheck,
-            color: 'from-purple-500 to-pink-500',
+            color: 'from-gym-400 to-gym-500',
             type: 'check_in',
             title: `${record.customer_name} checked in`,
             time: record.check_in,
@@ -356,7 +356,6 @@ export default function Dashboard() {
                   title="Today"
                   value={stats?.revenue?.today || 0}
                   icon={Calendar}
-                  color="emerald"
                   animated={animated}
                   delay={0}
                 />
@@ -364,7 +363,6 @@ export default function Dashboard() {
                   title="This Month"
                   value={stats?.revenue?.this_month || 0}
                   icon={Activity}
-                  color="blue"
                   animated={animated}
                   delay={100}
                 />
@@ -372,7 +370,6 @@ export default function Dashboard() {
                   title="Last 30 Days"
                   value={stats?.revenue?.last_30_days || 0}
                   icon={TrendingUp}
-                  color="purple"
                   animated={animated}
                   delay={200}
                 />
@@ -380,7 +377,6 @@ export default function Dashboard() {
                   title="All Time"
                   value={stats?.revenue?.all_time || 0}
                   icon={Wallet}
-                  color="gym"
                   animated={animated}
                   delay={300}
                 />
@@ -420,9 +416,9 @@ export default function Dashboard() {
                     <p className="text-sm text-gray-400">Just made a payment</p>
                   </div>
                 </div>
-                <div className="flex items-center justify-between p-3 bg-gradient-to-r from-green-500/20 to-transparent rounded-xl border border-green-500/30">
-                  <span className="text-sm text-gray-300">Amount Paid</span>
-                  <span className="text-xl font-bold text-green-400">
+                <div className="flex items-center justify-between p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/25">
+                  <span className="text-sm text-gray-400">Amount Paid</span>
+                  <span className="text-xl font-bold text-emerald-400">
                     +{formatCurrency(customerOfDay.amount)}
                   </span>
                 </div>
@@ -437,39 +433,39 @@ export default function Dashboard() {
               Quick Stats
             </h2>
             
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-500/10 to-transparent rounded-xl border border-green-500/20 hover-lift">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-4 bg-dark-300/60 rounded-xl border border-gray-800/60 hover-lift">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-                    <Wallet className="w-5 h-5 text-green-400" />
+                  <div className="w-9 h-9 rounded-lg bg-gym-500/15 flex items-center justify-center">
+                    <Wallet className="w-4 h-4 text-gym-400" />
                   </div>
-                  <span className="text-gray-300">Total Revenue</span>
+                  <span className="text-gray-400 text-sm">Total Revenue</span>
                 </div>
-                <span className="text-xl font-bold text-green-400">
+                <span className="text-lg font-bold text-white">
                   {formatCurrency(stats?.revenue?.all_time || 0)}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-500/10 to-transparent rounded-xl border border-blue-500/20 hover-lift">
+              <div className="flex items-center justify-between p-4 bg-dark-300/60 rounded-xl border border-gray-800/60 hover-lift">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                    <Receipt className="w-5 h-5 text-blue-400" />
+                  <div className="w-9 h-9 rounded-lg bg-gym-500/15 flex items-center justify-center">
+                    <Receipt className="w-4 h-4 text-gym-400" />
                   </div>
-                  <span className="text-gray-300">Total Payments</span>
+                  <span className="text-gray-400 text-sm">Total Payments</span>
                 </div>
-                <span className="text-xl font-bold text-blue-400">
+                <span className="text-lg font-bold text-white">
                   {stats?.revenue?.all_time_count || 0}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-500/10 to-transparent rounded-xl border border-purple-500/20 hover-lift">
+              <div className="flex items-center justify-between p-4 bg-dark-300/60 rounded-xl border border-gray-800/60 hover-lift">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                    <UserPlus className="w-5 h-5 text-purple-400" />
+                  <div className="w-9 h-9 rounded-lg bg-gym-500/15 flex items-center justify-center">
+                    <UserPlus className="w-4 h-4 text-gym-400" />
                   </div>
-                  <span className="text-gray-300">New This Month</span>
+                  <span className="text-gray-400 text-sm">New This Month</span>
                 </div>
-                <span className="text-xl font-bold text-purple-400">
+                <span className="text-lg font-bold text-gym-400">
                   +{stats?.new_this_month || 0}
                 </span>
               </div>
@@ -500,22 +496,22 @@ export default function Dashboard() {
             </h2>
             <div className="space-y-4">
               {stats.payment_methods.map((method, index) => {
-                const colors = ['from-blue-500 to-cyan-500', 'from-purple-500 to-pink-500', 'from-cyan-500 to-teal-500'];
                 const maxCount = Math.max(...stats.payment_methods.map(m => m.count));
                 const percentage = maxCount > 0 ? (method.count / maxCount) * 100 : 0;
-                
+
                 return (
                   <div key={method.payment_method} className="animate-slide-up" style={{ animationDelay: `${index * 100}ms` }}>
                     <div className="flex justify-between text-sm mb-2">
                       <span className="text-gray-300 capitalize">{method.payment_method.replace('_', ' ')}</span>
                       <span className="text-gray-400">{method.count} payments • {formatCurrency(method.total)}</span>
                     </div>
-                    <div className="h-3 bg-dark-300 rounded-full overflow-hidden">
-                      <div 
-                        className={clsx("h-full rounded-full transition-all duration-1000 ease-out bg-gradient-to-r", colors[index % colors.length])}
-                        style={{ 
+                    <div className="h-2.5 bg-dark-300 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-1000 ease-out bg-gradient-to-r from-gym-500 to-gym-400"
+                        style={{
                           width: animated ? `${percentage}%` : '0%',
-                          transitionDelay: `${index * 200}ms`
+                          transitionDelay: `${index * 200}ms`,
+                          opacity: 1 - index * 0.2
                         }}
                       />
                     </div>
@@ -533,41 +529,41 @@ export default function Dashboard() {
             Quick Actions
           </h2>
           <div className="grid grid-cols-2 gap-3">
-            <Link 
-              to="/customers/new" 
-              className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-gym-500/20 to-purple-500/20 rounded-xl border border-gym-500/30 hover:border-gym-500/50 transition-all hover-lift group"
+            <Link
+              to="/customers/new"
+              className="flex flex-col items-center gap-2 p-4 bg-gym-500/10 rounded-xl border border-gym-500/25 hover:border-gym-500/50 hover:bg-gym-500/15 transition-all hover-lift group"
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gym-500 to-purple-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <UserPlus className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 rounded-xl bg-gym-500/25 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <UserPlus className="w-5 h-5 text-gym-400" />
               </div>
               <span className="text-sm text-gray-300">Add Customer</span>
             </Link>
-            <Link 
-              to="/customers?status=expiring" 
-              className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-xl border border-yellow-500/30 hover:border-yellow-500/50 transition-all hover-lift group"
+            <Link
+              to="/customers?status=expiring"
+              className="flex flex-col items-center gap-2 p-4 bg-amber-500/10 rounded-xl border border-amber-500/25 hover:border-amber-500/50 hover:bg-amber-500/15 transition-all hover-lift group"
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Clock className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 rounded-xl bg-amber-500/25 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Clock className="w-5 h-5 text-amber-400" />
               </div>
               <span className="text-sm text-gray-300">Expiring Soon</span>
             </Link>
-            <Link 
-              to="/customers" 
-              className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-xl border border-green-500/30 hover:border-green-500/50 transition-all hover-lift group"
+            <Link
+              to="/customers"
+              className="flex flex-col items-center gap-2 p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/25 hover:border-emerald-500/50 hover:bg-emerald-500/15 transition-all hover-lift group"
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <CheckCircle className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/25 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <CheckCircle className="w-5 h-5 text-emerald-400" />
               </div>
               <span className="text-sm text-gray-300">Check-in</span>
             </Link>
-            <Link 
-              to="/subscription" 
-              className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl border border-purple-500/30 hover:border-purple-500/50 transition-all hover-lift group"
+            <Link
+              to="/subscription"
+              className="flex flex-col items-center gap-2 p-4 bg-dark-300/80 rounded-xl border border-gray-700/60 hover:border-gym-500/40 hover:bg-gym-500/10 transition-all hover-lift group"
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Award className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 rounded-xl bg-gray-700/50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Award className="w-5 h-5 text-gray-300" />
               </div>
-              <span className="text-sm text-gray-300">Upgrade Plan</span>
+              <span className="text-sm text-gray-400">Upgrade Plan</span>
             </Link>
           </div>
         </div>
@@ -596,15 +592,15 @@ export default function Dashboard() {
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                      <CreditCard className="w-6 h-6 text-green-400" />
+                    <div className="w-11 h-11 rounded-xl bg-emerald-500/15 flex items-center justify-center">
+                      <CreditCard className="w-5 h-5 text-emerald-400" />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-white">{payment.customer_name}</p>
-                      <p className="text-xs text-gray-400">{formatDate(payment.payment_date)}</p>
+                      <p className="text-xs text-gray-500">{formatDate(payment.payment_date)}</p>
                     </div>
                   </div>
-                  <span className="text-lg font-bold text-green-400">
+                  <span className="text-base font-bold text-emerald-400">
                     +{formatCurrency(payment.amount)}
                   </span>
                 </div>
@@ -631,7 +627,7 @@ export default function Dashboard() {
           
           <div className="relative">
             {/* Timeline line */}
-            <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gradient-to-b from-gym-500 via-purple-500 to-transparent" />
+            <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gradient-to-b from-gym-500 via-gym-400/40 to-transparent" />
             
             {activitiesLoading ? (
               <div className="space-y-4">
@@ -767,19 +763,11 @@ function AnimatedStatCard({ title, value, icon: Icon, color, trend, animated, de
   );
 }
 
-function AnimatedRevenueCard({ title, value, icon: Icon, color, animated, delay }) {
+function AnimatedRevenueCard({ title, value, icon: Icon, animated, delay }) {
   const { count, ref } = useAnimatedCounter(value, 1500, delay);
-  const colors = {
-    emerald: 'from-emerald-500 to-emerald-600',
-    blue: 'from-blue-500 to-blue-600',
-    purple: 'from-purple-500 to-purple-600',
-    gym: 'from-gym-500 to-gym-600',
-  };
-  
-  const colorClasses = colors[color] || colors.gym;
 
   return (
-    <div 
+    <div
       ref={ref}
       className={clsx(
         "p-4 bg-dark-200/50 rounded-xl border border-gray-800/50 transition-all duration-500 hover-lift",
@@ -788,8 +776,8 @@ function AnimatedRevenueCard({ title, value, icon: Icon, color, animated, delay 
       style={{ transitionDelay: `${delay}ms` }}
     >
       <div className="flex items-center gap-2 mb-2">
-        <div className={clsx("p-1.5 rounded-lg bg-gradient-to-br", colorClasses)}>
-          <Icon className="w-3 h-3 text-white" />
+        <div className="p-1.5 rounded-lg bg-gym-500/20">
+          <Icon className="w-3 h-3 text-gym-400" />
         </div>
         <span className="text-xs text-gray-400">{title}</span>
       </div>
@@ -961,8 +949,8 @@ function AnimatedBarChart({ data, animated }) {
 
 function AnimatedPieChart({ data, animated }) {
   const total = data.reduce((sum, item) => sum + item.count, 0);
-  const colors = ['from-gym-500 to-purple-500', 'from-blue-500 to-cyan-500', 'from-purple-500 to-pink-500', 'from-yellow-500 to-orange-500', 'from-red-500 to-rose-500'];
-  const textColors = ['text-gym-400', 'text-blue-400', 'text-purple-400', 'text-yellow-400', 'text-red-400'];
+  const colors = ['from-gym-500 to-gym-600', 'from-gym-400 to-gym-500', 'from-emerald-500 to-emerald-600', 'from-gym-300 to-gym-400', 'from-amber-500 to-amber-600'];
+  const textColors = ['text-gym-400', 'text-gym-300', 'text-emerald-400', 'text-gym-200', 'text-amber-400'];
   
   return (
     <div className="space-y-4">
