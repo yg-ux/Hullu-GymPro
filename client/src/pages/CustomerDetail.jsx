@@ -24,7 +24,8 @@ import {
   Snowflake,
   Play,
   Printer,
-  History
+  History,
+  Receipt
 } from 'lucide-react';
 import clsx from 'clsx';
 
