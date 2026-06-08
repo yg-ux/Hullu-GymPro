@@ -97,17 +97,29 @@ router.post('/check-in', authenticateToken, requireActiveSubscription, async (re
     }
 
     // Check if customer membership is valid
-    const today = new Date();
-    const endDate = new Date(customer.membership_end);
-    if (endDate < today) {
-      return res.status(400).json({
-        error: 'Customer membership has expired',
-        customer: {
-          id: customer.id,
-          name: customer.name,
-          membership_end: customer.membership_end
-        }
-      });
+    const SESSION_TYPES = new Set(['3_days_week', 'daily']);
+    if (SESSION_TYPES.has(customer.membership_type)) {
+      const sessionsLeft = (customer.total_sessions || 0) - (customer.sessions_used || 0);
+      if (sessionsLeft <= 0) {
+        const msg = customer.membership_type === 'daily'
+          ? 'No daily passes remaining. Please pay for a new visit first.'
+          : 'All sessions used up. Please renew the membership.';
+        return res.status(400).json({
+          error: msg,
+          customer: { id: customer.id, name: customer.name },
+          sessions_used: customer.sessions_used || 0,
+          total_sessions: customer.total_sessions || 0,
+        });
+      }
+    } else {
+      const today = new Date();
+      const endDate = new Date(customer.membership_end);
+      if (endDate < today) {
+        return res.status(400).json({
+          error: 'Customer membership has expired',
+          customer: { id: customer.id, name: customer.name, membership_end: customer.membership_end }
+        });
+      }
     }
 
     // Check if already checked in
@@ -136,8 +148,20 @@ router.post('/check-in', authenticateToken, requireActiveSubscription, async (re
       VALUES (?, ?, ?, ?)
     `, [attendanceId, gymId, customer.id, checkInTime]);
 
+    // Increment session counter for session-based types
+    if (SESSION_TYPES.has(customer.membership_type)) {
+      const newUsed = (customer.sessions_used || 0) + 1;
+      await runQuery('UPDATE customers SET sessions_used = ?, updated_at = NOW() WHERE id = ?', [newUsed, customer.id]);
+      if (newUsed >= (customer.total_sessions || 0)) {
+        await runQuery("UPDATE customers SET status = 'expired', updated_at = NOW() WHERE id = ?", [customer.id]);
+      } else if ((customer.total_sessions || 0) - newUsed <= 3) {
+        await runQuery("UPDATE customers SET status = 'expiring', updated_at = NOW() WHERE id = ?", [customer.id]);
+      }
+    }
+
     const attendance = await getOne(`
-      SELECT a.*, c.name as customer_name, c.phone as customer_phone
+      SELECT a.*, c.name as customer_name, c.phone as customer_phone,
+             c.sessions_used, c.total_sessions, c.membership_type
       FROM attendance a
       JOIN customers c ON a.customer_id = c.id
       WHERE a.id = ?
@@ -145,7 +169,10 @@ router.post('/check-in', authenticateToken, requireActiveSubscription, async (re
 
     res.status(201).json({
       message: 'Check-in successful',
-      attendance
+      attendance,
+      sessions_remaining: SESSION_TYPES.has(customer.membership_type)
+        ? Math.max(0, (attendance.total_sessions || 0) - (attendance.sessions_used || 0))
+        : null,
     });
   } catch (error) {
     console.error('Check-in error:', error);

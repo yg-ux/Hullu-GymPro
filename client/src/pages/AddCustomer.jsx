@@ -36,11 +36,11 @@ export default function AddCustomer() {
   });
 
   const THREE_DAYS_DURATIONS = [
-    { value: '1_month',  label: '1 Month  (3 days/week)',  days: 30  },
-    { value: '2_months', label: '2 Months (3 days/week)',  days: 60  },
-    { value: '3_months', label: '3 Months (3 days/week)',  days: 90  },
-    { value: '6_months', label: '6 Months (3 days/week)',  days: 180 },
-    { value: '1_year',   label: '1 Year   (3 days/week)',  days: 365 },
+    { value: '1_month',  label: '1 Month',  days: 30,  sessions: 12  },
+    { value: '2_months', label: '2 Months', days: 60,  sessions: 24  },
+    { value: '3_months', label: '3 Months', days: 90,  sessions: 36  },
+    { value: '6_months', label: '6 Months', days: 180, sessions: 72  },
+    { value: '1_year',   label: '1 Year',   days: 365, sessions: 144 },
   ];
 
   const [fieldErrors, setFieldErrors] = useState({});
@@ -414,7 +414,7 @@ export default function AddCustomer() {
                             className="accent-gym-500"
                           />
                           <span className="text-sm font-medium">{opt.label}</span>
-                          <span className="ml-auto text-xs text-gray-500">{opt.days} days</span>
+                          <span className="ml-auto text-xs font-semibold text-gym-400">{opt.sessions} sessions</span>
                         </label>
                       ))}
                     </div>
@@ -457,14 +457,39 @@ export default function AddCustomer() {
                     <p className="text-xs text-gray-500">Today only</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Pass Type</p>
-                    <p className="text-lg font-bold text-white">Daily</p>
-                    <p className="text-xs text-gray-500">1 visit</p>
+                    <p className="text-xs text-gray-500 mb-1">Sessions</p>
+                    <p className="text-lg font-bold text-white">1</p>
+                    <p className="text-xs text-gray-500">daily pass</p>
                   </div>
                 </div>
                 {formData.amount && (
                   <div className="mt-4 pt-4 border-t border-gray-700 text-center">
                     <p className="text-sm text-gray-400">Amount paid:</p>
+                    <p className="text-2xl font-bold text-green-400">ETB {parseFloat(formData.amount || 0).toLocaleString()}</p>
+                  </div>
+                )}
+              </div>
+            ) : is3DaysWeek ? (
+              <div className="p-4 bg-dark-200 rounded-lg border border-gym-500/30">
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Total Sessions</p>
+                    <p className="text-2xl font-bold text-gym-400">
+                      {THREE_DAYS_DURATIONS.find(d => d.value === formData.membership_duration)?.sessions || 12}
+                    </p>
+                    <p className="text-xs text-gray-500">check-ins included</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Max per Week</p>
+                    <p className="text-2xl font-bold text-white">3</p>
+                    <p className="text-xs text-gray-500">days / week</p>
+                  </div>
+                </div>
+                <p className="text-xs text-center text-gray-500 mt-3 border-t border-gray-700 pt-3">
+                  Expires when all sessions are used — not by calendar date
+                </p>
+                {formData.amount && (
+                  <div className="mt-3 text-center">
                     <p className="text-2xl font-bold text-green-400">ETB {parseFloat(formData.amount || 0).toLocaleString()}</p>
                   </div>
                 )}

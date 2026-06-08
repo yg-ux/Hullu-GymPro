@@ -42,8 +42,17 @@ export default function CustomerDetail() {
   
   // Extend form state
   const [extendMembershipType, setExtendMembershipType] = useState('1_month');
+  const [extendDurationKey, setExtendDurationKey] = useState('1_month'); // for 3_days_week
   const [extendPaymentMethod, setExtendPaymentMethod] = useState('cash');
   const [customAmount, setCustomAmount] = useState('');
+
+  const THREE_DAYS_DURATIONS = [
+    { value: '1_month',  label: '1 Month',  sessions: 12  },
+    { value: '2_months', label: '2 Months', sessions: 24  },
+    { value: '3_months', label: '3 Months', sessions: 36  },
+    { value: '6_months', label: '6 Months', sessions: 72  },
+    { value: '1_year',   label: '1 Year',   sessions: 144 },
+  ];
   
   useEffect(() => {
     loadCustomer();
@@ -98,10 +107,16 @@ export default function CustomerDetail() {
         amount: amount,
         payment_method: extendPaymentMethod,
         membership_type: extendMembershipType,
+        ...(extendMembershipType === '3_days_week' ? { duration_key: extendDurationKey } : {}),
       });
       await loadCustomer();
       setShowExtendModal(false);
-      toast.success('Membership extended successfully!');
+      const msg = extendMembershipType === 'daily'
+        ? '1 daily pass added!'
+        : extendMembershipType === '3_days_week'
+          ? `Sessions added successfully!`
+          : 'Membership extended successfully!';
+      toast.success(msg);
     } catch (error) {
       toast.error(error.message || 'Failed to extend membership');
     } finally {
@@ -231,32 +246,73 @@ export default function CustomerDetail() {
           {/* Membership Progress */}
           <div className="card p-6">
             <h2 className="text-lg font-semibold text-white mb-4">Membership Progress</h2>
-            
-            <div className="mb-4">
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-gray-400">Days Remaining</span>
-                <span className={clsx(
-                  "font-bold text-xl",
-                  customer.days_until_expiry > 7 && "text-green-400",
-                  customer.days_until_expiry > 0 && customer.days_until_expiry <= 7 && "text-yellow-400",
-                  customer.days_until_expiry <= 0 && "text-red-400"
-                )}>
-                  {customer.days_until_expiry > 0 ? customer.days_until_expiry : 0} days
-                </span>
-              </div>
-              
-              <div className="relative h-4 bg-dark-300 rounded-full overflow-hidden">
-                {(() => {
-                  const start = new Date(customer.membership_start);
-                  const end = new Date(customer.membership_end);
-                  const now = new Date();
-                  const total = end - start;
-                  const elapsed = now - start;
-                  const progress = Math.min(Math.max((elapsed / total) * 100, 0), 100);
-                  
-                  return (
-                    <>
-                      <div 
+
+            {['3_days_week', 'daily'].includes(customer.membership_type) ? (() => {
+              const used = customer.sessions_used || 0;
+              const total = customer.total_sessions || 0;
+              const remaining = Math.max(0, total - used);
+              const pct = total > 0 ? Math.min((used / total) * 100, 100) : 0;
+              const isDaily = customer.membership_type === 'daily';
+              return (
+                <div className="space-y-3">
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <p className="text-gray-400 text-sm">{isDaily ? 'Daily Passes' : 'Sessions'} Remaining</p>
+                      <p className={clsx(
+                        'text-3xl font-bold',
+                        remaining > 3 ? 'text-green-400' : remaining > 0 ? 'text-yellow-400' : 'text-red-400'
+                      )}>
+                        {remaining} <span className="text-lg font-normal text-gray-500">/ {total}</span>
+                      </p>
+                    </div>
+                    <p className="text-sm text-gray-500">{used} used</p>
+                  </div>
+                  <div className="relative h-4 bg-dark-300 rounded-full overflow-hidden">
+                    <div
+                      className={clsx(
+                        'absolute left-0 top-0 h-full rounded-full transition-all',
+                        remaining > 3 ? 'bg-gradient-to-r from-green-500 to-green-400'
+                          : remaining > 0 ? 'bg-gradient-to-r from-yellow-500 to-yellow-400'
+                          : 'bg-gradient-to-r from-red-500 to-red-400'
+                      )}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  {remaining <= 3 && remaining > 0 && (
+                    <p className="text-xs text-yellow-400">⚠ Only {remaining} {isDaily ? 'pass' : 'session'}{remaining !== 1 ? 'es' : ''} left — renew soon</p>
+                  )}
+                  {remaining === 0 && (
+                    <p className="text-xs text-red-400">✕ No {isDaily ? 'passes' : 'sessions'} remaining — please renew</p>
+                  )}
+                  <div className="flex justify-between text-xs text-gray-500 pt-1">
+                    <span>Started: {formatDate(customer.membership_start)}</span>
+                    <span className="text-gray-600">{isDaily ? 'Session-tracked' : '3 days/week · session-tracked'}</span>
+                  </div>
+                </div>
+              );
+            })() : (
+              <div className="mb-4">
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-gray-400">Days Remaining</span>
+                  <span className={clsx(
+                    "font-bold text-xl",
+                    customer.days_until_expiry > 7 && "text-green-400",
+                    customer.days_until_expiry > 0 && customer.days_until_expiry <= 7 && "text-yellow-400",
+                    customer.days_until_expiry <= 0 && "text-red-400"
+                  )}>
+                    {customer.days_until_expiry > 0 ? customer.days_until_expiry : 0} days
+                  </span>
+                </div>
+                <div className="relative h-4 bg-dark-300 rounded-full overflow-hidden">
+                  {(() => {
+                    const start = new Date(customer.membership_start);
+                    const end = new Date(customer.membership_end);
+                    const now = new Date();
+                    const total = end - start;
+                    const elapsed = now - start;
+                    const progress = Math.min(Math.max((elapsed / total) * 100, 0), 100);
+                    return (
+                      <div
                         className={clsx(
                           "absolute left-0 top-0 h-full rounded-full transition-all",
                           customer.status === 'active' && "bg-gradient-to-r from-green-500 to-green-400",
@@ -265,16 +321,15 @@ export default function CustomerDetail() {
                         )}
                         style={{ width: `${Math.min(progress, 100)}%` }}
                       />
-                    </>
-                  );
-                })()}
+                    );
+                  })()}
+                </div>
+                <div className="flex justify-between text-xs text-gray-500 mt-2">
+                  <span>Started: {formatDate(customer.membership_start)}</span>
+                  <span>Ends: {formatDate(customer.membership_end)}</span>
+                </div>
               </div>
-              
-              <div className="flex justify-between text-xs text-gray-500 mt-2">
-                <span>Started: {formatDate(customer.membership_start)}</span>
-                <span>Ends: {formatDate(customer.membership_end)}</span>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Check-in / Check-out Section */}
@@ -487,13 +542,13 @@ export default function CustomerDetail() {
                 <span className="text-gray-400">Plan</span>
                 <span className="text-white font-medium">{getMembershipLabel(customer.membership_type)}</span>
               </div>
-              {customer.membership_start && customer.membership_end && (
+              {customer.membership_start && customer.membership_end && !['daily'].includes(customer.membership_type) && (
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">Period</span>
                   <span className="text-white font-medium text-sm">
                     {new Date(customer.membership_start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    {' → '}
-                    {new Date(customer.membership_end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {customer.membership_type !== '3_days_week' && ' → ' + new Date(customer.membership_end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {customer.membership_type === '3_days_week' && ' (session-tracked)'}
                   </span>
                 </div>
               )}
@@ -545,17 +600,31 @@ export default function CustomerDetail() {
                   {customer.status === 'expiring' ? 'Expiring Soon' : customer.status.charAt(0).toUpperCase() + customer.status.slice(1)}
                 </span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">Days Left</span>
-                <span className={clsx(
-                  "font-bold text-lg",
-                  customer.days_until_expiry > 7 && "text-green-400",
-                  customer.days_until_expiry > 0 && customer.days_until_expiry <= 7 && "text-yellow-400",
-                  customer.days_until_expiry <= 0 && "text-red-400"
-                )}>
-                  {customer.days_until_expiry > 0 ? customer.days_until_expiry : 0}
-                </span>
-              </div>
+              {['3_days_week', 'daily'].includes(customer.membership_type) ? (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">{customer.membership_type === 'daily' ? 'Passes Left' : 'Sessions Left'}</span>
+                  <span className={clsx(
+                    "font-bold text-lg",
+                    Math.max(0, (customer.total_sessions || 0) - (customer.sessions_used || 0)) > 3 && "text-green-400",
+                    Math.max(0, (customer.total_sessions || 0) - (customer.sessions_used || 0)) > 0 && Math.max(0, (customer.total_sessions || 0) - (customer.sessions_used || 0)) <= 3 && "text-yellow-400",
+                    Math.max(0, (customer.total_sessions || 0) - (customer.sessions_used || 0)) === 0 && "text-red-400"
+                  )}>
+                    {Math.max(0, (customer.total_sessions || 0) - (customer.sessions_used || 0))} / {customer.total_sessions || 0}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Days Left</span>
+                  <span className={clsx(
+                    "font-bold text-lg",
+                    customer.days_until_expiry > 7 && "text-green-400",
+                    customer.days_until_expiry > 0 && customer.days_until_expiry <= 7 && "text-yellow-400",
+                    customer.days_until_expiry <= 0 && "text-red-400"
+                  )}>
+                    {customer.days_until_expiry > 0 ? customer.days_until_expiry : 0}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <span className="text-gray-400">Total Paid</span>
                 <span className="text-gym-400 font-medium">
@@ -590,76 +659,118 @@ export default function CustomerDetail() {
 
       {/* Extend Modal */}
       {showExtendModal && (
-        <Modal onClose={() => setShowExtendModal(false)} title="Extend Membership">
+        <Modal onClose={() => setShowExtendModal(false)} title={
+          customer.membership_type === 'daily' ? 'Add Daily Pass'
+          : customer.membership_type === '3_days_week' ? 'Add Sessions'
+          : 'Extend Membership'
+        }>
           <form onSubmit={handleExtend} className="space-y-4">
-            {/* Membership Status Badge */}
+            {/* Current status badge */}
             <div className={clsx(
               "p-4 rounded-xl border-2 text-center",
               customer.status === 'active' && "bg-green-500/10 border-green-500/50",
               customer.status === 'expiring' && "bg-yellow-500/10 border-yellow-500/50",
               customer.status === 'expired' && "bg-red-500/10 border-red-500/50"
             )}>
-              <p className={clsx(
-                "text-2xl font-bold",
-                customer.status === 'active' && "text-green-400",
-                customer.status === 'expiring' && "text-yellow-400",
-                customer.status === 'expired' && "text-red-400"
-              )}>
-                {customer.status === 'expiring' ? 'Expiring Soon' : customer.status.charAt(0).toUpperCase() + customer.status.slice(1)}
-              </p>
-              <p className="text-gray-400 text-sm mt-1">
-                {customer.days_until_expiry > 0 ? `${customer.days_until_expiry} days remaining` : 'Expired'}
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Membership Duration</label>
-              <select
-                value={extendMembershipType}
-                onChange={(e) => setExtendMembershipType(e.target.value)}
-                className="input-field"
-              >
-                {MEMBERSHIP_TYPES.map(type => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                    {type.max_visits_per_week ? ` (${type.max_visits_per_week} visits/week max)` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="p-4 bg-dark-200 rounded-lg space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400">Duration</span>
-                <span className="text-white font-medium">
-                  {MEMBERSHIP_TYPES.find(t => t.value === extendMembershipType)?.days || 30} days
-                  {MEMBERSHIP_TYPES.find(t => t.value === extendMembershipType)?.max_visits_per_week 
-                    ? ` (${MEMBERSHIP_TYPES.find(t => t.value === extendMembershipType)?.max_visits_per_week}x/week)` 
-                    : ''}
-                </span>
-              </div>
-              {MEMBERSHIP_TYPES.find(t => t.value === extendMembershipType)?.max_visits_per_week && (
-                <div className="flex justify-between items-center pt-2 border-t border-gray-700">
-                  <span className="text-yellow-400 text-sm">Limited visits per week</span>
-                  <span className="text-yellow-400 text-sm">
-                    {MEMBERSHIP_TYPES.find(t => t.value === extendMembershipType)?.max_visits_per_week} max
-                  </span>
-                </div>
+              {['3_days_week', 'daily'].includes(customer.membership_type) ? (
+                <>
+                  <p className={clsx(
+                    "text-2xl font-bold",
+                    (customer.total_sessions - customer.sessions_used) > 3 ? 'text-green-400'
+                    : (customer.total_sessions - customer.sessions_used) > 0 ? 'text-yellow-400'
+                    : 'text-red-400'
+                  )}>
+                    {Math.max(0, customer.total_sessions - customer.sessions_used)} sessions left
+                  </p>
+                  <p className="text-gray-400 text-sm mt-1">{customer.sessions_used} of {customer.total_sessions} used</p>
+                </>
+              ) : (
+                <>
+                  <p className={clsx(
+                    "text-2xl font-bold",
+                    customer.status === 'active' && "text-green-400",
+                    customer.status === 'expiring' && "text-yellow-400",
+                    customer.status === 'expired' && "text-red-400"
+                  )}>
+                    {customer.status === 'expiring' ? 'Expiring Soon' : customer.status.charAt(0).toUpperCase() + customer.status.slice(1)}
+                  </p>
+                  <p className="text-gray-400 text-sm mt-1">
+                    {customer.days_until_expiry > 0 ? `${customer.days_until_expiry} days remaining` : 'Expired'}
+                  </p>
+                </>
               )}
-              <div className="flex justify-between items-center pt-2 border-t border-gray-700">
-                <span className="text-gray-400">New End Date</span>
-                <span className="text-white font-medium">
-                  {(() => {
-                    const currentEnd = new Date(customer.membership_end);
-                    const today = new Date();
-                    const startDate = currentEnd > today ? customer.membership_end : today.toISOString().split('T')[0];
-                    const days = MEMBERSHIP_TYPES.find(t => t.value === extendMembershipType)?.days || 30;
-                    const newEnd = new Date(new Date(startDate).getTime() + days * 24 * 60 * 60 * 1000);
-                    return formatDate(newEnd.toISOString().split('T')[0]);
-                  })()}
-                </span>
-              </div>
             </div>
+
+            {/* Daily: fixed — just 1 pass per payment */}
+            {customer.membership_type === 'daily' && (
+              <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-center">
+                <p className="text-amber-400 font-semibold text-lg">+ 1 Daily Pass</p>
+                <p className="text-gray-400 text-sm mt-1">Each payment adds 1 walk-in session</p>
+              </div>
+            )}
+
+            {/* 3_days_week: duration selector */}
+            {customer.membership_type === '3_days_week' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Duration to add</label>
+                <div className="space-y-2">
+                  {THREE_DAYS_DURATIONS.map(opt => (
+                    <label key={opt.value} className={clsx(
+                      'flex items-center justify-between px-4 py-2.5 rounded-lg border cursor-pointer transition-all',
+                      extendDurationKey === opt.value
+                        ? 'border-gym-500 bg-gym-500/10 text-white'
+                        : 'border-gray-700 bg-dark-200 text-gray-400 hover:border-gray-500'
+                    )}>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="radio"
+                          name="extend_duration"
+                          value={opt.value}
+                          checked={extendDurationKey === opt.value}
+                          onChange={() => setExtendDurationKey(opt.value)}
+                          className="accent-gym-500"
+                        />
+                        <span className="text-sm font-medium">{opt.label}</span>
+                      </div>
+                      <span className="text-sm font-bold text-gym-400">+{opt.sessions} sessions</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Other types: membership type selector + summary */}
+            {!['daily', '3_days_week'].includes(customer.membership_type) && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Membership Duration</label>
+                  <select
+                    value={extendMembershipType}
+                    onChange={(e) => setExtendMembershipType(e.target.value)}
+                    className="input-field"
+                  >
+                    {MEMBERSHIP_TYPES.filter(t => !['daily', '3_days_week'].includes(t.value)).map(type => (
+                      <option key={type.value} value={type.value}>{type.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="p-4 bg-dark-200 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">New End Date</span>
+                    <span className="text-white font-medium">
+                      {(() => {
+                        const currentEnd = new Date(customer.membership_end);
+                        const today = new Date();
+                        const startDate = currentEnd > today ? customer.membership_end : today.toISOString().split('T')[0];
+                        const days = MEMBERSHIP_TYPES.find(t => t.value === extendMembershipType)?.days || 30;
+                        const newEnd = new Date(new Date(startDate).getTime() + days * 24 * 60 * 60 * 1000);
+                        return formatDate(newEnd.toISOString().split('T')[0]);
+                      })()}
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">Payment Amount (ETB)</label>
@@ -691,7 +802,10 @@ export default function CustomerDetail() {
                 Cancel
               </button>
               <button type="submit" disabled={actionLoading} className="btn-primary flex-1 bg-green-600 hover:bg-green-700 border-green-600">
-                {actionLoading ? 'Processing...' : 'Pay & Extend'}
+                {actionLoading ? 'Processing...' :
+                  customer.membership_type === 'daily' ? 'Pay & Add Pass'
+                  : customer.membership_type === '3_days_week' ? 'Pay & Add Sessions'
+                  : 'Pay & Extend'}
               </button>
             </div>
           </form>

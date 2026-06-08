@@ -22,6 +22,14 @@ const membershipDurations = {
 
 const membershipMaxVisits = { '3_days_week': 3 };
 
+// Session-based types: expiry tracked by check-in count, not calendar date
+const SESSION_TYPES = new Set(['3_days_week', 'daily']);
+
+// Sessions included per duration for 3_days_week (3 days/week × N weeks)
+const SESSIONS_FOR_3DAYS = {
+  '1_month': 12, '2_months': 24, '3_months': 36, '6_months': 72, '1_year': 144,
+};
+
 // Get all customers
 router.get('/', authenticateToken, async (req, res) => {
   try {
@@ -31,7 +39,7 @@ router.get('/', authenticateToken, async (req, res) => {
     const offset = (page - 1) * limit;
     const gymId = req.user.gym_id;
 
-    // Batch-update stale statuses
+    // Batch-update stale statuses — date-based (skip session types)
     await runQuery(`
       UPDATE customers SET
         status = CASE
@@ -43,11 +51,26 @@ router.get('/', authenticateToken, async (req, res) => {
       WHERE gym_id = ?
         AND status != 'inactive'
         AND membership_end IS NOT NULL
+        AND membership_type NOT IN ('3_days_week', 'daily')
         AND status != CASE
           WHEN EXTRACT(EPOCH FROM (membership_end::timestamp - NOW())) / 86400 <= 0 THEN 'expired'
           WHEN EXTRACT(EPOCH FROM (membership_end::timestamp - NOW())) / 86400 <= 7 THEN 'expiring'
           ELSE 'active'
         END
+    `, [gymId]);
+
+    // Session-based status updates (3_days_week and daily)
+    await runQuery(`
+      UPDATE customers SET status = 'expired', updated_at = NOW()
+      WHERE gym_id = ? AND membership_type IN ('3_days_week', 'daily')
+        AND total_sessions > 0 AND sessions_used >= total_sessions
+        AND status NOT IN ('expired', 'inactive')
+    `, [gymId]);
+    await runQuery(`
+      UPDATE customers SET status = 'expiring', updated_at = NOW()
+      WHERE gym_id = ? AND membership_type IN ('3_days_week', 'daily')
+        AND total_sessions > 0 AND sessions_used < total_sessions
+        AND (total_sessions - sessions_used) <= 3 AND status = 'active'
     `, [gymId]);
 
     let countSql = 'SELECT COUNT(*) as total FROM customers WHERE gym_id = ?';
@@ -179,15 +202,29 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreateCus
     const membershipStart = today.toISOString().split('T')[0];
     const durationKey = membership_type === '3_days_week' ? (membership_duration || '1_month') : membership_type;
     const duration = membershipDurations[durationKey] || 30;
-    const membershipEnd = new Date(today.getTime() + duration * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    // Session-based types: track expiry by check-in count, not calendar dates
+    let membershipEnd, totalSessions;
+    if (membership_type === 'daily') {
+      totalSessions = 1;
+      membershipEnd = '2099-12-31'; // date is irrelevant — sessions govern expiry
+    } else if (membership_type === '3_days_week') {
+      totalSessions = SESSIONS_FOR_3DAYS[durationKey] || 12;
+      // Safety date = 4× the calendar duration so date never triggers before sessions run out
+      const safetyDays = duration * 4;
+      membershipEnd = new Date(today.getTime() + safetyDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    } else {
+      totalSessions = 0;
+      membershipEnd = new Date(today.getTime() + duration * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    }
 
     const maxVisitsPerWeek = membershipMaxVisits[membership_type] || 0;
     const weekStart = maxVisitsPerWeek > 0 ? getWeekStart() : null;
 
     await runQuery(`
-      INSERT INTO customers (id, gym_id, name, phone, email, photo, membership_type, membership_start, membership_end, status, emergency_contact, notes, max_visits_per_week, visits_this_week, week_start_date)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, 0, ?)
-    `, [customerId, gymId, name, phone || null, email || null, photo || null, membership_type, membershipStart, membershipEnd, emergency_contact || null, notes || null, maxVisitsPerWeek, weekStart]);
+      INSERT INTO customers (id, gym_id, name, phone, email, photo, membership_type, membership_start, membership_end, status, emergency_contact, notes, max_visits_per_week, visits_this_week, week_start_date, total_sessions, sessions_used)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, 0, ?, ?, 0)
+    `, [customerId, gymId, name, phone || null, email || null, photo || null, membership_type, membershipStart, membershipEnd, emergency_contact || null, notes || null, maxVisitsPerWeek, weekStart, totalSessions]);
 
     await runQuery('UPDATE gyms SET total_customers = total_customers + 1 WHERE id = ?', [gymId]);
 
@@ -313,31 +350,73 @@ router.post('/:id/check-in', authenticateToken, requireActiveSubscription, async
     const customer = await getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [req.params.id, gymId]);
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
 
-    const today = new Date();
-    const endDate = new Date(customer.membership_end);
-    if (endDate < today) return res.status(400).json({ error: 'Customer membership has expired' });
+    const isSessionType = SESSION_TYPES.has(customer.membership_type);
 
-    if (customer.max_visits_per_week && customer.max_visits_per_week > 0) {
-      const currentWeekStart = getWeekStart();
-      if (customer.week_start_date !== currentWeekStart) {
-        await runQuery('UPDATE customers SET visits_this_week = 0, week_start_date = ? WHERE id = ?', [currentWeekStart, customer.id]);
-        customer.visits_this_week = 0;
+    if (isSessionType) {
+      // Session-based expiry check
+      const sessionsLeft = (customer.total_sessions || 0) - (customer.sessions_used || 0);
+      if (sessionsLeft <= 0) {
+        const msg = customer.membership_type === 'daily'
+          ? 'No daily passes remaining. Please pay for a new visit first.'
+          : 'All sessions used up. Please renew the membership.';
+        return res.status(400).json({
+          error: msg,
+          sessions_used: customer.sessions_used || 0,
+          total_sessions: customer.total_sessions || 0,
+        });
       }
-      if (customer.visits_this_week >= customer.max_visits_per_week) {
-        return res.status(403).json({ error: `Weekly visit limit reached (${customer.max_visits_per_week}/${customer.max_visits_per_week} visits)`, visits_this_week: customer.visits_this_week, max_visits: customer.max_visits_per_week });
+      // Weekly limit still applies for 3_days_week
+      if (customer.membership_type === '3_days_week' && customer.max_visits_per_week > 0) {
+        const currentWeekStart = getWeekStart();
+        if (customer.week_start_date !== currentWeekStart) {
+          await runQuery('UPDATE customers SET visits_this_week = 0, week_start_date = ? WHERE id = ?', [currentWeekStart, customer.id]);
+          customer.visits_this_week = 0;
+        }
+        if (customer.visits_this_week >= customer.max_visits_per_week) {
+          return res.status(403).json({
+            error: `Weekly visit limit reached (${customer.max_visits_per_week}/week) — resets next Monday`,
+            visits_this_week: customer.visits_this_week,
+            max_visits: customer.max_visits_per_week,
+          });
+        }
       }
+    } else {
+      // Date-based expiry check
+      const today = new Date();
+      const endDate = new Date(customer.membership_end);
+      if (endDate < today) return res.status(400).json({ error: 'Customer membership has expired' });
     }
 
     const attendanceId = uuidv4();
     await runQuery(`INSERT INTO attendance (id, gym_id, customer_id, check_in) VALUES (?, ?, ?, NOW())`, [attendanceId, gymId, req.params.id]);
 
-    if (customer.max_visits_per_week && customer.max_visits_per_week > 0) {
+    if (isSessionType) {
+      const newUsed = (customer.sessions_used || 0) + 1;
+      await runQuery('UPDATE customers SET sessions_used = ?, updated_at = NOW() WHERE id = ?', [newUsed, customer.id]);
+      if (newUsed >= (customer.total_sessions || 0)) {
+        await runQuery("UPDATE customers SET status = 'expired', updated_at = NOW() WHERE id = ?", [customer.id]);
+      } else if ((customer.total_sessions || 0) - newUsed <= 3) {
+        await runQuery("UPDATE customers SET status = 'expiring', updated_at = NOW() WHERE id = ?", [customer.id]);
+      }
+      if (customer.membership_type === '3_days_week' && customer.max_visits_per_week > 0) {
+        await runQuery('UPDATE customers SET visits_this_week = ?, week_start_date = ? WHERE id = ?',
+          [(customer.visits_this_week || 0) + 1, getWeekStart(), customer.id]);
+      }
+    } else if (customer.max_visits_per_week && customer.max_visits_per_week > 0) {
       await runQuery('UPDATE customers SET visits_this_week = ?, week_start_date = ? WHERE id = ?', [(customer.visits_this_week || 0) + 1, getWeekStart(), customer.id]);
     }
 
     const attendance = await getOne('SELECT * FROM attendance WHERE id = ?', [attendanceId]);
+    const updatedCustomer = await getOne('SELECT sessions_used, total_sessions, visits_this_week, max_visits_per_week FROM customers WHERE id = ?', [req.params.id]);
     logCheckIn(gymId, req.user.id, req.params.id, customer.name);
-    res.status(201).json({ ...attendance, visits_this_week: customer.max_visits_per_week ? (customer.visits_this_week || 0) + 1 : null, max_visits: customer.max_visits_per_week });
+    res.status(201).json({
+      ...attendance,
+      sessions_used: updatedCustomer?.sessions_used,
+      total_sessions: updatedCustomer?.total_sessions,
+      sessions_remaining: (updatedCustomer?.total_sessions || 0) - (updatedCustomer?.sessions_used || 0),
+      visits_this_week: updatedCustomer?.visits_this_week,
+      max_visits: updatedCustomer?.max_visits_per_week,
+    });
   } catch (error) {
     console.error('Check in error:', error);
     res.status(500).json({ error: 'Failed to check in' });

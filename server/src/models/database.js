@@ -99,6 +99,8 @@ export async function initDatabase() {
       week_start_date TEXT,
       max_visits_per_week INTEGER DEFAULT 0,
       welcome_sms_sent INTEGER DEFAULT 0,
+      total_sessions INTEGER DEFAULT 0,
+      sessions_used INTEGER DEFAULT 0,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW(),
       FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
@@ -231,6 +233,10 @@ export async function initDatabase() {
   for (const sql of tables) {
     await p.query(sql);
   }
+
+  // Add session columns to existing customers table (safe no-op if they already exist)
+  await p.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS total_sessions INTEGER DEFAULT 0');
+  await p.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS sessions_used INTEGER DEFAULT 0');
 
   // Seed default global settings
   const globalSettings = await getOne("SELECT gym_id FROM settings WHERE gym_id = 'global' AND key = 'delete_code'");

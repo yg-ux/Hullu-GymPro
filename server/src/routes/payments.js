@@ -8,6 +8,13 @@ import { logPaymentRecorded, logPaymentDeleted } from '../services/activityServi
 
 const router = express.Router();
 
+function getWeekStart(date = new Date()) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(d.setDate(diff)).toISOString().split('T')[0];
+}
+
 const membershipDurations = {
   'daily': 1,
   '1_month': 30,
@@ -15,6 +22,10 @@ const membershipDurations = {
   '3_months': 90,
   '6_months': 180,
   '1_year': 365
+};
+
+const SESSIONS_FOR_3DAYS = {
+  '1_month': 12, '2_months': 24, '3_months': 36, '6_months': 72, '1_year': 144,
 };
 
 // Get all payments for this gym (with pagination)
@@ -69,7 +80,7 @@ router.get('/', authenticateToken, async (req, res) => {
 // Record payment
 router.post('/', authenticateToken, requireActiveSubscription, validateCreatePayment, async (req, res) => {
   try {
-    const { customer_id, amount, payment_method = 'cash', membership_type, notes } = req.body;
+    const { customer_id, amount, payment_method = 'cash', membership_type, notes, duration_key } = req.body;
     const gymId = req.user.gym_id;
 
     if (!customer_id || !amount) {
@@ -88,8 +99,87 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreatePay
     const paymentDate = today.toISOString().split('T')[0];
 
     const selectedType = membership_type || customer.membership_type;
-    const duration = membershipDurations[selectedType] || 30;
 
+    // ── Session-based types ────────────────────────────────────────────────────
+    if (selectedType === 'daily') {
+      // Each payment = 1 daily pass (session)
+      await runQuery(`
+        INSERT INTO payments (id, gym_id, customer_id, amount, payment_method, payment_date, membership_type, start_date, end_date, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [paymentId, gymId, customer_id, amount, payment_method, paymentDate, selectedType, paymentDate, paymentDate, notes || null]);
+
+      await runQuery(`
+        UPDATE customers SET
+          total_sessions = total_sessions + 1,
+          status = CASE
+            WHEN sessions_used < total_sessions + 1 THEN
+              CASE WHEN (total_sessions + 1 - sessions_used) <= 3 THEN 'expiring' ELSE 'active' END
+            ELSE 'expired'
+          END,
+          updated_at = NOW()
+        WHERE id = ?
+      `, [customer_id]);
+
+      const updatedCustomer = await getOne('SELECT * FROM customers WHERE id = ?', [customer_id]);
+      const payment = await getOne('SELECT * FROM payments WHERE id = ?', [paymentId]);
+      logPaymentRecorded(gymId, req.user.id, paymentId, amount, updatedCustomer.name);
+      return res.status(201).json({
+        payment,
+        customer: updatedCustomer,
+        message: `1 daily pass added — ${updatedCustomer.total_sessions - updatedCustomer.sessions_used} pass(es) remaining`,
+      });
+    }
+
+    if (selectedType === '3_days_week') {
+      // duration_key tells us how many sessions to add (1_month=12, 3_months=36, etc.)
+      const dKey = duration_key || '1_month';
+      const addSessions = SESSIONS_FOR_3DAYS[dKey] || 12;
+      const durationDays = membershipDurations[dKey] || 30;
+      // Extend safety end date
+      const currentEnd = new Date(customer.membership_end);
+      const baseDate = currentEnd > today ? currentEnd : today;
+      const newEndDate = new Date(baseDate.getTime() + durationDays * 4 * 24 * 60 * 60 * 1000)
+        .toISOString().split('T')[0]; // 4× safety
+
+      await runQuery(`
+        INSERT INTO payments (id, gym_id, customer_id, amount, payment_method, payment_date, membership_type, start_date, end_date, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [paymentId, gymId, customer_id, amount, payment_method, paymentDate, selectedType, paymentDate, newEndDate, notes || null]);
+
+      await runQuery(`
+        UPDATE customers SET
+          membership_type = ?,
+          membership_end = ?,
+          total_sessions = total_sessions + ?,
+          visits_this_week = 0,
+          week_start_date = ?,
+          status = 'active',
+          updated_at = NOW()
+        WHERE id = ?
+      `, [selectedType, newEndDate, addSessions, getWeekStart(), customer_id]);
+
+      const updatedCustomer = await getOne('SELECT * FROM customers WHERE id = ?', [customer_id]);
+      const payment = await getOne('SELECT * FROM payments WHERE id = ?', [paymentId]);
+      logPaymentRecorded(gymId, req.user.id, paymentId, amount, updatedCustomer.name);
+
+      // Send payment confirmation SMS for 3_days_week
+      if (updatedCustomer.phone && gym.sms_enabled) {
+        try {
+          await smsService.sendPaymentConfirmation(updatedCustomer, payment, gym);
+        } catch (smsError) {
+          console.warn('Failed to send payment confirmation SMS:', smsError.message);
+        }
+      }
+
+      return res.status(201).json({
+        payment,
+        customer: updatedCustomer,
+        message: `${addSessions} sessions added — ${updatedCustomer.total_sessions - updatedCustomer.sessions_used} remaining`,
+      });
+    }
+
+    // ── Date-based types ───────────────────────────────────────────────────────
+    const duration = membershipDurations[selectedType] || 30;
     const currentEnd = new Date(customer.membership_end);
     let newStartDate, newEndDate;
 
@@ -114,7 +204,7 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreatePay
         membership_start = ?,
         membership_end = ?,
         status = 'active',
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = NOW()
       WHERE id = ?
     `, [selectedType, newStartDate, newEndDate, customer_id]);
 
