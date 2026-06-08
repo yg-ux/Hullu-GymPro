@@ -21,10 +21,10 @@ export default {
           900: 'rgb(var(--gym-900-rgb) / <alpha-value>)',
         },
         dark: {
-          100: '#1e293b',
-          200: '#0f172a',
-          300: '#0c1222',
-          400: '#080e19',
+          100: 'rgb(var(--dark-100-rgb) / <alpha-value>)',
+          200: 'rgb(var(--dark-200-rgb) / <alpha-value>)',
+          300: 'rgb(var(--dark-300-rgb) / <alpha-value>)',
+          400: 'rgb(var(--dark-400-rgb) / <alpha-value>)',
         }
       },
       animation: {

@@ -17,6 +17,20 @@
   --gym-700-rgb: 3 105 161;
   --gym-800-rgb: 7 89 133;
   --gym-900-rgb: 12 74 110;
+
+  /* Dark mode surface colors (default) */
+  --dark-100-rgb: 30 41 59;    /* #1e293b */
+  --dark-200-rgb: 15 23 42;    /* #0f172a */
+  --dark-300-rgb: 12 18 34;    /* #0c1222 */
+  --dark-400-rgb: 8 14 25;     /* #080e19 */
+}
+
+/* Light mode — flip surface colors to white/light-gray */
+.light-mode {
+  --dark-100-rgb: 255 255 255;   /* white  — cards, sidebar */
+  --dark-200-rgb: 248 250 252;   /* gray-50 — main background */
+  --dark-300-rgb: 241 245 249;   /* gray-100 — hover surfaces */
+  --dark-400-rgb: 226 232 240;   /* gray-200 — deep accents */
 }
 
 @layer base {
@@ -507,23 +521,127 @@
 }
 
 /* ========== LIGHT MODE OVERRIDES ========== */
-.light-mode {
-  @apply bg-gray-50 text-gray-900;
-}
 
+/* Base */
+.light-mode,
 .light-mode body {
-  @apply bg-gray-50 text-gray-900;
+  background-color: rgb(248 250 252);
+  color: rgb(15 23 42);
+  color-scheme: light;
 }
 
-.light-mode .card,
+/* ── Text colors ── */
+.light-mode .text-white          { color: rgb(15 23 42)    !important; }
+.light-mode .text-gray-100       { color: rgb(30 41 59)    !important; }
+.light-mode .text-gray-200       { color: rgb(51 65 85)    !important; }
+.light-mode .text-gray-300       { color: rgb(71 85 105)   !important; }
+.light-mode .text-gray-400       { color: rgb(100 116 139) !important; }
+.light-mode .text-gray-500       { color: rgb(107 114 128) !important; }
+
+/* ── Background colors ── */
+.light-mode .bg-gray-950,
+.light-mode .bg-gray-900         { background-color: rgb(248 250 252) !important; }
+.light-mode .bg-gray-800         { background-color: rgb(241 245 249) !important; }
+.light-mode .bg-gray-700         { background-color: rgb(226 232 240) !important; }
+.light-mode .bg-gray-700\/50     { background-color: rgb(226 232 240 / 0.5) !important; }
+.light-mode .bg-gray-800\/50     { background-color: rgb(241 245 249 / 0.5) !important; }
+
+/* ── Border colors ── */
+.light-mode .border-gray-900     { border-color: rgb(226 232 240) !important; }
+.light-mode .border-gray-800     { border-color: rgb(226 232 240) !important; }
+.light-mode .border-gray-800\/50 { border-color: rgb(226 232 240 / 0.5) !important; }
+.light-mode .border-gray-700     { border-color: rgb(203 213 225) !important; }
+.light-mode .border-gray-600     { border-color: rgb(148 163 184) !important; }
+
+/* ── Hover states ── */
+.light-mode .hover\:bg-dark-300:hover  { background-color: rgb(241 245 249) !important; }
+.light-mode .hover\:bg-dark-100:hover  { background-color: rgb(241 245 249) !important; }
+.light-mode .hover\:bg-gray-800:hover  { background-color: rgb(241 245 249) !important; }
+.light-mode .hover\:bg-gray-700:hover  { background-color: rgb(226 232 240) !important; }
+.light-mode .hover\:text-white:hover   { color: rgb(15 23 42) !important; }
+.light-mode .hover\:border-gray-700:hover { border-color: rgb(203 213 225) !important; }
+.light-mode .hover\:border-gray-600:hover { border-color: rgb(148 163 184) !important; }
+
+/* ── Cards & glass ── */
+.light-mode .card {
+  background-color: white !important;
+  border-color: rgb(226 232 240) !important;
+}
 .light-mode .glass-card {
-  background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.06) !important;
+}
+.light-mode .glass-effect {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
 }
 
-.light-mode .glass-effect {
-  background: rgba(255, 255, 255, 0.8);
-  border-color: rgba(0, 0, 0, 0.1);
+/* ── Input fields ── */
+.light-mode .input-field {
+  background-color: white !important;
+  border-color: rgb(203 213 225) !important;
+  color: rgb(15 23 42) !important;
+}
+.light-mode .input-field::placeholder { color: rgb(148 163 184) !important; }
+.light-mode input,
+.light-mode textarea,
+.light-mode select {
+  background-color: white !important;
+  border-color: rgb(203 213 225) !important;
+  color: rgb(15 23 42) !important;
+}
+.light-mode input::placeholder,
+.light-mode textarea::placeholder { color: rgb(148 163 184) !important; }
+
+/* ── Buttons ── */
+.light-mode .btn-secondary {
+  background-color: white !important;
+  border-color: rgb(203 213 225) !important;
+  color: rgb(30 41 59) !important;
+}
+.light-mode .btn-secondary:hover {
+  background-color: rgb(241 245 249) !important;
+}
+.light-mode .btn-ghost {
+  color: rgb(71 85 105) !important;
+}
+.light-mode .btn-ghost:hover {
+  background-color: rgb(241 245 249) !important;
+  color: rgb(15 23 42) !important;
+}
+
+/* ── Sidebar & nav specific ── */
+.light-mode aside,
+.light-mode nav {
+  border-color: rgb(226 232 240) !important;
+}
+
+/* ── Dividers ── */
+.light-mode .divide-gray-800 > * + * { border-color: rgb(226 232 240) !important; }
+.light-mode .divide-gray-700 > * + * { border-color: rgb(203 213 225) !important; }
+
+/* ── Focus ring ── */
+.light-mode input:focus,
+.light-mode select:focus,
+.light-mode textarea:focus {
+  outline: none;
+  border-color: rgb(var(--gym-500-rgb)) !important;
+  box-shadow: 0 0 0 3px rgb(var(--gym-500-rgb) / 0.15) !important;
+}
+
+/* ── Scrollbar ── */
+.light-mode ::-webkit-scrollbar-track { background-color: rgb(241 245 249); }
+.light-mode ::-webkit-scrollbar-thumb { background-color: rgb(203 213 225); border-radius: 9999px; }
+.light-mode ::-webkit-scrollbar-thumb:hover { background-color: rgb(148 163 184); }
+
+/* ── Notification / dropdown panels ── */
+.light-mode [class*="bg-dark"] {
+  background-color: white;
+}
+.light-mode [class*="border-gray-8"],
+.light-mode [class*="border-gray-9"] {
+  border-color: rgb(226 232 240);
 }
 
 /* ========== CUSTOM SCROLL ANIMATION ========== */
