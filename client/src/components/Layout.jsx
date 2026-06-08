@@ -1,6 +1,7 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { api, formatCurrency } from '../utils/api';
 import { 
   LayoutDashboard, 
   Users, 
@@ -102,12 +103,106 @@ export default function Layout() {
   const showSubscriptionAlert = subscription && !subscription.valid && !isFreePlan;
   const showFreePlanBanner = isFreePlan;
 
-  // Sample notifications - in production these would come from API
-  const notifications = [
-    { id: 1, type: 'payment', message: 'New payment received from Alemu Bekele', time: '5 min ago', icon: DollarSign },
-    { id: 2, type: 'checkin', message: 'Tigist Haile checked in', time: '12 min ago', icon: UserPlus },
-    { id: 3, type: 'expiry', message: '3 memberships expiring soon', time: '1 hour ago', icon: Clock },
-  ];
+  // ── Real-time notifications ──────────────────────────────────────────────────
+  const [notifications, setNotifications] = useState([]);
+  const [notifLoading, setNotifLoading] = useState(true);
+  const [recentActivity, setRecentActivity] = useState([]);
+
+  const getTimeAgo = (dateStr) => {
+    if (!dateStr) return '';
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const m = Math.floor(diff / 60000);
+    const h = Math.floor(diff / 3600000);
+    const d = Math.floor(diff / 86400000);
+    if (m < 1)  return 'Just now';
+    if (m < 60) return `${m}m ago`;
+    if (h < 24) return `${h}h ago`;
+    return `${d}d ago`;
+  };
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const [paymentsRes, attendanceRes, statsRes] = await Promise.allSettled([
+        api.get('/payments?limit=5'),
+        api.get('/attendance/today'),
+        api.get('/stats/dashboard'),
+      ]);
+
+      const items = [];
+
+      // Recent payments
+      const payments = paymentsRes.status === 'fulfilled'
+        ? (paymentsRes.value?.data || paymentsRes.value?.payments || [])
+        : [];
+      payments.slice(0, 3).forEach(p => {
+        items.push({
+          id: `pay-${p.id}`,
+          type: 'payment',
+          icon: DollarSign,
+          iconColor: 'text-emerald-400',
+          iconBg: 'bg-emerald-500/15',
+          message: `${p.customer_name} paid ${formatCurrency(p.amount)}`,
+          time: p.payment_date || p.created_at,
+        });
+      });
+
+      // Today's check-ins (currently present first, then checked-out)
+      if (attendanceRes.status === 'fulfilled' && attendanceRes.value) {
+        const allToday = [
+          ...(attendanceRes.value.currently_present || []),
+          ...(attendanceRes.value.checked_out || []),
+        ];
+        allToday.slice(0, 3).forEach(a => {
+          items.push({
+            id: `ci-${a.id}`,
+            type: 'checkin',
+            icon: UserPlus,
+            iconColor: 'text-gym-400',
+            iconBg: 'bg-gym-500/15',
+            message: `${a.customer_name} checked in`,
+            time: a.check_in,
+          });
+        });
+      }
+
+      // Expiring soon alert
+      const expiring = statsRes.status === 'fulfilled'
+        ? (statsRes.value?.overview?.expiring_soon || 0)
+        : 0;
+      if (expiring > 0) {
+        items.push({
+          id: 'expiry',
+          type: 'expiry',
+          icon: Clock,
+          iconColor: 'text-amber-400',
+          iconBg: 'bg-amber-500/15',
+          message: `${expiring} membership${expiring > 1 ? 's' : ''} expiring within 7 days`,
+          time: null,
+        });
+      }
+
+      // Sort by time, most recent first; timeless items (expiry) go last
+      items.sort((a, b) => {
+        if (!a.time) return 1;
+        if (!b.time) return -1;
+        return new Date(b.time) - new Date(a.time);
+      });
+
+      setNotifications(items.slice(0, 8));
+      setRecentActivity(items.slice(0, 3));
+    } catch (err) {
+      console.warn('Failed to load notifications:', err);
+    } finally {
+      setNotifLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+    // Refresh every 60 seconds while the page is open
+    const interval = setInterval(fetchNotifications, 60000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
 
   const getPlanBadgeClass = (plan) => {
     switch (plan?.toLowerCase()) {
@@ -195,13 +290,13 @@ export default function Layout() {
               <X className="w-5 h-5" />
             </button>
           </div>
-          <SidebarContent onNavigate={() => setSidebarOpen(false)} />
+          <SidebarContent onNavigate={() => setSidebarOpen(false)} recentActivity={recentActivity} getTimeAgo={getTimeAgo} />
         </div>
       </div>
 
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col">
-        <SidebarContent />
+        <SidebarContent recentActivity={recentActivity} getTimeAgo={getTimeAgo} />
       </div>
 
       {/* Main content */}
@@ -238,42 +333,69 @@ export default function Layout() {
                 >
                   <Bell className="w-5 h-5" />
                   {notifications.length > 0 && (
-                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
+                    <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center leading-none">
+                      {notifications.length > 9 ? '9+' : notifications.length}
+                    </span>
                   )}
                 </button>
 
                 {notifOpen && (
                   <>
-                    <div 
-                      className="fixed inset-0 z-10" 
-                      onClick={() => setNotifOpen(false)} 
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setNotifOpen(false)}
                     />
                     <div className="absolute right-0 mt-2 w-80 glass-card shadow-xl z-20 overflow-hidden animate-slide-down">
                       <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
                         <h3 className="font-semibold text-white">Notifications</h3>
-                        <span className="text-xs text-gray-400 bg-dark-200 px-2 py-1 rounded-full">
-                          {notifications.length} new
-                        </span>
+                        {!notifLoading && (
+                          <span className="text-xs text-gray-400 bg-dark-300 px-2 py-1 rounded-full">
+                            {notifications.length} recent
+                          </span>
+                        )}
                       </div>
                       <div className="max-h-80 overflow-y-auto">
-                        {notifications.map(notif => (
-                          <div 
-                            key={notif.id}
-                            className="flex items-start gap-3 px-4 py-3 hover:bg-dark-200/50 transition-colors cursor-pointer border-b border-gray-800/50"
-                          >
-                            <div className="w-10 h-10 rounded-xl bg-gym-500/20 flex items-center justify-center flex-shrink-0">
-                              <notif.icon className="w-5 h-5 text-gym-400" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm text-white">{notif.message}</p>
-                              <p className="text-xs text-gray-500 mt-1">{notif.time}</p>
-                            </div>
+                        {notifLoading ? (
+                          <div className="space-y-1 p-2">
+                            {[1,2,3].map(i => (
+                              <div key={i} className="flex items-center gap-3 px-2 py-3 animate-pulse">
+                                <div className="w-9 h-9 rounded-xl bg-dark-300 flex-shrink-0" />
+                                <div className="flex-1 space-y-2">
+                                  <div className="h-3 bg-dark-300 rounded w-4/5" />
+                                  <div className="h-2.5 bg-dark-300 rounded w-1/3" />
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        ) : notifications.length === 0 ? (
+                          <div className="py-10 text-center text-sm text-gray-500">
+                            No recent activity
+                          </div>
+                        ) : (
+                          notifications.map(notif => (
+                            <div
+                              key={notif.id}
+                              className="flex items-start gap-3 px-4 py-3 hover:bg-dark-200/50 transition-colors border-b border-gray-800/40 last:border-0"
+                            >
+                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${notif.iconBg}`}>
+                                <notif.icon className={`w-4 h-4 ${notif.iconColor}`} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-white leading-snug">{notif.message}</p>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  {notif.time ? getTimeAgo(notif.time) : 'Today'}
+                                </p>
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
-                      <div className="px-4 py-3 bg-dark-100/50 border-t border-gray-800">
-                        <button className="w-full text-sm text-gym-400 hover:text-gym-300 transition-colors">
-                          View all notifications
+                      <div className="px-4 py-2.5 bg-dark-100/50 border-t border-gray-800">
+                        <button
+                          onClick={() => { fetchNotifications(); setNotifOpen(false); }}
+                          className="w-full text-xs text-gym-400 hover:text-gym-300 transition-colors"
+                        >
+                          Refresh
                         </button>
                       </div>
                     </div>
@@ -387,7 +509,7 @@ export default function Layout() {
   );
 }
 
-function SidebarContent({ onNavigate }) {
+function SidebarContent({ onNavigate, recentActivity = [], getTimeAgo }) {
   const { gym, subscription, user } = useAuth();
   const location = useLocation();
 
@@ -480,23 +602,25 @@ function SidebarContent({ onNavigate }) {
             <Activity className="w-4 h-4 text-gym-400" />
             <span className="text-xs font-medium text-gray-400">Recent Activity</span>
           </div>
-          <div className="space-y-3">
-            {[
-              { icon: UserPlus, text: 'New member joined', time: '2m ago' },
-              { icon: DollarSign, text: 'Payment received', time: '15m ago' },
-              { icon: Clock, text: '3 memberships expiring', time: '1h ago' },
-            ].map((activity, i) => (
-              <div key={i} className="flex items-center gap-3 animate-slide-up" style={{ animationDelay: `${i * 100}ms` }}>
-                <div className="w-8 h-8 rounded-lg bg-gym-500/10 flex items-center justify-center">
-                  <activity.icon className="w-4 h-4 text-gym-400" />
+          {recentActivity.length === 0 ? (
+            <p className="text-xs text-gray-600 text-center py-2">No recent activity</p>
+          ) : (
+            <div className="space-y-3">
+              {recentActivity.map((activity, i) => (
+                <div key={activity.id} className="flex items-center gap-3 animate-slide-up" style={{ animationDelay: `${i * 100}ms` }}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${activity.iconBg}`}>
+                    <activity.icon className={`w-4 h-4 ${activity.iconColor}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-300 truncate">{activity.message}</p>
+                    <p className="text-xs text-gray-500">
+                      {activity.time ? getTimeAgo(activity.time) : 'Today'}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-gray-300 truncate">{activity.text}</p>
-                  <p className="text-xs text-gray-500">{activity.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
