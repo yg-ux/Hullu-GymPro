@@ -339,12 +339,12 @@ export default function Dashboard() {
             <div className="relative">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-white flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/30">
-                    <DollarSign className="w-6 h-6 text-white" />
+                  <div className="w-10 h-10 rounded-xl bg-gym-500/20 flex items-center justify-center">
+                    <DollarSign className="w-6 h-6 text-gym-400" />
                   </div>
                   Revenue Overview
                 </h2>
-                <div className="flex items-center gap-2 text-green-400 text-sm">
+                <div className="flex items-center gap-2 text-emerald-400 text-sm">
                   <TrendingUp className="w-4 h-4" />
                   <span className="font-medium">+12.5%</span>
                 </div>
@@ -401,14 +401,13 @@ export default function Dashboard() {
           {/* Customer of the Day */}
           {customerOfDay && (
             <div className="glass-card p-6 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-orange-500/10" />
               <div className="relative">
                 <div className="flex items-center gap-2 mb-4">
-                  <Star className="w-5 h-5 text-amber-400" />
-                  <span className="text-sm font-medium text-amber-400">Customer of the Day</span>
+                  <Star className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs font-semibold text-amber-400 uppercase tracking-wide">Latest Payment</span>
                 </div>
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-xl font-bold shadow-lg shadow-amber-500/30">
+                  <div className="w-12 h-12 rounded-xl bg-gym-500/25 flex items-center justify-center text-lg font-bold text-gym-300">
                     {customerOfDay.customer_name?.charAt(0) || 'C'}
                   </div>
                   <div>
@@ -688,34 +687,33 @@ export default function Dashboard() {
 
       {/* Alerts Section */}
       {(stats?.overview?.expiring_soon > 0 || stats?.overview?.expired > 0) && (
-        <div className="glass-card p-6 border border-yellow-500/30 bg-gradient-to-r from-yellow-500/5 to-orange-500/5 relative overflow-hidden">
-          <div className="absolute inset-0 card-pattern-dots opacity-30" />
+        <div className="glass-card p-5 border border-amber-500/20 relative overflow-hidden">
           <div className="relative flex items-start gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center flex-shrink-0 animate-pulse-glow">
-              <AlertTriangle className="w-7 h-7 text-white" />
+            <div className="w-11 h-11 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle className="w-5 h-5 text-amber-400" />
             </div>
             <div className="flex-1">
-              <h3 className="text-xl font-semibold text-white mb-2">Attention Required</h3>
-              <div className="space-y-2">
+              <h3 className="text-base font-semibold text-white mb-1.5">Attention Required</h3>
+              <div className="space-y-1">
                 {stats.overview.expiring_soon > 0 && (
-                  <p className="text-gray-300">
-                    <span className="text-yellow-400 font-bold">{stats.overview.expiring_soon} members</span> 
-                    {' '}will expire within 7 days
+                  <p className="text-sm text-gray-400">
+                    <span className="text-amber-400 font-semibold">{stats.overview.expiring_soon} members</span>
+                    {' '}expire within 7 days
                   </p>
                 )}
                 {stats.overview.expired > 0 && (
-                  <p className="text-gray-300">
-                    <span className="text-red-400 font-bold">{stats.overview.expired} members</span> 
+                  <p className="text-sm text-gray-400">
+                    <span className="text-red-400 font-semibold">{stats.overview.expired} members</span>
                     {' '}have expired memberships
                   </p>
                 )}
               </div>
-              <Link 
-                to="/customers?status=expiring" 
-                className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-medium rounded-lg hover:from-yellow-400 hover:to-orange-400 transition-all shadow-lg"
+              <Link
+                to="/customers?status=expiring"
+                className="inline-flex items-center gap-2 mt-3 px-3 py-1.5 bg-amber-500/15 border border-amber-500/30 text-amber-400 text-sm font-medium rounded-lg hover:bg-amber-500/25 transition-all"
               >
-                <span className="text-sm">View affected customers</span>
-                <ArrowRight className="w-4 h-4" />
+                View affected customers
+                <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
           </div>
@@ -727,36 +725,34 @@ export default function Dashboard() {
 
 function AnimatedStatCard({ title, value, icon: Icon, color, trend, animated, delay }) {
   const { count, ref } = useAnimatedCounter(value, 1500, delay);
-  
-  const colors = {
-    blue: { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/30', icon: 'from-blue-500 to-blue-600' },
-    green: { bg: 'bg-green-500/10', text: 'text-green-400', border: 'border-green-500/30', icon: 'from-green-500 to-green-600' },
-    yellow: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', border: 'border-yellow-500/30', icon: 'from-yellow-500 to-yellow-600' },
-    red: { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/30', icon: 'from-red-500 to-red-600' },
-  };
-  
-  const c = colors[color] || colors.blue;
+
+  // Semantic trend-text colours only — icon is always gym-brand
+  const trendColor = {
+    blue:   'text-gray-500',
+    green:  'text-emerald-500',
+    yellow: 'text-amber-500',
+    red:    'text-red-500',
+  }[color] || 'text-gray-500';
 
   return (
-    <div 
+    <div
       ref={ref}
       className={clsx(
-        "glass-card p-5 border transition-all duration-500 hover-lift",
-        c.border,
+        "glass-card p-5 border border-gray-800/60 transition-all duration-500 hover-lift",
         animated ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
       )}
       style={{ transitionDelay: `${delay}ms` }}
     >
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm text-gray-400 mb-1">{title}</p>
+          <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">{title}</p>
           <p className="text-3xl font-bold text-white">{count}</p>
           {trend && (
-            <p className="text-xs text-gray-500 mt-1">{trend}</p>
+            <p className={clsx("text-xs mt-1.5 font-medium", trendColor)}>{trend}</p>
           )}
         </div>
-        <div className={clsx("p-3 rounded-xl bg-gradient-to-br shadow-lg", c.icon)}>
-          <Icon className="w-6 h-6 text-white" />
+        <div className="p-3 rounded-xl bg-gym-500/20 shadow-md">
+          <Icon className="w-6 h-6 text-gym-400" />
         </div>
       </div>
     </div>
@@ -836,16 +832,16 @@ function AnimatedBarChart({ data, animated }) {
     <svg viewBox={`0 0 ${VW} ${VH}`} className="w-full" style={{ height: 'auto', display: 'block' }}>
       <defs>
         <linearGradient id="dbBarGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--gym-500, #8b5cf6)" stopOpacity="1" />
-          <stop offset="100%" stopColor="var(--gym-700, #5b21b6)" stopOpacity="0.6" />
+          <stop offset="0%" stopColor="rgb(var(--gym-500-rgb))" stopOpacity="1" />
+          <stop offset="100%" stopColor="rgb(var(--gym-700-rgb))" stopOpacity="0.6" />
         </linearGradient>
         <linearGradient id="dbBarLast" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--gym-400, #a78bfa)" />
-          <stop offset="100%" stopColor="var(--gym-600, #7c3aed)" stopOpacity="0.9" />
+          <stop offset="0%" stopColor="rgb(var(--gym-400-rgb))" />
+          <stop offset="100%" stopColor="rgb(var(--gym-600-rgb))" stopOpacity="0.9" />
         </linearGradient>
         <linearGradient id="dbBarHov" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#ddd6fe" />
-          <stop offset="100%" stopColor="#a78bfa" stopOpacity="0.9" />
+          <stop offset="0%" stopColor="rgb(var(--gym-300-rgb))" />
+          <stop offset="100%" stopColor="rgb(var(--gym-500-rgb))" stopOpacity="0.9" />
         </linearGradient>
       </defs>
 
@@ -924,9 +920,9 @@ function AnimatedBarChart({ data, animated }) {
               <g>
                 <rect x={tipX + 1} y={tipY + 1} width={TW} height={TH} rx={8} fill="rgba(0,0,0,0.3)" />
                 <rect x={tipX} y={tipY} width={TW} height={TH} rx={8}
-                  fill="#1e1b4b" stroke="rgba(167,139,250,0.45)" strokeWidth="1" />
+                  fill="rgba(15,23,42,0.97)" stroke="rgb(var(--gym-500-rgb) / 0.45)" strokeWidth="1" />
                 <text x={tipX + TW / 2} y={tipY + 12} textAnchor="middle"
-                  fill="#a78bfa" fontSize="7.5" fontWeight="500" letterSpacing="0.4"
+                  fill="rgb(var(--gym-400-rgb))" fontSize="7.5" fontWeight="500" letterSpacing="0.4"
                   fontFamily="ui-sans-serif, system-ui, sans-serif">
                   {long.toUpperCase()}
                 </text>
@@ -937,7 +933,7 @@ function AnimatedBarChart({ data, animated }) {
                 </text>
                 {/* Caret always points down toward bar */}
                 <path d={`M${caretX - 5},${tipY + TH} L${caretX},${tipY + TH + 5} L${caretX + 5},${tipY + TH}`}
-                  fill="#1e1b4b" stroke="rgba(167,139,250,0.45)" strokeWidth="1" strokeLinejoin="round" />
+                  fill="rgba(15,23,42,0.97)" stroke="rgb(var(--gym-500-rgb) / 0.45)" strokeWidth="1" strokeLinejoin="round" />
               </g>
             )}
           </g>
