@@ -111,7 +111,18 @@ export default function Layout() {
 
   const getTimeAgo = (dateStr) => {
     if (!dateStr) return '';
-    const diff = Date.now() - new Date(dateStr).getTime();
+    // Date-only string (YYYY-MM-DD) — compare by calendar day, not milliseconds
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const today     = new Date().toISOString().split('T')[0];
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+      if (dateStr === today)     return 'Today';
+      if (dateStr === yesterday) return 'Yesterday';
+      const diffDays = Math.floor((Date.now() - new Date(dateStr + 'T00:00:00Z')) / 86400000);
+      return `${diffDays}d ago`;
+    }
+    // Full timestamp — append Z if no timezone info so browser treats it as UTC
+    const normalized = /[Z+\-]\d{2}:?\d{2}$/.test(dateStr) ? dateStr : dateStr + 'Z';
+    const diff = Date.now() - new Date(normalized).getTime();
     const m = Math.floor(diff / 60000);
     const h = Math.floor(diff / 3600000);
     const d = Math.floor(diff / 86400000);
@@ -143,7 +154,7 @@ export default function Layout() {
           iconColor: 'text-emerald-400',
           iconBg: 'bg-emerald-500/15',
           message: `${p.customer_name} paid ${formatCurrency(p.amount)}`,
-          time: p.payment_date || p.created_at,
+          time: p.created_at || p.payment_date,
         });
       });
 
