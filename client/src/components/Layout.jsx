@@ -65,6 +65,7 @@ export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [notifUnread, setNotifUnread] = useState(0);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
     return saved !== null ? JSON.parse(saved) : true;
@@ -188,8 +189,11 @@ export default function Layout() {
         return new Date(b.time) - new Date(a.time);
       });
 
-      setNotifications(items.slice(0, 8));
+      const newItems = items.slice(0, 8);
+      setNotifications(newItems);
       setRecentActivity(items.slice(0, 3));
+      // Only show the badge if the panel isn't currently open
+      setNotifUnread(prev => notifOpen ? 0 : newItems.length);
     } catch (err) {
       console.warn('Failed to load notifications:', err);
     } finally {
@@ -328,13 +332,17 @@ export default function Layout() {
               {/* Notifications */}
               <div className="relative">
                 <button
-                  onClick={() => setNotifOpen(!notifOpen)}
+                  onClick={() => {
+                    const opening = !notifOpen;
+                    setNotifOpen(opening);
+                    if (opening) setNotifUnread(0);
+                  }}
                   className="relative p-2.5 text-gray-400 hover:text-white rounded-xl hover:bg-dark-100 transition-all duration-300"
                 >
                   <Bell className="w-5 h-5" />
-                  {notifications.length > 0 && (
+                  {notifUnread > 0 && (
                     <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center leading-none">
-                      {notifications.length > 9 ? '9+' : notifications.length}
+                      {notifUnread > 9 ? '9+' : notifUnread}
                     </span>
                   )}
                 </button>
