@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0a0f1e"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="64" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+
+  <!-- Subtle inner border -->
+  <rect x="1" y="1" width="62" height="62" rx="13" stroke="white" stroke-opacity="0.06" stroke-width="1" fill="none"/>
+
+  <!-- H left vertical stroke -->
+  <rect x="10" y="11" width="11" height="42" rx="4" fill="#e2e8f0"/>
+
+  <!-- H right vertical stroke -->
+  <rect x="43" y="11" width="11" height="42" rx="4" fill="#e2e8f0"/>
+
+  <!-- Dumbbell bar / H crossbar (gradient, rendered over strokes) -->
+  <rect x="10" y="27" width="44" height="10" rx="3" fill="url(#accent)" filter="url(#glow)"/>
+
+  <!-- Left weight plate -->
+  <rect x="4" y="22" width="9" height="20" rx="3.5" fill="url(#accent)" opacity="0.9"/>
+
+  <!-- Right weight plate -->
+  <rect x="51" y="22" width="9" height="20" rx="3.5" fill="url(#accent)" opacity="0.9"/>
+
+  <!-- Collar rings (subtle detail) -->
+  <rect x="13" y="25" width="3" height="14" rx="1.5" fill="white" opacity="0.25"/>
+  <rect x="48" y="25" width="3" height="14" rx="1.5" fill="white" opacity="0.25"/>
+</svg>
