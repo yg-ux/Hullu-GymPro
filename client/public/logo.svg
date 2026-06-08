@@ -1,41 +1,56 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#1e293b"/>
-      <stop offset="100%" stop-color="#0a0f1e"/>
+
+    <!-- Blue gradient background -->
+    <linearGradient id="bg" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#1d4ed8"/>
+      <stop offset="100%" stop-color="#0e1a4a"/>
     </linearGradient>
-    <linearGradient id="accent" x1="0" y1="0" x2="64" y2="0" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#38bdf8"/>
-      <stop offset="100%" stop-color="#818cf8"/>
+
+    <!-- White top-light shine on dumbbell -->
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="white" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
     </linearGradient>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="1.5" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+
+    <!-- Subtle glow on dumbbell -->
+    <filter id="glow" x="-15%" y="-25%" width="130%" height="150%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
     </filter>
+
   </defs>
 
-  <!-- Background rounded square -->
-  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
-
+  <!-- Background -->
+  <rect width="100" height="100" rx="22" fill="url(#bg)"/>
   <!-- Subtle inner border -->
-  <rect x="1" y="1" width="62" height="62" rx="13" stroke="white" stroke-opacity="0.06" stroke-width="1" fill="none"/>
+  <rect x="1.5" y="1.5" width="97" height="97" rx="20.5"
+        stroke="white" stroke-opacity="0.1" stroke-width="1" fill="none"/>
 
-  <!-- H left vertical stroke -->
-  <rect x="10" y="11" width="11" height="42" rx="4" fill="#e2e8f0"/>
+  <!-- ══ DUMBBELL — perfectly horizontal, centered at y=50 ══ -->
+  <g filter="url(#glow)">
 
-  <!-- H right vertical stroke -->
-  <rect x="43" y="11" width="11" height="42" rx="4" fill="#e2e8f0"/>
+    <!-- Left outer plate -->
+    <rect x="8"  y="33" width="12" height="34" rx="4.5" fill="white"/>
+    <!-- Left collar -->
+    <rect x="20" y="39" width="8"  height="22" rx="3"   fill="white" fill-opacity="0.85"/>
+    <!-- Bar -->
+    <rect x="28" y="45" width="44" height="10" rx="3"   fill="white" fill-opacity="0.9"/>
+    <!-- Right collar -->
+    <rect x="72" y="39" width="8"  height="22" rx="3"   fill="white" fill-opacity="0.85"/>
+    <!-- Right outer plate -->
+    <rect x="80" y="33" width="12" height="34" rx="4.5" fill="white"/>
 
-  <!-- Dumbbell bar / H crossbar (gradient, rendered over strokes) -->
-  <rect x="10" y="27" width="44" height="10" rx="3" fill="url(#accent)" filter="url(#glow)"/>
+  </g>
 
-  <!-- Left weight plate -->
-  <rect x="4" y="22" width="9" height="20" rx="3.5" fill="url(#accent)" opacity="0.9"/>
+  <!-- Shine overlays for 3-D depth -->
+  <rect x="8"  y="33" width="12" height="13" rx="4.5" fill="url(#shine)"/>
+  <rect x="20" y="39" width="8"  height="9"  rx="3"   fill="url(#shine)"/>
+  <rect x="28" y="45" width="44" height="4"  rx="3"   fill="url(#shine)"/>
+  <rect x="72" y="39" width="8"  height="9"  rx="3"   fill="url(#shine)"/>
+  <rect x="80" y="33" width="12" height="13" rx="4.5" fill="url(#shine)"/>
 
-  <!-- Right weight plate -->
-  <rect x="51" y="22" width="9" height="20" rx="3.5" fill="url(#accent)" opacity="0.9"/>
-
-  <!-- Collar rings (subtle detail) -->
-  <rect x="13" y="25" width="3" height="14" rx="1.5" fill="white" opacity="0.25"/>
-  <rect x="48" y="25" width="3" height="14" rx="1.5" fill="white" opacity="0.25"/>
 </svg>
