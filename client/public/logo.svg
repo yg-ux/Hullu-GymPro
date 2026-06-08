@@ -3,11 +3,17 @@
   <!-- Blue background -->
   <rect width="100" height="100" rx="22" fill="#2563eb"/>
 
-  <!-- Dumbbell: left plate -->
-  <rect x="8"  y="32" width="14" height="36" rx="5" fill="white"/>
-  <!-- Dumbbell: bar -->
-  <rect x="22" y="44" width="56" height="12" rx="4" fill="white"/>
-  <!-- Dumbbell: right plate -->
-  <rect x="78" y="32" width="14" height="36" rx="5" fill="white"/>
+  <!-- Lucide Dumbbell icon, scaled from 24→100 and centered -->
+  <!-- Original 24×24 paths scaled ×4 and offset by (2, 2) to center in 100×100 -->
+  <g transform="translate(2, 2) scale(4.08333)" stroke="white" stroke-width="1.8"
+     stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="m6.5 6.5 11 11"/>
+    <path d="m21 21-1-1"/>
+    <path d="m3 3 1 1"/>
+    <path d="m18 22 4-4"/>
+    <path d="m2 6 4-4"/>
+    <path d="m3 10 7-7"/>
+    <path d="m14 21 7-7"/>
+  </g>
 
 </svg>
