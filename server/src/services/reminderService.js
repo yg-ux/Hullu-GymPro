@@ -39,6 +39,7 @@ class ReminderService {
             OR c.membership_end::date = CURRENT_DATE
           )
           AND g.sms_enabled = 1
+          AND g.subscription_plan != 'free'
       `);
 
       console.log(`Found ${expiringCustomers.length} customers with expiring memberships`);

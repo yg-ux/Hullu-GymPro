@@ -238,7 +238,7 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreateCus
     const customer = await getOne('SELECT * FROM customers WHERE id = ?', [customerId]);
     logCustomerAdded(gymId, req.user.id, customerId, name);
 
-    if (customer.phone && gym.sms_enabled && !customer.welcome_sms_sent) {
+    if (customer.phone && gym.sms_enabled && gym.subscription_plan !== 'free' && !customer.welcome_sms_sent) {
       try {
         await smsService.sendWelcomeSms({ ...customer, amount: amount || null }, gym);
         await runQuery('UPDATE customers SET welcome_sms_sent = 1 WHERE id = ?', [customerId]);
