@@ -35,6 +35,9 @@ uploads/
 # Database files
 *.db
 
+# Local database backups (never commit — may contain customer data)
+server/backups/
+
 # Temporary files
 *.tmp
 *.temp
