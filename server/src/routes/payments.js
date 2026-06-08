@@ -135,11 +135,11 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreatePay
       const dKey = duration_key || '1_month';
       const addSessions = SESSIONS_FOR_3DAYS[dKey] || 12;
       const durationDays = membershipDurations[dKey] || 30;
-      // Extend safety end date
+      // Extend end date by the actual calendar duration (date AND sessions both gate check-ins)
       const currentEnd = new Date(customer.membership_end);
       const baseDate = currentEnd > today ? currentEnd : today;
-      const newEndDate = new Date(baseDate.getTime() + durationDays * 4 * 24 * 60 * 60 * 1000)
-        .toISOString().split('T')[0]; // 4× safety
+      const newEndDate = new Date(baseDate.getTime() + durationDays * 24 * 60 * 60 * 1000)
+        .toISOString().split('T')[0];
 
       await runQuery(`
         INSERT INTO payments (id, gym_id, customer_id, amount, payment_method, payment_date, membership_type, start_date, end_date, notes)

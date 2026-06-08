@@ -253,40 +253,86 @@ export default function CustomerDetail() {
               const remaining = Math.max(0, total - used);
               const pct = total > 0 ? Math.min((used / total) * 100, 100) : 0;
               const isDaily = customer.membership_type === 'daily';
+              const daysLeft = customer.days_until_expiry;
               return (
-                <div className="space-y-3">
-                  <div className="flex justify-between items-end">
-                    <div>
-                      <p className="text-gray-400 text-sm">{isDaily ? 'Daily Passes' : 'Sessions'} Remaining</p>
-                      <p className={clsx(
-                        'text-3xl font-bold',
-                        remaining > 3 ? 'text-green-400' : remaining > 0 ? 'text-yellow-400' : 'text-red-400'
-                      )}>
-                        {remaining} <span className="text-lg font-normal text-gray-500">/ {total}</span>
-                      </p>
+                <div className="space-y-4">
+                  {/* Sessions progress */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-end">
+                      <div>
+                        <p className="text-gray-400 text-sm">{isDaily ? 'Daily Passes' : 'Sessions'} Remaining</p>
+                        <p className={clsx(
+                          'text-3xl font-bold',
+                          remaining > 3 ? 'text-green-400' : remaining > 0 ? 'text-yellow-400' : 'text-red-400'
+                        )}>
+                          {remaining} <span className="text-lg font-normal text-gray-500">/ {total}</span>
+                        </p>
+                      </div>
+                      <p className="text-sm text-gray-500">{used} used</p>
                     </div>
-                    <p className="text-sm text-gray-500">{used} used</p>
+                    <div className="relative h-3 bg-dark-300 rounded-full overflow-hidden">
+                      <div
+                        className={clsx(
+                          'absolute left-0 top-0 h-full rounded-full transition-all',
+                          remaining > 3 ? 'bg-gradient-to-r from-green-500 to-green-400'
+                            : remaining > 0 ? 'bg-gradient-to-r from-yellow-500 to-yellow-400'
+                            : 'bg-gradient-to-r from-red-500 to-red-400'
+                        )}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="relative h-4 bg-dark-300 rounded-full overflow-hidden">
-                    <div
-                      className={clsx(
-                        'absolute left-0 top-0 h-full rounded-full transition-all',
-                        remaining > 3 ? 'bg-gradient-to-r from-green-500 to-green-400'
-                          : remaining > 0 ? 'bg-gradient-to-r from-yellow-500 to-yellow-400'
-                          : 'bg-gradient-to-r from-red-500 to-red-400'
-                      )}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
+
+                  {/* Date expiry (3_days_week only) */}
+                  {!isDaily && (
+                    <div className="space-y-2 pt-2 border-t border-gray-800">
+                      <div className="flex justify-between items-end">
+                        <div>
+                          <p className="text-gray-400 text-sm">Days Remaining</p>
+                          <p className={clsx(
+                            'text-2xl font-bold',
+                            daysLeft > 7 ? 'text-green-400' : daysLeft > 0 ? 'text-yellow-400' : 'text-red-400'
+                          )}>
+                            {daysLeft > 0 ? daysLeft : 0} <span className="text-base font-normal text-gray-500">days</span>
+                          </p>
+                        </div>
+                        <p className="text-xs text-gray-500">Ends {formatDate(customer.membership_end)}</p>
+                      </div>
+                      <div className="relative h-2 bg-dark-300 rounded-full overflow-hidden">
+                        {(() => {
+                          const start = new Date(customer.membership_start);
+                          const end = new Date(customer.membership_end);
+                          const now = new Date();
+                          const total = end - start;
+                          const elapsed = now - start;
+                          const p = Math.min(Math.max((elapsed / total) * 100, 0), 100);
+                          return (
+                            <div
+                              className={clsx(
+                                'absolute left-0 top-0 h-full rounded-full',
+                                daysLeft > 7 ? 'bg-green-500' : daysLeft > 0 ? 'bg-yellow-500' : 'bg-red-500'
+                              )}
+                              style={{ width: `${p}%` }}
+                            />
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Warnings */}
                   {remaining <= 3 && remaining > 0 && (
                     <p className="text-xs text-yellow-400">⚠ Only {remaining} {isDaily ? 'pass' : 'session'}{remaining !== 1 ? 'es' : ''} left — renew soon</p>
                   )}
                   {remaining === 0 && (
                     <p className="text-xs text-red-400">✕ No {isDaily ? 'passes' : 'sessions'} remaining — please renew</p>
                   )}
-                  <div className="flex justify-between text-xs text-gray-500 pt-1">
+                  {!isDaily && daysLeft <= 7 && daysLeft > 0 && (
+                    <p className="text-xs text-yellow-400">⚠ Period expires in {daysLeft} day{daysLeft !== 1 ? 's' : ''}</p>
+                  )}
+                  <div className="flex justify-between text-xs text-gray-500">
                     <span>Started: {formatDate(customer.membership_start)}</span>
-                    <span className="text-gray-600">{isDaily ? 'Session-tracked' : '3 days/week · session-tracked'}</span>
+                    <span className="text-gray-600">{isDaily ? 'Session-tracked' : '3 days/week'}</span>
                   </div>
                 </div>
               );
@@ -601,17 +647,32 @@ export default function CustomerDetail() {
                 </span>
               </div>
               {['3_days_week', 'daily'].includes(customer.membership_type) ? (
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400">{customer.membership_type === 'daily' ? 'Passes Left' : 'Sessions Left'}</span>
-                  <span className={clsx(
-                    "font-bold text-lg",
-                    Math.max(0, (customer.total_sessions || 0) - (customer.sessions_used || 0)) > 3 && "text-green-400",
-                    Math.max(0, (customer.total_sessions || 0) - (customer.sessions_used || 0)) > 0 && Math.max(0, (customer.total_sessions || 0) - (customer.sessions_used || 0)) <= 3 && "text-yellow-400",
-                    Math.max(0, (customer.total_sessions || 0) - (customer.sessions_used || 0)) === 0 && "text-red-400"
-                  )}>
-                    {Math.max(0, (customer.total_sessions || 0) - (customer.sessions_used || 0))} / {customer.total_sessions || 0}
-                  </span>
-                </div>
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">{customer.membership_type === 'daily' ? 'Passes Left' : 'Sessions Left'}</span>
+                    <span className={clsx(
+                      "font-bold text-lg",
+                      Math.max(0, (customer.total_sessions || 0) - (customer.sessions_used || 0)) > 3 && "text-green-400",
+                      Math.max(0, (customer.total_sessions || 0) - (customer.sessions_used || 0)) > 0 && Math.max(0, (customer.total_sessions || 0) - (customer.sessions_used || 0)) <= 3 && "text-yellow-400",
+                      Math.max(0, (customer.total_sessions || 0) - (customer.sessions_used || 0)) === 0 && "text-red-400"
+                    )}>
+                      {Math.max(0, (customer.total_sessions || 0) - (customer.sessions_used || 0))} / {customer.total_sessions || 0}
+                    </span>
+                  </div>
+                  {customer.membership_type === '3_days_week' && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400">Days Left</span>
+                      <span className={clsx(
+                        "font-bold text-lg",
+                        customer.days_until_expiry > 7 && "text-green-400",
+                        customer.days_until_expiry > 0 && customer.days_until_expiry <= 7 && "text-yellow-400",
+                        customer.days_until_expiry <= 0 && "text-red-400"
+                      )}>
+                        {customer.days_until_expiry > 0 ? customer.days_until_expiry : 0}
+                      </span>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">Days Left</span>

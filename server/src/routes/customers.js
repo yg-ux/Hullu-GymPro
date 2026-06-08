@@ -39,7 +39,7 @@ router.get('/', authenticateToken, async (req, res) => {
     const offset = (page - 1) * limit;
     const gymId = req.user.gym_id;
 
-    // Batch-update stale statuses — date-based (skip session types)
+    // Date-based status update — all types except daily (3_days_week included: date is one expiry trigger)
     await runQuery(`
       UPDATE customers SET
         status = CASE
@@ -51,7 +51,7 @@ router.get('/', authenticateToken, async (req, res) => {
       WHERE gym_id = ?
         AND status != 'inactive'
         AND membership_end IS NOT NULL
-        AND membership_type NOT IN ('3_days_week', 'daily')
+        AND membership_type != 'daily'
         AND status != CASE
           WHEN EXTRACT(EPOCH FROM (membership_end::timestamp - NOW())) / 86400 <= 0 THEN 'expired'
           WHEN EXTRACT(EPOCH FROM (membership_end::timestamp - NOW())) / 86400 <= 7 THEN 'expiring'
@@ -59,13 +59,14 @@ router.get('/', authenticateToken, async (req, res) => {
         END
     `, [gymId]);
 
-    // Session-based status updates (3_days_week and daily)
+    // Session-based status updates (3_days_week and daily) — sessions exhausted = expired
     await runQuery(`
       UPDATE customers SET status = 'expired', updated_at = NOW()
       WHERE gym_id = ? AND membership_type IN ('3_days_week', 'daily')
         AND total_sessions > 0 AND sessions_used >= total_sessions
         AND status NOT IN ('expired', 'inactive')
     `, [gymId]);
+    // Expiring when ≤3 sessions remain (and not already expired by date)
     await runQuery(`
       UPDATE customers SET status = 'expiring', updated_at = NOW()
       WHERE gym_id = ? AND membership_type IN ('3_days_week', 'daily')
@@ -210,9 +211,8 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreateCus
       membershipEnd = '2099-12-31'; // date is irrelevant — sessions govern expiry
     } else if (membership_type === '3_days_week') {
       totalSessions = SESSIONS_FOR_3DAYS[durationKey] || 12;
-      // Safety date = 4× the calendar duration so date never triggers before sessions run out
-      const safetyDays = duration * 4;
-      membershipEnd = new Date(today.getTime() + safetyDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      // Expires on BOTH: sessions exhausted OR calendar end date (whichever comes first)
+      membershipEnd = new Date(today.getTime() + duration * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     } else {
       totalSessions = 0;
       membershipEnd = new Date(today.getTime() + duration * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -351,22 +351,23 @@ router.post('/:id/check-in', authenticateToken, requireActiveSubscription, async
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
 
     const isSessionType = SESSION_TYPES.has(customer.membership_type);
+    const today = new Date();
 
-    if (isSessionType) {
-      // Session-based expiry check
+    if (customer.membership_type === '3_days_week') {
+      // Block on sessions exhausted OR calendar date expired — whichever comes first
       const sessionsLeft = (customer.total_sessions || 0) - (customer.sessions_used || 0);
       if (sessionsLeft <= 0) {
-        const msg = customer.membership_type === 'daily'
-          ? 'No daily passes remaining. Please pay for a new visit first.'
-          : 'All sessions used up. Please renew the membership.';
         return res.status(400).json({
-          error: msg,
+          error: 'All sessions used up. Please renew the membership.',
           sessions_used: customer.sessions_used || 0,
           total_sessions: customer.total_sessions || 0,
         });
       }
-      // Weekly limit still applies for 3_days_week
-      if (customer.membership_type === '3_days_week' && customer.max_visits_per_week > 0) {
+      if (new Date(customer.membership_end) < today) {
+        return res.status(400).json({ error: 'Membership period has expired. Please renew.' });
+      }
+      // Weekly limit check
+      if (customer.max_visits_per_week > 0) {
         const currentWeekStart = getWeekStart();
         if (customer.week_start_date !== currentWeekStart) {
           await runQuery('UPDATE customers SET visits_this_week = 0, week_start_date = ? WHERE id = ?', [currentWeekStart, customer.id]);
@@ -380,11 +381,21 @@ router.post('/:id/check-in', authenticateToken, requireActiveSubscription, async
           });
         }
       }
+    } else if (customer.membership_type === 'daily') {
+      // Daily: sessions only (no date expiry)
+      const sessionsLeft = (customer.total_sessions || 0) - (customer.sessions_used || 0);
+      if (sessionsLeft <= 0) {
+        return res.status(400).json({
+          error: 'No daily passes remaining. Please pay for a new visit first.',
+          sessions_used: customer.sessions_used || 0,
+          total_sessions: customer.total_sessions || 0,
+        });
+      }
     } else {
-      // Date-based expiry check
-      const today = new Date();
-      const endDate = new Date(customer.membership_end);
-      if (endDate < today) return res.status(400).json({ error: 'Customer membership has expired' });
+      // All other types: date-based only
+      if (new Date(customer.membership_end) < today) {
+        return res.status(400).json({ error: 'Customer membership has expired' });
+      }
     }
 
     const attendanceId = uuidv4();

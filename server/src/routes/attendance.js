@@ -97,30 +97,42 @@ router.post('/check-in', authenticateToken, requireActiveSubscription, async (re
     }
 
     // Check if customer membership is valid
-    const SESSION_TYPES = new Set(['3_days_week', 'daily']);
-    if (SESSION_TYPES.has(customer.membership_type)) {
+    const today = new Date();
+    if (customer.membership_type === '3_days_week') {
       const sessionsLeft = (customer.total_sessions || 0) - (customer.sessions_used || 0);
       if (sessionsLeft <= 0) {
-        const msg = customer.membership_type === 'daily'
-          ? 'No daily passes remaining. Please pay for a new visit first.'
-          : 'All sessions used up. Please renew the membership.';
         return res.status(400).json({
-          error: msg,
+          error: 'All sessions used up. Please renew the membership.',
+          customer: { id: customer.id, name: customer.name },
+          sessions_used: customer.sessions_used || 0,
+          total_sessions: customer.total_sessions || 0,
+        });
+      }
+      if (new Date(customer.membership_end) < today) {
+        return res.status(400).json({
+          error: 'Membership period has expired. Please renew.',
+          customer: { id: customer.id, name: customer.name },
+        });
+      }
+    } else if (customer.membership_type === 'daily') {
+      const sessionsLeft = (customer.total_sessions || 0) - (customer.sessions_used || 0);
+      if (sessionsLeft <= 0) {
+        return res.status(400).json({
+          error: 'No daily passes remaining. Please pay for a new visit first.',
           customer: { id: customer.id, name: customer.name },
           sessions_used: customer.sessions_used || 0,
           total_sessions: customer.total_sessions || 0,
         });
       }
     } else {
-      const today = new Date();
-      const endDate = new Date(customer.membership_end);
-      if (endDate < today) {
+      if (new Date(customer.membership_end) < today) {
         return res.status(400).json({
           error: 'Customer membership has expired',
           customer: { id: customer.id, name: customer.name, membership_end: customer.membership_end }
         });
       }
     }
+    const SESSION_TYPES = new Set(['3_days_week', 'daily']);
 
     // Check if already checked in
     const existingCheckIn = await getOne(`
