@@ -279,7 +279,9 @@ export default function Layout() {
         )}>
           <div className="flex items-center justify-between p-4 border-b border-gray-800">
             <div className="flex items-center gap-3">
-              <img src="/logo.svg" alt="Hullu Gyms" className="w-10 h-10 flex-shrink-0" />
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gym-500 to-purple-600 flex items-center justify-center shadow-lg shadow-gym-500/30 animate-pulse-glow">
+                <Dumbbell className="w-6 h-6 text-white" />
+              </div>
               <div>
                 <h1 className="text-lg font-bold gradient-text">{gym?.name || 'Hullu Gyms'}</h1>
                 <p className="text-xs text-gray-400 truncate max-w-[140px]">by Hullu Gyms</p>
@@ -547,7 +549,12 @@ function SidebarContent({ onNavigate, recentActivity = [], getTimeAgo }) {
       {/* Logo */}
       <div className="flex items-center gap-3 h-16 px-5 border-b border-gray-800/50"
         style={{ background: 'linear-gradient(135deg, rgb(var(--gym-600-rgb) / 0.15), transparent)' }}>
-        <img src="/logo.svg" alt="Hullu Gyms" className="w-11 h-11 flex-shrink-0" />
+        <div
+          className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0"
+          style={{ background: 'linear-gradient(135deg, rgb(var(--gym-500-rgb)), rgb(var(--gym-700-rgb)))', boxShadow: '0 4px 14px rgb(var(--gym-500-rgb) / 0.4)' }}
+        >
+          <Dumbbell className="w-6 h-6 text-white" />
+        </div>
         <div>
           <h1 className="text-lg font-bold text-white">Hullu Gyms</h1>
           <p className="text-xs truncate max-w-[150px]" style={{ color: 'rgb(var(--gym-400-rgb))' }}>{gym?.name || 'Your Gym'}</p>
