@@ -17,7 +17,7 @@ export const validateRegister = [
   body('ownerName').trim().notEmpty().withMessage('Owner name is required').isLength({ min: 2, max: 100 }).withMessage('Owner name must be 2-100 characters'),
   body('email').trim().notEmpty().withMessage('Email is required').isEmail().withMessage('Valid email is required').normalizeEmail(),
   body('password').notEmpty().withMessage('Password is required').isLength({ min: 8 }).withMessage('Password must be at least 8 characters').matches(/\d/).withMessage('Password must contain at least one number'),
-  body('phone').optional().isMobilePhone().withMessage('Invalid phone number format'),
+  body('phone').optional({ nullable: true, checkFalsy: true }).isLength({ min: 7, max: 20 }).withMessage('Phone number must be 7-20 characters'),
   handleValidation
 ];
 
