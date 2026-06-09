@@ -4,7 +4,7 @@ import {
   Building2, Users, DollarSign, TrendingUp, AlertCircle,
   Check, X, Clock, Crown, LogOut, RefreshCw, ChevronRight,
   CheckCircle, XCircle, Phone, Mail, Calendar, Hash,
-  CreditCard, Search, Filter, Eye, Shield
+  CreditCard, Search, Filter, Eye, Shield, Trash2
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -56,6 +56,24 @@ export default function AdminDashboard() {
 
   // Gym detail modal
   const [gymDetail, setGymDetail] = useState(null);
+
+  // Delete gym confirm
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // gym object
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteGym = async () => {
+    if (!deleteConfirm) return;
+    setDeleting(true);
+    try {
+      await adminFetch(`/gyms/${deleteConfirm.id}`, { method: 'DELETE' });
+      setDeleteConfirm(null);
+      loadData();
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('adminToken');
@@ -347,12 +365,22 @@ export default function AdminDashboard() {
                         {gym.subscription_end ? new Date(gym.subscription_end).toLocaleDateString() : '—'}
                       </td>
                       <td className="p-4">
-                        <button
-                          onClick={() => setGymDetail(gym)}
-                          className="p-1.5 text-gray-400 hover:text-white hover:bg-dark-300 rounded-lg transition-colors"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setGymDetail(gym)}
+                            className="p-1.5 text-gray-400 hover:text-white hover:bg-dark-300 rounded-lg transition-colors"
+                            title="View details"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirm(gym)}
+                            className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                            title="Delete gym"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -619,6 +647,58 @@ export default function AdminDashboard() {
                 <Row label="Total Revenue" value={`ETB ${(gymDetail.total_revenue || 0).toLocaleString()}`} />
                 <Row label="Registered" value={new Date(gymDetail.created_at).toLocaleDateString()} />
               </Section>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Gym Confirm Modal ── */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => !deleting && setDeleteConfirm(null)} />
+          <div className="relative bg-dark-100 border border-red-500/30 rounded-2xl w-full max-w-md p-6 shadow-2xl animate-scale-in">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-6 h-6 text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Delete Gym</h3>
+                <p className="text-sm text-gray-400">This action cannot be undone</p>
+              </div>
+            </div>
+
+            <div className="p-4 bg-red-500/8 border border-red-500/20 rounded-xl mb-5">
+              <p className="text-white font-semibold">{deleteConfirm.name}</p>
+              <p className="text-sm text-gray-400 mt-0.5">{deleteConfirm.email}</p>
+              <div className="mt-2 flex gap-4 text-xs text-gray-500">
+                <span>{deleteConfirm.member_count || 0} members</span>
+                <span>ETB {(deleteConfirm.total_revenue || 0).toLocaleString()} revenue</span>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-400 mb-5">
+              All members, payments, attendance records, staff accounts, and subscription data for this gym will be permanently deleted.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                disabled={deleting}
+                className="flex-1 px-4 py-2.5 bg-dark-200 text-white rounded-xl font-medium hover:bg-dark-300 transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteGym}
+                disabled={deleting}
+                className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {deleting ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <><Trash2 className="w-4 h-4" /> Delete Permanently</>
+                )}
+              </button>
             </div>
           </div>
         </div>

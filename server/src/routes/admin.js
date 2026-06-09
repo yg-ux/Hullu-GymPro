@@ -81,6 +81,35 @@ router.get('/gyms', authenticateToken, async (req, res) => {
   }
 });
 
+// Delete a gym and all its data (admin only)
+router.delete('/gyms/:id', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+
+  try {
+    const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [req.params.id]);
+    if (!gym) return res.status(404).json({ error: 'Gym not found' });
+
+    // Delete all related data in order (child tables first)
+    await runQuery('DELETE FROM attendance WHERE gym_id = ?', [req.params.id]);
+    await runQuery('DELETE FROM payments WHERE gym_id = ?', [req.params.id]);
+    await runQuery('DELETE FROM customers WHERE gym_id = ?', [req.params.id]);
+    await runQuery('DELETE FROM gym_users WHERE gym_id = ?', [req.params.id]);
+    await runQuery('DELETE FROM subscription_requests WHERE gym_id = ?', [req.params.id]);
+    await runQuery('DELETE FROM sms_logs WHERE gym_id = ?', [req.params.id]);
+    await runQuery('DELETE FROM activity_log WHERE gym_id = ?', [req.params.id]);
+    await runQuery('DELETE FROM gyms WHERE id = ?', [req.params.id]);
+
+    saveDatabase();
+    console.log(`🗑️ Admin deleted gym: ${gym.name} (${req.params.id})`);
+    res.json({ message: `Gym "${gym.name}" and all its data deleted successfully` });
+  } catch (error) {
+    console.error('Delete gym error:', error);
+    res.status(500).json({ error: 'Failed to delete gym' });
+  }
+});
+
 // Get current gym's own subscription request status
 router.get('/my-request', authenticateToken, async (req, res) => {
   try {
