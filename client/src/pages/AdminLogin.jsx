@@ -18,19 +18,7 @@ export default function AdminLogin() {
     setError('');
 
     try {
-      const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
-      const response = await fetch(`${API_BASE}/admin/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
-      }
-
+      const data = await api.post('/admin/login', { email, password });
       localStorage.setItem('adminToken', data.token);
       localStorage.setItem('adminUser', JSON.stringify(data.admin));
       navigate('/admin-dashboard');
