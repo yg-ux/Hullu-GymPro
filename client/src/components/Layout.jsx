@@ -483,7 +483,7 @@ export default function Layout() {
                   className="flex items-center gap-3 p-2 text-gray-300 hover:text-white rounded-xl hover:bg-dark-100 transition-all duration-300"
                 >
                   <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-gym-500 via-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold shadow-lg shadow-gym-500/30">
-                    {user?.username?.[0]?.toUpperCase() || 'A'}
+                    {gym?.name?.[0]?.toUpperCase() || user?.username?.[0]?.toUpperCase() || 'G'}
                   </div>
                   <span className="hidden sm:block text-sm font-medium">{gym?.name || user?.username}</span>
                   <ChevronDown className={clsx(
@@ -502,7 +502,7 @@ export default function Layout() {
                       <div className="px-4 py-4 border-b border-gray-800 bg-gradient-to-r from-gym-500/10 to-purple-500/10">
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gym-500 to-purple-600 flex items-center justify-center text-lg font-bold shadow-lg">
-                            {user?.username?.[0]?.toUpperCase() || 'A'}
+                            {gym?.name?.[0]?.toUpperCase() || user?.username?.[0]?.toUpperCase() || 'G'}
                           </div>
                           <div>
                             <p className="text-sm font-semibold text-white">{gym?.name}</p>
