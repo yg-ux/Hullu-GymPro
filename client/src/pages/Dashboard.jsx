@@ -298,7 +298,7 @@ export default function Dashboard() {
             <Users className="w-4 h-4" />
             View All Customers
           </Link>
-          <Link to="/customers/new" className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all" style={{ backgroundImage: `linear-gradient(to right, var(--${theme.accent}-500, #3b82f6), var(--${theme.accent}-600, #2563eb))` }}>
+          <Link to="/customers/new" className="btn-primary inline-flex items-center gap-2">
             <Plus className="w-5 h-5" />
             Add Customer
           </Link>
