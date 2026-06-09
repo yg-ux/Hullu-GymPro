@@ -38,9 +38,9 @@ const PLAN_ORDER = ['free', 'starter', 'pro'];
 const ALL_ROLES = ['owner', 'admin', 'manager', 'trainer', 'receptionist'];
 const navigation = [
   { name: 'Dashboard',  href: '/dashboard',    icon: LayoutDashboard, roles: ['owner','admin','manager','trainer'] },
+  { name: 'Customers',  href: '/customers',    icon: Users,           roles: ['owner','admin','manager','trainer','receptionist'] },
   { name: 'Check In',   href: '/check-in',     icon: LogIn,           roles: ALL_ROLES },
   { name: 'Check Out',  href: '/check-out',    icon: LogOutIcon,      roles: ALL_ROLES },
-  { name: 'Customers',  href: '/customers',    icon: Users,           roles: ['owner','admin','manager','trainer','receptionist'] },
   { name: 'Staff',      href: '/staff',        icon: UserCog,         roles: ['owner','admin','manager'], requiresPlan: 'starter' },
   { name: 'Reports',    href: '/reports',      icon: BarChart3,       roles: ['owner','admin','manager'], requiresPlan: 'pro' },
   { name: 'Revenue',    href: '/revenue',      icon: TrendingUp,      roles: ['owner','admin','manager'], requiresPlan: 'pro' },
