@@ -299,7 +299,7 @@ export default function Layout() {
           onClick={() => setSidebarOpen(false)}
         />
         <div className={clsx(
-          "absolute left-0 top-0 h-full w-72 bg-gradient-to-b from-dark-100 to-dark-200 border-r border-gray-800 transition-transform duration-300",
+          "absolute left-0 top-0 h-full w-72 bg-gradient-to-b from-dark-100 to-dark-200 border-r border-gray-800 transition-transform duration-300 overflow-y-auto overflow-x-hidden",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}>
           <div className="flex items-center justify-between p-4 border-b border-gray-800">
@@ -385,7 +385,7 @@ export default function Layout() {
                       className="fixed inset-0 z-10"
                       onClick={() => { setNotifOpen(false); notifOpenRef.current = false; }}
                     />
-                    <div className="absolute right-0 mt-2 w-80 glass-card shadow-xl z-20 overflow-hidden animate-slide-down">
+                    <div className="fixed sm:absolute left-2 right-2 sm:left-auto sm:right-0 top-[60px] sm:top-auto sm:mt-2 sm:w-80 glass-card shadow-xl z-20 overflow-hidden animate-slide-down">
                       <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
                         <h3 className="font-semibold text-white">Notifications</h3>
                         {!notifLoading && (
@@ -574,7 +574,7 @@ function SidebarContent({ onNavigate, recentActivity = [], getTimeAgo }) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-dark-100 border-r border-gray-800/50 relative overflow-hidden">
+    <div className="flex flex-col h-full bg-dark-100 border-r border-gray-800/50 relative overflow-y-auto overflow-x-hidden">
       {/* Theme colour strip at very top */}
       <div className="h-1 w-full flex-shrink-0" style={{ background: 'linear-gradient(90deg, rgb(var(--gym-400-rgb)), rgb(var(--gym-600-rgb)))' }} />
 

@@ -425,8 +425,8 @@ export default function Customers() {
                 <th className="text-left px-4 py-3 text-sm font-medium text-gray-400 hidden sm:table-cell">Phone</th>
                 <th className="text-left px-4 py-3 text-sm font-medium text-gray-400">Status</th>
                 <th className="text-left px-4 py-3 text-sm font-medium text-gray-400 hidden md:table-cell">Membership</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-400">Days Left</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-400">Expires</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-gray-400 whitespace-nowrap">Days Left</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-gray-400 hidden sm:table-cell">Expires</th>
                 <th className="text-left px-4 py-3 text-sm font-medium text-gray-400">Actions</th>
               </tr>
             </thead>
@@ -474,15 +474,22 @@ export default function Customers() {
                   <td className="px-4 py-3 text-gray-400 hidden md:table-cell">
                     {getMembershipLabel(customer.membership_type)}
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <Clock className={clsx("w-4 h-4", getDaysColor(customer.days_until_expiry))} />
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <Clock className={clsx("w-4 h-4 flex-shrink-0", getDaysColor(customer.days_until_expiry))} />
                       <span className={clsx("text-sm font-medium", getDaysColor(customer.days_until_expiry))}>
-                        {getDaysDisplay(customer)}
+                        <span className="hidden sm:inline">{getDaysDisplay(customer)}</span>
+                        <span className="sm:hidden">
+                          {customer.days_until_expiry > 0
+                            ? `${customer.days_until_expiry}d`
+                            : customer.days_until_expiry === 0
+                            ? 'Today'
+                            : `${Math.abs(customer.days_until_expiry)}d over`}
+                        </span>
                       </span>
                     </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 hidden sm:table-cell">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-gray-500" />
                       <span className="text-sm text-gray-300">

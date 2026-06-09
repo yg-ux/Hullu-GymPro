@@ -496,18 +496,18 @@ export default function AddCustomer() {
               </div>
             ) : (
               <div className="p-4 bg-dark-200 rounded-lg border border-gray-700">
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Duration</p>
-                    <p className="text-lg font-bold text-white">{membershipDays} days</p>
-                  </div>
-                  <div>
+                <div className="flex items-center justify-center gap-2 mb-3">
+                  <span className="text-2xl font-bold text-white">{membershipDays}</span>
+                  <span className="text-gray-400 text-sm">days duration</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-center">
+                  <div className="bg-dark-300/50 rounded-lg p-2">
                     <p className="text-xs text-gray-500 mb-1">Start Date</p>
-                    <p className="text-lg font-bold text-white">{startDate.toLocaleDateString()}</p>
+                    <p className="text-sm font-bold text-white">{startDate.toLocaleDateString()}</p>
                   </div>
-                  <div>
+                  <div className="bg-dark-300/50 rounded-lg p-2">
                     <p className="text-xs text-gray-500 mb-1">End Date</p>
-                    <p className="text-lg font-bold text-green-400">{endDate.toLocaleDateString()}</p>
+                    <p className="text-sm font-bold text-green-400">{endDate.toLocaleDateString()}</p>
                   </div>
                 </div>
                 {formData.amount && (
