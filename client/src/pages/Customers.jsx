@@ -75,6 +75,16 @@ export default function Customers() {
   const navigate = useNavigate();
   const searchDebounceRef = useRef(null);
 
+  const handleQuickCheckIn = async (e, customerId) => {
+    e.stopPropagation();
+    try {
+      await api.post('/attendance/check-in', { customer_id: customerId });
+      toast.success('Checked in successfully!');
+    } catch (err) {
+      toast.error(err.message || 'Check-in failed');
+    }
+  };
+
   useEffect(() => {
     loadCustomers(page, statusFilter, search);
   }, [page, statusFilter]);
@@ -394,6 +404,7 @@ export default function Customers() {
               key={customer.id}
               customer={customer}
               onClick={() => navigate(`/customers/${customer.id}`)}
+              onCheckIn={handleQuickCheckIn}
               getDaysDisplay={getDaysDisplay}
               getDaysColor={getDaysColor}
               selected={selectedCustomers.includes(customer.id)}
@@ -527,7 +538,7 @@ export default function Customers() {
   );
 }
 
-function CustomerCard({ customer, onClick, getDaysDisplay, getDaysColor, selected, onSelect, showBulkActions }) {
+function CustomerCard({ customer, onClick, onCheckIn, getDaysDisplay, getDaysColor, selected, onSelect, showBulkActions }) {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -668,8 +679,8 @@ function CustomerCard({ customer, onClick, getDaysDisplay, getDaysColor, selecte
           "flex justify-center gap-2 mt-3 pt-3 border-t border-gray-800/50 transition-all duration-300",
           isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
         )}>
-          <button 
-            onClick={(e) => { e.stopPropagation(); /* Quick check-in */ }}
+          <button
+            onClick={(e) => onCheckIn(e, customer.id)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-medium rounded-lg hover:shadow-lg hover:shadow-green-500/30 transition-all hover:scale-105"
           >
             <Zap className="w-3 h-3" />
