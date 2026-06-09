@@ -66,6 +66,9 @@ export default function Layout() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifUnread, setNotifUnread] = useState(0);
+  // Track which notification IDs the user has already seen (persisted across reloads)
+  const seenIdsRef  = useRef(new Set(JSON.parse(localStorage.getItem('notif_seen') || '[]')));
+  const notifOpenRef = useRef(false);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
     return saved !== null ? JSON.parse(saved) : true;
@@ -205,8 +208,17 @@ export default function Layout() {
       const newItems = items.slice(0, 8);
       setNotifications(newItems);
       setRecentActivity(items.slice(0, 3));
-      // Only show the badge if the panel isn't currently open
-      setNotifUnread(prev => notifOpen ? 0 : newItems.length);
+      // Count only notifications the user hasn't seen yet
+      const unseenCount = newItems.filter(n => !seenIdsRef.current.has(n.id)).length;
+      if (notifOpenRef.current) {
+        // Panel is open — mark everything seen immediately
+        const ids = newItems.map(n => n.id);
+        seenIdsRef.current = new Set(ids);
+        localStorage.setItem('notif_seen', JSON.stringify(ids));
+        setNotifUnread(0);
+      } else {
+        setNotifUnread(unseenCount);
+      }
     } catch (err) {
       console.warn('Failed to load notifications:', err);
     } finally {
@@ -348,7 +360,14 @@ export default function Layout() {
                   onClick={() => {
                     const opening = !notifOpen;
                     setNotifOpen(opening);
-                    if (opening) setNotifUnread(0);
+                    notifOpenRef.current = opening;
+                    if (opening) {
+                      // Mark all currently visible notifications as seen
+                      setNotifUnread(0);
+                      const ids = notifications.map(n => n.id);
+                      seenIdsRef.current = new Set(ids);
+                      localStorage.setItem('notif_seen', JSON.stringify(ids));
+                    }
                   }}
                   className="relative p-2.5 text-gray-400 hover:text-white rounded-xl hover:bg-dark-100 transition-all duration-300"
                 >
@@ -364,7 +383,7 @@ export default function Layout() {
                   <>
                     <div
                       className="fixed inset-0 z-10"
-                      onClick={() => setNotifOpen(false)}
+                      onClick={() => { setNotifOpen(false); notifOpenRef.current = false; }}
                     />
                     <div className="absolute right-0 mt-2 w-80 glass-card shadow-xl z-20 overflow-hidden animate-slide-down">
                       <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
@@ -413,7 +432,7 @@ export default function Layout() {
                       </div>
                       <div className="px-4 py-2.5 bg-dark-100/50 border-t border-gray-800">
                         <button
-                          onClick={() => { fetchNotifications(); setNotifOpen(false); }}
+                          onClick={() => { fetchNotifications(); setNotifOpen(false); notifOpenRef.current = false; }}
                           className="w-full text-xs text-gym-400 hover:text-gym-300 transition-colors"
                         >
                           Refresh
