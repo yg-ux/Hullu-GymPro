@@ -1,24 +1,16 @@
-import nodemailer from 'nodemailer';
-
-function createTransport() {
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS, // Gmail App Password
-    },
-  });
-}
+import { Resend } from 'resend';
 
 export async function sendOtpEmail(toEmail, otp, gymName) {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  if (!process.env.RESEND_API_KEY) {
     throw new Error('Email service not configured. Please contact support.');
   }
 
-  const transporter = createTransport();
+  const resend = new Resend(process.env.RESEND_API_KEY);
 
-  await transporter.sendMail({
-    from: `"Hullu Gyms" <${process.env.EMAIL_USER}>`,
+  const fromAddress = process.env.EMAIL_FROM || 'Hullu Gyms <onboarding@resend.dev>';
+
+  const { error } = await resend.emails.send({
+    from: fromAddress,
     to: toEmail,
     subject: 'Your Password Reset Code — Hullu Gyms',
     html: `
@@ -33,7 +25,7 @@ export async function sendOtpEmail(toEmail, otp, gymName) {
           <div style="background:#1e293b;border:2px dashed #334155;border-radius:12px;padding:24px;text-align:center;margin:0 0 24px;">
             <span style="font-size:40px;font-weight:900;letter-spacing:12px;color:#60a5fa;">${otp}</span>
           </div>
-          <p style="margin:0;color:#64748b;font-size:13px;">If you didn't request this, you can safely ignore this email. Your password will not change.</p>
+          <p style="margin:0;color:#64748b;font-size:13px;">If you didn't request this, you can safely ignore this email.</p>
         </div>
         <div style="padding:16px 32px;border-top:1px solid #1e293b;text-align:center;">
           <p style="margin:0;color:#475569;font-size:12px;">© 2025 Hullu Gyms · hullugyms.com</p>
@@ -41,6 +33,10 @@ export async function sendOtpEmail(toEmail, otp, gymName) {
       </div>
     `,
   });
+
+  if (error) {
+    throw new Error(error.message || 'Failed to send email');
+  }
 
   return true;
 }
