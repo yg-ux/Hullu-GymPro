@@ -12,8 +12,7 @@ function createTransport() {
 
 export async function sendOtpEmail(toEmail, otp, gymName) {
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.warn('⚠️  EMAIL_USER / EMAIL_PASS not set — skipping OTP email');
-    return false;
+    throw new Error('Email service not configured. Please contact support.');
   }
 
   const transporter = createTransport();

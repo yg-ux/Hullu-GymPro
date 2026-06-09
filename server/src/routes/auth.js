@@ -580,9 +580,14 @@ router.post('/forgot-password', async (req, res) => {
     }
 
     // Send OTP via email
-    await sendOtpEmail(email, otp, gym?.name).catch(e => console.warn('OTP email failed:', e.message));
+    try {
+      await sendOtpEmail(email, otp, gym?.name);
+    } catch (emailErr) {
+      console.error('OTP email failed:', emailErr.message);
+      return res.status(500).json({ error: emailErr.message });
+    }
 
-    res.json({ message: 'If that email is registered, a reset code has been sent.' });
+    res.json({ message: 'Reset code sent! Check your email inbox (and spam folder).' });
   } catch (error) {
     console.error('Forgot password error:', error);
     res.status(500).json({ error: 'Failed to process password reset' });
