@@ -21,7 +21,7 @@ export default function ForgotPassword() {
     setLoading(true);
     try {
       const data = await api.post('/auth/forgot-password', { email });
-      setMessage(data.message || 'OTP sent. Check your gym phone for the code.');
+      setMessage(data.message || 'Check your email inbox for the 6-digit reset code.');
       setStep('otp');
     } catch (err) {
       setError(err.message || 'Failed to send OTP');
@@ -61,8 +61,8 @@ export default function ForgotPassword() {
           </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Reset Password</h1>
           <p className="text-gray-500 dark:text-gray-400">
-            {step === 'email' && 'Enter your email to receive an OTP'}
-            {step === 'otp' && 'Enter the OTP sent to your gym phone'}
+            {step === 'email' && 'Enter your email to receive a reset code'}
+            {step === 'otp' && 'Enter the 6-digit code sent to your email'}
             {step === 'done' && 'Your password has been reset'}
           </p>
         </div>

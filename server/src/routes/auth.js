@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { runQuery, getOne, getAll, saveDatabase } from '../models/database.js';
 import { validateRegister, validateLogin, validateChangePassword } from '../middleware/validate.js';
 import { smsService } from '../services/smsService.js';
+import { sendOtpEmail } from '../services/emailService.js';
 
 const router = express.Router();
 
@@ -550,27 +551,25 @@ router.post('/test-sms', authenticateToken, async (req, res) => {
   }
 });
 
-// Forgot password — generate OTP and send via SMS
+// Forgot password — generate OTP and send via email
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Email is required' });
 
     const user = await getOne('SELECT * FROM gym_users WHERE username = ?', [email]);
+    // Always respond generically to prevent email enumeration
     if (!user) {
-      return res.json({ message: 'If that email exists, an OTP has been sent via SMS.' });
+      return res.json({ message: 'If that email is registered, a reset code has been sent.' });
     }
 
     const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [user.gym_id]);
-    if (!gym || !gym.phone) {
-      return res.json({ message: 'If that email exists, an OTP has been sent via SMS.' });
-    }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiry = new Date(Date.now() + 15 * 60 * 1000).toISOString();
     const settingKey = `reset_otp_${email}`;
 
-    // Store OTP in settings table (upsert)
+    // Store OTP (upsert)
     const existing = await getOne('SELECT * FROM settings WHERE gym_id = ? AND key = ?', [user.gym_id, settingKey]);
     if (existing) {
       await runQuery('UPDATE settings SET value = ? WHERE gym_id = ? AND key = ?',
@@ -580,12 +579,10 @@ router.post('/forgot-password', async (req, res) => {
         [user.gym_id, settingKey, JSON.stringify({ otp, expiry })]);
     }
 
-    if (process.env.GEEZSMS_API_KEY && gym.phone) {
-      await smsService.sendSms(gym.phone, `Your Hullu Gym password reset OTP is: ${otp}. Valid for 15 minutes.`)
-        .catch(e => console.warn('OTP SMS failed:', e.message));
-    }
+    // Send OTP via email
+    await sendOtpEmail(email, otp, gym?.name).catch(e => console.warn('OTP email failed:', e.message));
 
-    res.json({ message: 'If that email exists, an OTP has been sent via SMS.' });
+    res.json({ message: 'If that email is registered, a reset code has been sent.' });
   } catch (error) {
     console.error('Forgot password error:', error);
     res.status(500).json({ error: 'Failed to process password reset' });
