@@ -244,7 +244,7 @@ export default function SubscriptionPage() {
             <p className="text-amber-200/75 text-sm">
               The <span className="font-bold text-amber-300">first 10 gyms</span> to subscribe get the current price{' '}
               <span className="inline-flex items-center gap-1 font-bold text-amber-300">
-                <Lock className="w-3 h-3" /> locked in forever
+                <Lock className="w-3 h-3" /> locked in for 6 months
               </span>{' '}
               — plus priority support &amp; free onboarding. Prices will increase after launch.
             </p>
@@ -308,7 +308,7 @@ export default function SubscriptionPage() {
                   {plan.promo && (
                     <div className="mb-4 flex items-start gap-1.5 text-xs text-amber-400/80 bg-amber-500/8 border border-amber-500/20 rounded-lg px-3 py-2">
                       <Lock className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                      <span>First 10 gyms get this price locked in forever.</span>
+                      <span>First 10 gyms get this price locked in for 6 months.</span>
                     </div>
                   )}
 
