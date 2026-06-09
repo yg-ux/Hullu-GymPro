@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 import {
   Dumbbell, Users, CreditCard, Clock, CheckCircle, ArrowRight,
   Menu, X, Upload, Palette, BarChart3, MessageSquare, Shield,
@@ -77,6 +77,7 @@ const PLANS = [
 
 export default function Landing() {
   const navigate = useNavigate();
+  const { register } = useAuth();
   const [showRegister, setShowRegister] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [registerForm, setRegisterForm] = useState({
@@ -96,10 +97,7 @@ export default function Landing() {
     setLoading(true);
     setError('');
     try {
-      const data = await api.post('/auth/register', registerForm);
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('gym', JSON.stringify(data.gym));
-      localStorage.setItem('subscription', JSON.stringify(data.subscription));
+      await register(registerForm);
       navigate('/dashboard');
     } catch (err) {
       setError(err.message);
