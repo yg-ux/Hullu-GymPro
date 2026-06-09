@@ -74,14 +74,37 @@ export default function Customers() {
   const [bulkActionOpen, setBulkActionOpen] = useState(false);
   const navigate = useNavigate();
   const searchDebounceRef = useRef(null);
+  const [checkedInIds, setCheckedInIds] = useState(new Set());
+
+  // Load currently checked-in customers on mount
+  useEffect(() => {
+    api.get('/attendance/current')
+      .then(data => {
+        const ids = new Set((data.currently_present || []).map(a => a.customer_id));
+        setCheckedInIds(ids);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleQuickCheckIn = async (e, customerId) => {
     e.stopPropagation();
     try {
       await api.post('/attendance/check-in', { customer_id: customerId });
-      toast.success('Checked in successfully!');
+      setCheckedInIds(prev => new Set([...prev, customerId]));
+      toast.success('Checked in!');
     } catch (err) {
       toast.error(err.message || 'Check-in failed');
+    }
+  };
+
+  const handleQuickCheckOut = async (e, customerId) => {
+    e.stopPropagation();
+    try {
+      await api.post('/attendance/check-out', { customer_id: customerId });
+      setCheckedInIds(prev => { const s = new Set(prev); s.delete(customerId); return s; });
+      toast.success('Checked out!');
+    } catch (err) {
+      toast.error(err.message || 'Check-out failed');
     }
   };
 
@@ -405,6 +428,8 @@ export default function Customers() {
               customer={customer}
               onClick={() => navigate(`/customers/${customer.id}`)}
               onCheckIn={handleQuickCheckIn}
+              onCheckOut={handleQuickCheckOut}
+              isCheckedIn={checkedInIds.has(customer.id)}
               getDaysDisplay={getDaysDisplay}
               getDaysColor={getDaysColor}
               selected={selectedCustomers.includes(customer.id)}
@@ -538,7 +563,7 @@ export default function Customers() {
   );
 }
 
-function CustomerCard({ customer, onClick, onCheckIn, getDaysDisplay, getDaysColor, selected, onSelect, showBulkActions }) {
+function CustomerCard({ customer, onClick, onCheckIn, onCheckOut, isCheckedIn, getDaysDisplay, getDaysColor, selected, onSelect, showBulkActions }) {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -679,13 +704,23 @@ function CustomerCard({ customer, onClick, onCheckIn, getDaysDisplay, getDaysCol
           "flex justify-center gap-2 mt-3 pt-3 border-t border-gray-800/50 transition-all duration-300",
           isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
         )}>
-          <button
-            onClick={(e) => onCheckIn(e, customer.id)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-medium rounded-lg hover:shadow-lg hover:shadow-green-500/30 transition-all hover:scale-105"
-          >
-            <Zap className="w-3 h-3" />
-            Check-in
-          </button>
+          {isCheckedIn ? (
+            <button
+              onClick={(e) => onCheckOut(e, customer.id)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-medium rounded-lg hover:shadow-lg hover:shadow-red-500/30 transition-all hover:scale-105"
+            >
+              <Zap className="w-3 h-3" />
+              Check-out
+            </button>
+          ) : (
+            <button
+              onClick={(e) => onCheckIn(e, customer.id)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-medium rounded-lg hover:shadow-lg hover:shadow-green-500/30 transition-all hover:scale-105"
+            >
+              <Zap className="w-3 h-3" />
+              Check-in
+            </button>
+          )}
           <button 
             onClick={(e) => { e.stopPropagation(); onClick(); }}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-200 text-gray-300 text-xs font-medium rounded-lg hover:bg-dark-300 transition-all hover:scale-105"
