@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { api, formatCurrency, formatDate, getMembershipLabel } from '../utils/api';
+import { api, formatCurrency, formatDate, getMembershipLabel, getPaymentMethodLabel } from '../utils/api';
 import { Printer, ArrowLeft, CheckCircle } from 'lucide-react';
 
 export default function Receipt() {
@@ -114,7 +114,7 @@ export default function Receipt() {
             <p className="receipt-amount text-5xl font-bold text-white mt-2">
               {formatCurrency(payment.amount)}
             </p>
-            <p className="text-gray-400 mt-2 capitalize">{payment.payment_method?.replace('_', ' ')}</p>
+            <p className="text-gray-400 mt-2">{getPaymentMethodLabel(payment.payment_method)}</p>
           </div>
 
           {/* Details */}
@@ -136,7 +136,7 @@ export default function Receipt() {
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Membership</p>
               <div className="grid grid-cols-2 gap-4">
                 <ReceiptRow label="Type" value={getMembershipLabel(payment.membership_type)} />
-                <ReceiptRow label="Payment Method" value={payment.payment_method?.replace('_', ' ')} capitalize />
+                <ReceiptRow label="Payment Method" value={getPaymentMethodLabel(payment.payment_method)} />
                 {payment.start_date && <ReceiptRow label="Start Date" value={formatDate(payment.start_date)} />}
                 {payment.end_date && payment.membership_type !== 'daily' && (
                   <ReceiptRow label="Valid Until" value={formatDate(payment.end_date)} />

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, formatDate, formatCurrency, getMembershipLabel } from '../utils/api';
+import { api, formatDate, formatCurrency, getMembershipLabel, getPaymentMethodLabel } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import {
   FileText,
@@ -77,7 +77,7 @@ function ReportsContent() {
         filename = `payments_export_${new Date().toISOString().split('T')[0]}.csv`;
         csvContent = 'Customer,Amount,Payment Method,Date\n';
         csvContent += data.payments.map(p => 
-          `"${p.customer_name || 'N/A'}",${p.amount},"${p.payment_method || 'cash'}","${formatDate(p.payment_date)}"`
+          `"${p.customer_name || 'N/A'}",${p.amount},"${getPaymentMethodLabel(p.payment_method)}","${formatDate(p.payment_date)}"`
         ).join('\n');
       } else {
         filename = `report_export_${new Date().toISOString().split('T')[0]}.csv`;
@@ -178,7 +178,7 @@ function ReportsContent() {
                   <tr>
                     <td>${p.customer_name || 'N/A'}</td>
                     <td>${formatCurrency(p.amount)}</td>
-                    <td>${p.payment_method || 'Cash'}</td>
+                    <td>${getPaymentMethodLabel(p.payment_method)}</td>
                     <td>${formatDate(p.payment_date)}</td>
                   </tr>
                 `).join('')}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { api, getStatusColor, formatDate, formatDateTime, getMembershipLabel, MEMBERSHIP_TYPES, formatCurrency, getMembershipPrice } from '../utils/api';
+import { api, getStatusColor, formatDate, formatDateTime, getMembershipLabel, MEMBERSHIP_TYPES, formatCurrency, getMembershipPrice, getPaymentMethodLabel } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -597,7 +597,7 @@ export default function CustomerDetail() {
                       </div>
                       <div>
                         <p className="text-sm font-medium text-white">{formatCurrency(payment.amount)}</p>
-                        <p className="text-xs text-gray-500">{formatDate(payment.payment_date)} · {payment.payment_method}</p>
+                        <p className="text-xs text-gray-500">{formatDate(payment.payment_date)} · {getPaymentMethodLabel(payment.payment_method)}</p>
                       </div>
                     </div>
                     <a

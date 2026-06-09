@@ -55,7 +55,7 @@ export const validateUpdateCustomer = [
 export const validateCreatePayment = [
   body('customer_id').trim().notEmpty().withMessage('Customer ID is required'),
   body('amount').notEmpty().withMessage('Amount is required').isFloat({ min: 1 }).withMessage('Amount must be greater than 0'),
-  body('payment_method').optional().isIn(['cash', 'card', 'mobile']).withMessage('Invalid payment method'),
+  body('payment_method').optional().isIn(['cash', 'card', 'mobile', 'mobile_transfer', 'bank_transfer', 'mobile_money']).withMessage('Invalid payment method'),
   body('membership_type').optional().isIn(['daily', '1_month', '2_months', '3_months', '6_months', '1_year', '3_days_week']).withMessage('Invalid membership type'),
   handleValidation
 ];

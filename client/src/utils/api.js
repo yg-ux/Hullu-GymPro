@@ -72,9 +72,17 @@ export const MEMBERSHIP_TYPES = [
 
 export const PAYMENT_METHODS = [
   { value: 'cash', label: 'Cash' },
-  { value: 'card', label: 'Card' },
-  { value: 'mobile_money', label: 'Mobile Money' },
+  { value: 'mobile_transfer', label: 'Mobile Transfer' },
+  { value: 'bank_transfer', label: 'Bank Transfer' },
 ];
+
+export const getPaymentMethodLabel = (value) => {
+  const method = PAYMENT_METHODS.find(m => m.value === value);
+  if (method) return method.label;
+  // Fallback: prettify raw value (mobile_money → Mobile Money)
+  if (!value) return 'Cash';
+  return value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+};
 
 export const getStatusColor = (status) => {
   const colors = {

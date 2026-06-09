@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { api, formatDate, formatCurrency } from '../utils/api';
+import { api, formatDate, formatCurrency, getPaymentMethodLabel } from '../utils/api';
 import {
   DollarSign,
   TrendingUp,
@@ -419,7 +419,7 @@ function PaymentMethodsChart({ data, animated }) {
                     <div className={clsx("w-10 h-10 rounded-lg bg-gradient-to-br flex items-center justify-center", c.gradient)}>
                       <c.icon className="w-5 h-5 text-white" />
                     </div>
-                    <span className="text-gray-300 capitalize">{item.payment_method?.replace('_', ' ') || 'Unknown'}</span>
+                    <span className="text-gray-300">{getPaymentMethodLabel(item.payment_method)}</span>
                   </div>
                   <div className="text-right">
                     <span className="text-white font-medium">{item.count}</span>
@@ -525,7 +525,7 @@ function RecentTransactions({ transactions, animated }) {
                 <div>
                   <p className="text-sm font-medium text-white">{transaction.customer_name}</p>
                   <p className="text-xs text-gray-400">
-                    {formatDate(transaction.payment_date)} • {transaction.payment_method?.replace('_', ' ')}
+                    {formatDate(transaction.payment_date)} • {getPaymentMethodLabel(transaction.payment_method)}
                   </p>
                 </div>
               </div>

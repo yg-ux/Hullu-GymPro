@@ -4,7 +4,7 @@ import { api } from '../utils/api';
 import {
   Dumbbell, Users, CreditCard, Clock, CheckCircle, ArrowRight,
   Menu, X, Upload, Palette, BarChart3, MessageSquare, Shield,
-  Star, Zap, TrendingUp, UserCheck, Bell, ChevronRight, Globe
+  Star, Zap, TrendingUp, UserCheck, Bell, ChevronRight, Globe, Flame, Lock
 } from 'lucide-react';
 
 const COLOR_THEMES = [
@@ -43,6 +43,7 @@ const PLANS = [
     description: 'For growing gyms',
     color: 'border-blue-500',
     badge: 'Most Popular',
+    promo: true,
     features: [
       { text: 'Up to 100 members', included: true },
       { text: 'Check-in / Check-out', included: true },
@@ -61,6 +62,7 @@ const PLANS = [
     description: 'Full power, no limits',
     color: 'border-purple-500',
     badge: 'Best Value',
+    promo: true,
     features: [
       { text: 'Unlimited members', included: true },
       { text: 'Check-in / Check-out', included: true },
@@ -286,6 +288,22 @@ export default function Landing() {
             <p className="text-green-400 text-sm font-semibold uppercase tracking-widest mb-3">Pricing</p>
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Simple, Transparent Pricing</h2>
             <p className="text-gray-400 text-lg">Start free. Upgrade when your gym grows.</p>
+
+            {/* Early Bird Banner */}
+            <div className="mt-8 inline-flex flex-col sm:flex-row items-center gap-3 px-6 py-4 bg-gradient-to-r from-amber-500/15 to-orange-500/15 border border-amber-500/30 rounded-2xl text-sm">
+              <div className="flex items-center gap-2 text-amber-400 font-semibold">
+                <Flame className="w-4 h-4 flex-shrink-0" />
+                Early Bird Launch Offer — Limited Spots!
+              </div>
+              <span className="hidden sm:block text-amber-600">·</span>
+              <span className="text-amber-200/80">
+                The <span className="font-bold text-amber-300">first 10 gyms</span> to register get the promotional price{' '}
+                <span className="inline-flex items-center gap-1 font-bold text-amber-300">
+                  <Lock className="w-3 h-3" /> locked in forever
+                </span>{' '}
+                + priority support &amp; free onboarding.
+              </span>
+            </div>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
@@ -298,12 +316,25 @@ export default function Landing() {
                 )}
 
                 <div className="mb-6">
-                  <h3 className="text-xl font-bold text-white mb-1">{plan.name}</h3>
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-xl font-bold text-white">{plan.name}</h3>
+                    {plan.promo && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/15 border border-amber-500/30 rounded-full text-amber-400 text-xs font-semibold">
+                        <Flame className="w-3 h-3" /> Promo Price
+                      </span>
+                    )}
+                  </div>
                   <p className="text-gray-400 text-sm mb-4">{plan.description}</p>
                   <div className="flex items-baseline gap-1">
                     <span className="text-4xl font-black text-white">{plan.priceLabel}</span>
                     {plan.price > 0 && <span className="text-gray-400">/month</span>}
                   </div>
+                  {plan.promo && (
+                    <div className="mt-3 flex items-start gap-1.5 text-xs text-amber-400/80 bg-amber-500/8 border border-amber-500/20 rounded-lg px-3 py-2">
+                      <Lock className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                      <span>First 10 gyms get this price locked in forever — no future increases.</span>
+                    </div>
+                  )}
                 </div>
 
                 <ul className="space-y-3 mb-8 flex-1">
@@ -331,9 +362,15 @@ export default function Landing() {
             ))}
           </div>
 
-          <p className="text-center text-gray-500 text-sm mt-8">
-            All paid plans include a 14-day free trial · No setup fees · Cancel anytime · Prices in Ethiopian Birr
-          </p>
+          <div className="mt-8 text-center space-y-1">
+            <p className="text-gray-500 text-sm">
+              All paid plans include a 14-day free trial · No setup fees · Cancel anytime · Prices in Ethiopian Birr
+            </p>
+            <p className="text-amber-500/70 text-xs flex items-center justify-center gap-1.5">
+              <Flame className="w-3 h-3" />
+              Promotional pricing — available to the first 10 gyms only. Regular pricing applies after launch.
+            </p>
+          </div>
         </div>
       </section>
 

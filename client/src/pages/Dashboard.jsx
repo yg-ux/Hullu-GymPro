@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { api, formatDate, formatCurrency, getMembershipLabel } from '../utils/api';
+import { api, formatDate, formatCurrency, getMembershipLabel, getPaymentMethodLabel } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { StatCardSkeleton } from '../components/Skeleton';
 import { 
@@ -560,7 +560,7 @@ export default function Dashboard() {
                 return (
                   <div key={method.payment_method} className="animate-slide-up" style={{ animationDelay: `${index * 100}ms` }}>
                     <div className="flex justify-between text-sm mb-2">
-                      <span className="text-gray-300 capitalize">{method.payment_method.replace('_', ' ')}</span>
+                      <span className="text-gray-300">{getPaymentMethodLabel(method.payment_method)}</span>
                       <span className="text-gray-400">{method.count} payments • {formatCurrency(method.total)}</span>
                     </div>
                     <div className="h-2.5 bg-dark-300 rounded-full overflow-hidden">
