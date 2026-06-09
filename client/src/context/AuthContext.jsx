@@ -5,8 +5,12 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [gym, setGym] = useState(null);
-  const [subscription, setSubscription] = useState(null);
+  const [gym, setGym] = useState(() => {
+    try { const s = localStorage.getItem('gym'); return s ? JSON.parse(s) : null; } catch { return null; }
+  });
+  const [subscription, setSubscription] = useState(() => {
+    try { const s = localStorage.getItem('subscription'); return s ? JSON.parse(s) : null; } catch { return null; }
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
