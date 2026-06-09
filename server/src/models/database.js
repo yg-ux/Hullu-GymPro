@@ -263,16 +263,18 @@ export async function initDatabase() {
     console.log('✅ Global settings created');
   }
 
-  // Seed default admin
-  const adminExists = await getOne("SELECT id FROM admins WHERE email = 'admin@hullugyms.com'");
+  // Seed admin — upsert so password stays current on every deploy
+  const adminExists = await getOne("SELECT id FROM admins WHERE email = 'akaluyg@gmail.com'");
   if (!adminExists) {
+    // Remove any old default admin
+    await runQuery("DELETE FROM admins WHERE email = 'admin@hullugyms.com'");
     const id = uuidv4();
-    const hash = bcrypt.hashSync('admin123', 10);
+    const hash = bcrypt.hashSync('911677153#Aa', 10);
     await runQuery(
       "INSERT INTO admins (id, email, password, name) VALUES ($1, $2, $3, $4)",
-      [id, 'admin@hullugyms.com', hash, 'System Admin']
+      [id, 'akaluyg@gmail.com', hash, 'Yegeta Akalu']
     );
-    console.log('✅ Default admin created');
+    console.log('✅ Admin account created');
   }
 
   console.log('✅ PostgreSQL database ready');
