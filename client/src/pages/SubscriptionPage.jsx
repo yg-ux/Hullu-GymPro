@@ -6,7 +6,7 @@ import { useToast } from '../context/ToastContext';
 import {
   CheckCircle, CreditCard, AlertTriangle, ArrowLeft,
   Crown, Zap, Clock, ChevronRight, Hash, Phone,
-  AlertCircle, Loader, Star, Shield
+  AlertCircle, Loader, Star, Shield, Flame, Lock
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -28,6 +28,7 @@ const PLANS = [
     icon: Zap,
     maxMembers: 100,
     popular: false,
+    promo: true,
     features: ['Up to 100 members', 'Everything in Free', 'SMS notifications', 'Staff accounts', 'Reports & analytics'],
   },
   {
@@ -38,6 +39,7 @@ const PLANS = [
     icon: Crown,
     maxMembers: -1,
     popular: true,
+    promo: true,
     features: ['Unlimited members', 'Everything in Starter', 'Revenue analytics', 'CSV export', 'Priority support', 'QR code check-in'],
   },
 ];
@@ -232,6 +234,22 @@ export default function SubscriptionPage() {
 
       {step === 'plans' && !pendingRequest && (
         <>
+          {/* Early Bird Promo Banner */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 px-5 py-4 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/25 rounded-2xl">
+            <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm flex-shrink-0">
+              <Flame className="w-4 h-4" />
+              Early Bird Offer
+            </div>
+            <div className="hidden sm:block w-px h-4 bg-amber-500/30" />
+            <p className="text-amber-200/75 text-sm">
+              The <span className="font-bold text-amber-300">first 10 gyms</span> to subscribe get the current price{' '}
+              <span className="inline-flex items-center gap-1 font-bold text-amber-300">
+                <Lock className="w-3 h-3" /> locked in forever
+              </span>{' '}
+              — plus priority support &amp; free onboarding. Prices will increase after launch.
+            </p>
+          </div>
+
           {/* Plan Cards */}
           <div className="grid md:grid-cols-3 gap-5 pt-4">
             {PLANS.map((plan) => {
@@ -264,12 +282,19 @@ export default function SubscriptionPage() {
                     <Icon className="w-6 h-6 text-white" />
                   </div>
 
-                  <h3 className="text-xl font-bold text-white mb-1">{plan.name}</h3>
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-xl font-bold text-white">{plan.name}</h3>
+                    {plan.promo && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/15 border border-amber-500/30 rounded-full text-amber-400 text-xs font-semibold">
+                        <Flame className="w-3 h-3" /> Promo
+                      </span>
+                    )}
+                  </div>
                   <p className="text-gray-400 text-sm mb-4">
                     {plan.maxMembers === -1 ? 'Unlimited members' : `Up to ${plan.maxMembers} members`}
                   </p>
 
-                  <div className="mb-5">
+                  <div className="mb-2">
                     {plan.price === 0 ? (
                       <span className="text-3xl font-bold text-white">Free</span>
                     ) : (
@@ -279,6 +304,13 @@ export default function SubscriptionPage() {
                       </>
                     )}
                   </div>
+
+                  {plan.promo && (
+                    <div className="mb-4 flex items-start gap-1.5 text-xs text-amber-400/80 bg-amber-500/8 border border-amber-500/20 rounded-lg px-3 py-2">
+                      <Lock className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                      <span>First 10 gyms get this price locked in forever.</span>
+                    </div>
+                  )}
 
                   <ul className="space-y-2 mb-6 flex-1">
                     {plan.features.map(f => (
