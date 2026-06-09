@@ -314,7 +314,7 @@ function ReportsContent() {
           <button
             onClick={handleExportPDF}
             disabled={exporting}
-            className="gradient-primary btn-primary inline-flex items-center gap-2 shadow-lg shadow-gym-500/30"
+            className="btn-primary inline-flex items-center gap-2 shadow-lg shadow-gym-500/30"
           >
             <Printer className="w-4 h-4" />
             Print Report

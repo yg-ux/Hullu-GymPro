@@ -21,6 +21,10 @@ export function AuthProvider({ children }) {
           setUser(data.user);
           setGym(data.gym);
           setSubscription(data.subscription);
+          // Always keep localStorage in sync so color_theme and other fields
+          // are available to the inline theme script on the next page load
+          localStorage.setItem('gym', JSON.stringify(data.gym));
+          localStorage.setItem('subscription', JSON.stringify(data.subscription));
         })
         .catch(() => {
           // Token invalid/expired — clear everything so user goes to login

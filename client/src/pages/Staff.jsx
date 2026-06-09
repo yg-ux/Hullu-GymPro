@@ -222,7 +222,7 @@ export default function Staff() {
           </div>
           <Link 
             to="/staff/new" 
-            className="gradient-primary btn-primary inline-flex items-center gap-2 shadow-lg shadow-gym-500/30"
+            className="btn-primary inline-flex items-center gap-2 shadow-lg shadow-gym-500/30"
           >
             <Plus className="w-5 h-5" />
             Add Staff Member
@@ -362,7 +362,7 @@ export default function Staff() {
                 : 'Start by adding your first staff member'}
             </p>
             {!search && roleFilter === 'all' && statusFilter === 'all' && (
-              <Link to="/staff/new" className="gradient-primary btn-primary inline-flex items-center gap-2 shadow-lg">
+              <Link to="/staff/new" className="btn-primary inline-flex items-center gap-2 shadow-lg">
                 <Plus className="w-5 h-5" />
                 Add Staff Member
               </Link>

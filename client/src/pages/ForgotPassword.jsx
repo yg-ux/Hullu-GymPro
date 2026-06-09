@@ -94,7 +94,7 @@ export default function ForgotPassword() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                className="w-full py-3 btn-primary flex items-center justify-center gap-2"
               >
                 {loading ? <span className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" /> : null}
                 {loading ? 'Sending OTP...' : 'Send OTP'}
@@ -153,7 +153,7 @@ export default function ForgotPassword() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                className="w-full py-3 btn-primary flex items-center justify-center gap-2"
               >
                 {loading ? <span className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" /> : null}
                 {loading ? 'Resetting...' : 'Reset Password'}
@@ -169,7 +169,7 @@ export default function ForgotPassword() {
               <p className="text-gray-300">Your password has been reset successfully.</p>
               <button
                 onClick={() => navigate('/login')}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                className="w-full py-3 btn-primary"
               >
                 Go to Login
               </button>

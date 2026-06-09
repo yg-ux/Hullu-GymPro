@@ -249,6 +249,8 @@ router.post('/login', validateLogin, async (req, res) => {
         email: gym.email,
         phone: gym.phone,
         address: gym.address,
+        color_theme: gym.color_theme || 'default',
+        logo: gym.logo,
         subscription_status: gym.subscription_status,
         subscription_plan: gym.subscription_plan,
         max_members: gym.max_members
@@ -293,6 +295,7 @@ router.get('/me', authenticateToken, async (req, res) => {
         phone: gym.phone,
         address: gym.address,
         logo: gym.logo,
+        color_theme: gym.color_theme || 'default',
         subscription_status: gym.subscription_status,
         subscription_plan: gym.subscription_plan,
         subscription_start: gym.subscription_start,

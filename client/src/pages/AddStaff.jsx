@@ -372,7 +372,7 @@ export default function AddStaff() {
           <button
             type="submit"
             disabled={loading}
-            className="flex-1 gradient-primary btn-primary py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 btn-primary py-3 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <div className="flex items-center justify-center gap-2">

@@ -209,14 +209,14 @@ export default function Customers() {
             Export
           </button>
           {subscription?.valid ? (
-            <Link to="/customers/new" className="gradient-primary btn-primary inline-flex items-center gap-2 shadow-lg shadow-gym-500/30">
+            <Link to="/customers/new" className="btn-primary inline-flex items-center gap-2 shadow-lg shadow-gym-500/30">
               <Plus className="w-5 h-5" />
               Add Customer
             </Link>
           ) : (
-            <button 
+            <button
               disabled
-              className="opacity-50 cursor-not-allowed gradient-primary btn-primary inline-flex items-center gap-2"
+              className="opacity-50 cursor-not-allowed btn-primary inline-flex items-center gap-2"
               title="Subscription expired"
             >
               <Plus className="w-5 h-5" />
@@ -380,7 +380,7 @@ export default function Customers() {
               : 'Start by adding your first customer'}
           </p>
           {!search && statusFilter === 'all' && (
-            <Link to="/customers/new" className="gradient-primary btn-primary inline-flex items-center gap-2 shadow-lg">
+            <Link to="/customers/new" className="btn-primary inline-flex items-center gap-2 shadow-lg">
               <Plus className="w-5 h-5" />
               Add Your First Member
             </Link>
