@@ -47,7 +47,7 @@ const PLANS = [
 const DURATION_OPTIONS = [
   { months: 1,  label: '1 Month',   discount: 0,  available: true  },
   { months: 3,  label: '3 Months',  discount: 5,  available: true  },
-  { months: 6,  label: '6 Months',  discount: 10, available: false },
+  { months: 6,  label: '6 Months',  discount: 10, available: true  },
   { months: 12, label: '12 Months', discount: 15, available: false },
 ];
 
