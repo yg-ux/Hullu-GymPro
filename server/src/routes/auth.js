@@ -474,7 +474,9 @@ router.get('/settings', authenticateToken, async (req, res) => {
 // Update gym profile
 router.put('/gym', authenticateToken, async (req, res) => {
   try {
-    const { name, phone, address, sms_enabled } = req.body;
+    const { name, phone, address, sms_enabled, color_theme, logo } = req.body;
+
+    const VALID_THEMES = ['default', 'emerald', 'purple', 'red', 'amber', 'cyan'];
 
     const updates = [];
     const values = [];
@@ -495,12 +497,21 @@ router.put('/gym', authenticateToken, async (req, res) => {
       updates.push('sms_enabled = ?');
       values.push(sms_enabled ? 1 : 0);
     }
+    if (color_theme !== undefined && VALID_THEMES.includes(color_theme)) {
+      updates.push('color_theme = ?');
+      values.push(color_theme);
+    }
+    if (logo !== undefined) {
+      updates.push('logo = ?');
+      values.push(logo);
+    }
 
     if (updates.length > 0) {
       updates.push('updated_at = CURRENT_TIMESTAMP');
       values.push(req.user.gym_id);
 
       await runQuery(`UPDATE gyms SET ${updates.join(', ')} WHERE id = ?`, values);
+      saveDatabase();
     }
 
     const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [req.user.gym_id]);
@@ -514,6 +525,8 @@ router.put('/gym', authenticateToken, async (req, res) => {
         email: gym.email,
         phone: gym.phone,
         address: gym.address,
+        color_theme: gym.color_theme || 'default',
+        logo: gym.logo,
         sms_enabled: gym.sms_enabled,
         sms_available: !!process.env.GEEZSMS_API_KEY
       }

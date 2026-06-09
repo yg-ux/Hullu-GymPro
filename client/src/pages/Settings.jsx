@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -13,12 +13,45 @@ import {
   AlertCircle,
   CheckCircle,
   Lock,
-  Zap
+  Zap,
+  Palette,
+  Camera,
+  X,
+  Upload,
+  Image
 } from 'lucide-react';
 import clsx from 'clsx';
 
+const COLOR_THEMES = [
+  { id: 'default', name: 'Ocean Blue',   from: '#0ea5e9', to: '#0284c7' },
+  { id: 'emerald', name: 'Emerald Green', from: '#10b981', to: '#059669' },
+  { id: 'purple',  name: 'Purple',        from: '#a855f7', to: '#9333ea' },
+  { id: 'red',     name: 'Ruby Red',      from: '#ef4444', to: '#dc2626' },
+  { id: 'amber',   name: 'Amber',         from: '#f59e0b', to: '#d97706' },
+  { id: 'cyan',    name: 'Cyan',          from: '#06b6d4', to: '#0891b2' },
+];
+
+const THEME_SCALES = {
+  default: { r300:'125 211 252', r400:'56 189 248',  r500:'14 165 233',  r600:'2 132 199',   r700:'3 105 161'  },
+  emerald: { r300:'110 231 183', r400:'52 211 153',  r500:'16 185 129',  r600:'5 150 105',   r700:'4 120 87'   },
+  purple:  { r300:'216 180 254', r400:'192 132 252', r500:'168 85 247',  r600:'147 51 234',  r700:'126 34 206' },
+  red:     { r300:'252 165 165', r400:'248 113 113', r500:'239 68 68',   r600:'220 38 38',   r700:'185 28 28'  },
+  amber:   { r300:'252 211 77',  r400:'251 191 36',  r500:'245 158 11',  r600:'217 119 6',   r700:'180 83 9'   },
+  cyan:    { r300:'103 232 249', r400:'34 211 238',  r500:'6 182 212',   r600:'8 145 178',   r700:'14 116 144' },
+};
+
+function applyTheme(themeId) {
+  const s = THEME_SCALES[themeId] || THEME_SCALES.default;
+  const el = document.documentElement;
+  el.style.setProperty('--gym-300-rgb', s.r300);
+  el.style.setProperty('--gym-400-rgb', s.r400);
+  el.style.setProperty('--gym-500-rgb', s.r500);
+  el.style.setProperty('--gym-600-rgb', s.r600);
+  el.style.setProperty('--gym-700-rgb', s.r700);
+}
+
 export default function Settings() {
-  const { gym, user } = useAuth();
+  const { gym, user, updateGym } = useAuth();
   const toast = useToast();
 
   const [gymForm, setGymForm] = useState({
@@ -33,6 +66,13 @@ export default function Settings() {
   const [gymLoading, setGymLoading] = useState(false);
   const [smsLoading, setSmsLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
+
+  // Appearance state
+  const [selectedTheme, setSelectedTheme] = useState('default');
+  const [logoPreview, setLogoPreview] = useState(null);
+  const [logoFile, setLogoFile] = useState(null);
+  const [appearanceLoading, setAppearanceLoading] = useState(false);
+  const logoInputRef = useRef(null);
 
   useEffect(() => {
     loadGym();
@@ -49,6 +89,8 @@ export default function Settings() {
       });
       setSmsEnabled(Boolean(data.gym?.sms_enabled));
       setSmsAvailable(Boolean(data.gym?.sms_available));
+      setSelectedTheme(data.gym?.color_theme || 'default');
+      setLogoPreview(data.gym?.logo || null);
     } catch (err) {
       toast.error('Failed to load settings');
     } finally {
@@ -81,10 +123,70 @@ export default function Settings() {
     }
   };
 
+  const handleThemePreview = (themeId) => {
+    setSelectedTheme(themeId);
+    applyTheme(themeId);
+  };
+
+  const handleLogoChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 1024 * 1024) {
+      toast.error('Photo too large. Use an image under 1MB.');
+      return;
+    }
+    setLogoFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setLogoPreview(reader.result);
+    reader.readAsDataURL(file);
+  };
+
+  const removeLogo = () => {
+    setLogoPreview(null);
+    setLogoFile(null);
+    if (logoInputRef.current) logoInputRef.current.value = '';
+  };
+
+  const handleAppearanceSave = async () => {
+    setAppearanceLoading(true);
+    try {
+      let logoData = logoPreview;
+      if (logoFile) {
+        logoData = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(logoFile);
+        });
+      }
+
+      const payload = { color_theme: selectedTheme };
+      if (logoFile || logoPreview === null) {
+        payload.logo = logoData;
+      }
+
+      const res = await api.put('/auth/gym', payload);
+
+      // Update context + localStorage immediately
+      updateGym({ color_theme: selectedTheme, logo: res.gym?.logo ?? logoData });
+      applyTheme(selectedTheme);
+
+      toast.success('Appearance saved!');
+      setLogoFile(null);
+    } catch (err) {
+      toast.error(err.message || 'Failed to save appearance');
+      // Revert theme preview on error
+      applyTheme(gym?.color_theme || 'default');
+      setSelectedTheme(gym?.color_theme || 'default');
+    } finally {
+      setAppearanceLoading(false);
+    }
+  };
+
   if (pageLoading) {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
-        {[1, 2].map(i => (
+        {[1, 2, 3].map(i => (
           <div key={i} className="card p-6 space-y-4">
             <div className="h-6 w-40 bg-gray-800 rounded animate-pulse" />
             <div className="h-10 w-full bg-gray-800 rounded animate-pulse" />
@@ -99,10 +201,109 @@ export default function Settings() {
     <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold text-white">Settings</h1>
-        <p className="text-gray-400 mt-1">Manage your gym profile and notifications</p>
+        <p className="text-gray-400 mt-1">Manage your gym profile and appearance</p>
       </div>
 
-      {/* Gym Profile */}
+      {/* ── Gym Appearance ── */}
+      <div className="card p-6 space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-gym-600/20 flex items-center justify-center">
+            <Palette className="w-5 h-5 text-gym-400" />
+          </div>
+          <h2 className="text-lg font-semibold text-white">Gym Appearance</h2>
+        </div>
+
+        {/* Logo Upload */}
+        <div>
+          <p className="text-sm font-medium text-gray-300 mb-3">Gym Profile Photo</p>
+          <div className="flex items-center gap-5">
+            <div className="relative flex-shrink-0">
+              {logoPreview ? (
+                <>
+                  <img
+                    src={logoPreview}
+                    alt="Gym logo"
+                    className="w-20 h-20 rounded-2xl object-cover border-2 border-gym-500/40"
+                  />
+                  <button
+                    type="button"
+                    onClick={removeLogo}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center transition-colors"
+                  >
+                    <X className="w-3 h-3 text-white" />
+                  </button>
+                </>
+              ) : (
+                <div className="w-20 h-20 rounded-2xl bg-dark-200 border-2 border-dashed border-gray-700 flex flex-col items-center justify-center">
+                  <Image className="w-7 h-7 text-gray-600 mb-1" />
+                  <span className="text-xs text-gray-600">No photo</span>
+                </div>
+              )}
+            </div>
+            <div className="flex-1">
+              <p className="text-sm text-gray-400 mb-2">Upload a logo or photo for your gym. Shown in the sidebar and on your profile.</p>
+              <label className="cursor-pointer">
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoChange}
+                  className="hidden"
+                />
+                <span className="btn-secondary inline-flex items-center gap-2 text-sm">
+                  <Upload className="w-4 h-4" />
+                  {logoPreview ? 'Change Photo' : 'Upload Photo'}
+                </span>
+              </label>
+              <p className="text-xs text-gray-600 mt-1.5">JPG, PNG up to 1MB</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Color Theme */}
+        <div>
+          <p className="text-sm font-medium text-gray-300 mb-3">Color Theme</p>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            {COLOR_THEMES.map(theme => (
+              <button
+                key={theme.id}
+                type="button"
+                onClick={() => handleThemePreview(theme.id)}
+                className={clsx(
+                  'flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all',
+                  selectedTheme === theme.id
+                    ? 'border-white/50 bg-white/5 scale-105'
+                    : 'border-gray-700 hover:border-gray-500'
+                )}
+              >
+                <div
+                  className="w-8 h-8 rounded-full shadow-lg"
+                  style={{ background: `linear-gradient(135deg, ${theme.from}, ${theme.to})` }}
+                />
+                <span className="text-xs text-gray-400 text-center leading-tight">{theme.name}</span>
+                {selectedTheme === theme.id && (
+                  <CheckCircle className="w-3.5 h-3.5 text-white" />
+                )}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500 mt-2">Clicking a theme previews it instantly. Hit Save to make it permanent.</p>
+        </div>
+
+        <div className="flex justify-end pt-2 border-t border-gray-800">
+          <button
+            type="button"
+            onClick={handleAppearanceSave}
+            disabled={appearanceLoading}
+            className="btn-primary flex items-center gap-2"
+          >
+            <Save className="w-4 h-4" />
+            {appearanceLoading ? 'Saving...' : 'Save Appearance'}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Gym Profile ── */}
       <div className="card p-6 space-y-4">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-9 h-9 rounded-lg bg-gym-600/20 flex items-center justify-center">
@@ -154,14 +355,13 @@ export default function Settings() {
         </form>
       </div>
 
-      {/* SMS Notifications */}
+      {/* ── SMS Notifications ── */}
       {(() => {
         const smsPlanAllowed = ['starter', 'pro'].includes(gym?.subscription_plan);
         const canUseSms = smsPlanAllowed && smsAvailable;
 
         return (
           <div className={clsx('card p-6 space-y-4 relative', !smsPlanAllowed && 'overflow-hidden')}>
-            {/* Plan-locked overlay */}
             {!smsPlanAllowed && (
               <div className="absolute inset-0 bg-dark-100/80 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center gap-3 rounded-xl">
                 <div className="w-12 h-12 rounded-full bg-gray-700/80 flex items-center justify-center">
@@ -191,7 +391,6 @@ export default function Settings() {
               </div>
             </div>
 
-            {/* Platform key not configured warning */}
             {smsPlanAllowed && !smsAvailable && (
               <div className="flex items-start gap-3 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-sm text-yellow-400">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -199,7 +398,6 @@ export default function Settings() {
               </div>
             )}
 
-            {/* Enable toggle */}
             <div className="flex items-center justify-between p-4 bg-dark-200 rounded-lg border border-gray-700">
               <div>
                 <p className="font-medium text-white">Enable SMS for my gym</p>
@@ -221,7 +419,6 @@ export default function Settings() {
               </button>
             </div>
 
-            {/* What gets sent */}
             <div className="space-y-2 px-1">
               {[
                 'Welcome message when a new member joins',
@@ -250,7 +447,7 @@ export default function Settings() {
         );
       })()}
 
-      {/* Change Password */}
+      {/* ── Change Password ── */}
       <ChangePasswordForm toast={toast} />
     </div>
   );

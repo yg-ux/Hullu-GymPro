@@ -74,6 +74,14 @@ export function AuthProvider({ children }) {
     setSubscription(null);
   };
 
+  const updateGym = (partialGym) => {
+    setGym(prev => {
+      const updated = { ...prev, ...partialGym };
+      localStorage.setItem('gym', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   const refreshAuth = async () => {
     try {
       const data = await api.get('/auth/me');
@@ -91,15 +99,16 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      gym, 
+    <AuthContext.Provider value={{
+      user,
+      gym,
       subscription,
-      loading, 
-      login, 
+      loading,
+      login,
       register,
       logout,
-      refreshAuth 
+      refreshAuth,
+      updateGym
     }}>
       {children}
     </AuthContext.Provider>

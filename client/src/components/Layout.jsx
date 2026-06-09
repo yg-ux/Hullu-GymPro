@@ -581,12 +581,20 @@ function SidebarContent({ onNavigate, recentActivity = [], getTimeAgo }) {
       {/* Logo */}
       <div className="flex items-center gap-3 h-16 px-5 border-b border-gray-800/50"
         style={{ background: 'linear-gradient(135deg, rgb(var(--gym-600-rgb) / 0.15), transparent)' }}>
-        <div
-          className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0"
-          style={{ background: 'linear-gradient(135deg, rgb(var(--gym-500-rgb)), rgb(var(--gym-700-rgb)))', boxShadow: '0 4px 14px rgb(var(--gym-500-rgb) / 0.4)' }}
-        >
-          <Dumbbell className="w-6 h-6 text-white" />
-        </div>
+        {gym?.logo ? (
+          <img
+            src={gym.logo}
+            alt={gym.name}
+            className="w-11 h-11 rounded-2xl object-cover shadow-lg flex-shrink-0 border border-gym-500/30"
+          />
+        ) : (
+          <div
+            className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg, rgb(var(--gym-500-rgb)), rgb(var(--gym-700-rgb)))', boxShadow: '0 4px 14px rgb(var(--gym-500-rgb) / 0.4)' }}
+          >
+            <Dumbbell className="w-6 h-6 text-white" />
+          </div>
+        )}
         <div>
           <h1 className="text-lg font-bold text-white">Hullu Gyms</h1>
           <p className="text-xs truncate max-w-[150px]" style={{ color: 'rgb(var(--gym-400-rgb))' }}>{gym?.name || 'Your Gym'}</p>
