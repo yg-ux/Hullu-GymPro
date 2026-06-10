@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { api, formatDate, formatCurrency, getMembershipLabel, getPaymentMethodLabel } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { StatCardSkeleton } from '../components/Skeleton';
 import { 
   Users,
@@ -90,20 +91,32 @@ function useAnimatedCounter(endValue, duration = 1000, delay = 0) {
 
 export default function Dashboard() {
   const { gym } = useAuth();
+  const { t } = useLanguage();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [animated, setAnimated] = useState(false);
   const [activities, setActivities] = useState([]);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
   const [liveAttendance, setLiveAttendance] = useState(null);
+  const [heatmap, setHeatmap] = useState(null);
 
   useEffect(() => {
     loadStats();
     loadActivities();
     loadLiveAttendance();
+    loadHeatmap();
     const interval = setInterval(loadLiveAttendance, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  const loadHeatmap = async () => {
+    try {
+      const data = await api.get('/attendance/heatmap?days=30');
+      setHeatmap(data);
+    } catch (e) {
+      console.warn('Failed to load heatmap:', e);
+    }
+  };
 
   const loadLiveAttendance = async () => {
     try {
@@ -352,7 +365,7 @@ export default function Dashboard() {
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
         <AnimatedStatCard
-          title="Total Members"
+          title={t('dashboard.totalCustomers')}
           value={stats?.overview?.total_customers || 0}
           icon={Users}
           color="blue"
@@ -361,7 +374,7 @@ export default function Dashboard() {
           delay={0}
         />
         <AnimatedStatCard
-          title="Active Members"
+          title={t('dashboard.activeMembers')}
           value={stats?.overview?.active_customers || 0}
           icon={UserCheck}
           color="green"
@@ -370,7 +383,7 @@ export default function Dashboard() {
           delay={100}
         />
         <AnimatedStatCard
-          title="Expiring Soon"
+          title={t('dashboard.expiringSoon')}
           value={stats?.overview?.expiring_soon || 0}
           icon={Clock}
           color="yellow"
@@ -627,6 +640,20 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Attendance Heatmap */}
+      {heatmap && heatmap.max > 0 && (
+        <div className="glass-card p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+              <Activity className="w-5 h-5 text-gray-400" />
+              {t('dashboard.heatmap')}
+            </h2>
+            <span className="text-xs text-gray-500">{t('dashboard.last30Days', { days: heatmap.days })}</span>
+          </div>
+          <AttendanceHeatmap matrix={heatmap.matrix} max={heatmap.max} />
+        </div>
+      )}
+
       {/* Recent Payments with Activity Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Payments */}
@@ -634,7 +661,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
               <Receipt className="w-5 h-5 text-gray-400" />
-              Recent Payments
+              {t('dashboard.recentPayments')}
             </h2>
             <Link to="/customers" className="text-sm text-gym-400 hover:text-gym-300 flex items-center gap-1 transition-colors">
               View all <ChevronRight className="w-4 h-4" />
@@ -778,6 +805,55 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function AttendanceHeatmap({ matrix, max }) {
+  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const hourLabels = [0, 3, 6, 9, 12, 15, 18, 21];
+
+  const cellColor = (v) => {
+    if (v === 0) return 'rgba(255,255,255,0.04)';
+    const intensity = Math.min(v / max, 1);
+    const alpha = 0.15 + intensity * 0.75;
+    return `rgba(var(--gym-500-rgb), ${alpha})`;
+  };
+
+  return (
+    <div className="overflow-x-auto">
+      <div className="inline-block min-w-full">
+        {/* Hour labels */}
+        <div className="flex pl-10 mb-1.5">
+          {Array.from({ length: 24 }, (_, h) => (
+            <div key={h} className="flex-1 min-w-[18px] text-center text-[10px] text-gray-500">
+              {hourLabels.includes(h) ? (h === 0 ? '12a' : h === 12 ? '12p' : h < 12 ? `${h}a` : `${h - 12}p`) : ''}
+            </div>
+          ))}
+        </div>
+        {/* Grid rows */}
+        {matrix.map((row, d) => (
+          <div key={d} className="flex items-center mb-1">
+            <div className="w-10 text-xs text-gray-400 font-medium pr-2">{dayLabels[d]}</div>
+            {row.map((v, h) => (
+              <div
+                key={h}
+                title={`${dayLabels[d]} ${h}:00 — ${v} check-ins`}
+                className="flex-1 min-w-[18px] aspect-square mx-[1px] rounded-[3px] transition-transform hover:scale-125 cursor-pointer"
+                style={{ background: cellColor(v) }}
+              />
+            ))}
+          </div>
+        ))}
+        {/* Legend */}
+        <div className="flex items-center justify-end gap-2 mt-3 text-[10px] text-gray-500">
+          <span>Less</span>
+          {[0.04, 0.2, 0.4, 0.6, 0.9].map((a, i) => (
+            <div key={i} className="w-3 h-3 rounded-[3px]" style={{ background: a === 0.04 ? 'rgba(255,255,255,0.04)' : `rgba(var(--gym-500-rgb), ${a})` }} />
+          ))}
+          <span>More</span>
+        </div>
+      </div>
     </div>
   );
 }

@@ -413,4 +413,42 @@ router.get('/stats', authenticateToken, async (req, res) => {
   }
 });
 
+// Attendance heatmap — day-of-week (0=Sun..6=Sat) x hour-of-day (0..23) matrix for last 30 days
+router.get('/heatmap', authenticateToken, async (req, res) => {
+  try {
+    const gymId = req.user.gym_id;
+    const days = Math.min(parseInt(req.query.days) || 30, 90);
+
+    const rows = await getAll(`
+      SELECT
+        EXTRACT(DOW FROM check_in) AS dow,
+        EXTRACT(HOUR FROM check_in) AS hour,
+        COUNT(*) AS count
+      FROM attendance
+      WHERE gym_id = ?
+        AND check_in >= NOW() - (? || ' days')::interval
+      GROUP BY dow, hour
+      ORDER BY dow, hour
+    `, [gymId, days]);
+
+    // Build 7x24 zero-filled matrix
+    const matrix = Array.from({ length: 7 }, () => Array(24).fill(0));
+    let max = 0;
+    for (const r of rows) {
+      const d = parseInt(r.dow);
+      const h = parseInt(r.hour);
+      const c = parseInt(r.count);
+      if (d >= 0 && d < 7 && h >= 0 && h < 24) {
+        matrix[d][h] = c;
+        if (c > max) max = c;
+      }
+    }
+
+    res.json({ days, matrix, max });
+  } catch (error) {
+    console.error('Get heatmap error:', error);
+    res.status(500).json({ error: 'Failed to get attendance heatmap' });
+  }
+});
+
 export default router;

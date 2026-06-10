@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useCallback, useRef } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { api, formatCurrency } from '../utils/api';
 import { 
   LayoutDashboard, 
@@ -37,14 +38,14 @@ const PLAN_ORDER = ['free', 'starter', 'pro'];
 // Which roles can see each page (owner always has full access)
 const ALL_ROLES = ['owner', 'admin', 'manager', 'trainer', 'receptionist'];
 const navigation = [
-  { name: 'Dashboard',  href: '/dashboard',    icon: LayoutDashboard, roles: ['owner','admin','manager','trainer'] },
-  { name: 'Customers',  href: '/customers',    icon: Users,           roles: ['owner','admin','manager','trainer','receptionist'] },
-  { name: 'Check In',   href: '/check-in',     icon: LogIn,           roles: ALL_ROLES },
-  { name: 'Check Out',  href: '/check-out',    icon: LogOutIcon,      roles: ALL_ROLES },
-  { name: 'Staff',      href: '/staff',        icon: UserCog,         roles: ['owner','admin','manager'], requiresPlan: 'starter' },
-  { name: 'Reports',    href: '/reports',      icon: BarChart3,       roles: ['owner','admin','manager'], requiresPlan: 'pro' },
-  { name: 'Revenue',    href: '/revenue',      icon: TrendingUp,      roles: ['owner','admin','manager'], requiresPlan: 'pro' },
-  { name: 'Settings',   href: '/settings',     icon: Settings,        roles: ['owner','admin'] },
+  { name: 'Dashboard',  i18n: 'nav.dashboard', href: '/dashboard',    icon: LayoutDashboard, roles: ['owner','admin','manager','trainer'] },
+  { name: 'Customers',  i18n: 'nav.customers', href: '/customers',    icon: Users,           roles: ['owner','admin','manager','trainer','receptionist'] },
+  { name: 'Check In',   i18n: 'nav.checkIn',   href: '/check-in',     icon: LogIn,           roles: ALL_ROLES },
+  { name: 'Check Out',  i18n: 'nav.checkOut',  href: '/check-out',    icon: LogOutIcon,      roles: ALL_ROLES },
+  { name: 'Staff',      i18n: 'nav.staff',     href: '/staff',        icon: UserCog,         roles: ['owner','admin','manager'], requiresPlan: 'starter' },
+  { name: 'Reports',    i18n: 'nav.reports',   href: '/reports',      icon: BarChart3,       roles: ['owner','admin','manager'], requiresPlan: 'pro' },
+  { name: 'Revenue',    i18n: 'nav.revenue',   href: '/revenue',      icon: TrendingUp,      roles: ['owner','admin','manager'], requiresPlan: 'pro' },
+  { name: 'Settings',   i18n: 'nav.settings',  href: '/settings',     icon: Settings,        roles: ['owner','admin'] },
 ];
 
 // Role display config
@@ -552,6 +553,7 @@ export default function Layout() {
 function SidebarContent({ onNavigate, recentActivity = [], getTimeAgo }) {
   const { gym, subscription, user } = useAuth();
   const location = useLocation();
+  const { t } = useLanguage();
 
   const currentPlan = gym?.subscription_plan?.toLowerCase() || 'free';
   const currentPlanIndex = PLAN_ORDER.indexOf(currentPlan);
@@ -633,7 +635,7 @@ function SidebarContent({ onNavigate, recentActivity = [], getTimeAgo }) {
                 } : {}}>
                 {planOk ? <item.icon className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
               </div>
-              <span className="text-sm">{item.name}</span>
+              <span className="text-sm">{item.i18n ? t(item.i18n) : item.name}</span>
               {getPlanBadge(item.requiresPlan)}
               {isActive && (
                 <div className="ml-auto w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'rgb(var(--gym-400-rgb))' }} />

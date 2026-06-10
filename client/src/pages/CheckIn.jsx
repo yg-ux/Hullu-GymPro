@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api, formatDateTime } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { 
   Phone, 
   Search, 
@@ -84,6 +85,7 @@ const QRCodeSVG = ({ value, size = 200 }) => {
 
 export default function CheckIn() {
   const { subscription } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [phone, setPhone] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -138,12 +140,15 @@ export default function CheckIn() {
     setActionLoading(customerId);
     setError('');
     setSuccess(null);
-    const customerName = searchResults.find(c => c.id === customerId)?.name || 'Customer';
+    const matched = searchResults.find(c => c.id === customerId);
+    const customerName = matched?.name || 'Customer';
 
     try {
       const result = await api.post(`/customers/${customerId}/check-in`);
       setSuccess({
         name: customerName,
+        photo: matched?.photo || null,
+        phone: matched?.phone || null,
         visitsUsed: result.visits_this_week ?? null,
         maxVisits: result.max_visits ?? null,
       });
@@ -162,21 +167,35 @@ export default function CheckIn() {
     <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
       {/* Header */}
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-white mb-2">Check In</h1>
-        <p className="text-gray-400">Search for a customer by phone number</p>
+        <h1 className="text-3xl font-bold text-white mb-2">{t('checkIn.title')}</h1>
+        <p className="text-gray-400">{t('checkIn.subtitle')}</p>
       </div>
 
       {/* Success banner */}
       {success && (
-        <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-xl animate-slide-up space-y-2">
-          <div className="flex items-center gap-3">
-            <CheckCircle className="w-6 h-6 text-green-400 flex-shrink-0" />
-            <span className="text-green-400 font-semibold text-lg">{success.name} checked in!</span>
+        <div className="p-5 bg-green-500/10 border border-green-500/30 rounded-xl animate-slide-up space-y-3">
+          <div className="flex items-center gap-4">
+            {/* Large photo / initial */}
+            <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-green-500 to-emerald-700 flex-shrink-0 flex items-center justify-center text-3xl font-bold text-white shadow-lg shadow-green-500/30 ring-2 ring-green-400/40">
+              {success.photo ? (
+                <img src={success.photo} alt={success.name} className="w-full h-full object-cover" />
+              ) : (
+                success.name.charAt(0).toUpperCase()
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+                <span className="text-green-400 text-xs font-semibold uppercase tracking-wider">{t('checkIn.checkedIn')}</span>
+              </div>
+              <p className="text-white font-bold text-2xl truncate">{success.name}</p>
+              {success.phone && <p className="text-gray-400 text-sm truncate">{success.phone}</p>}
+            </div>
           </div>
 
           {/* Weekly visit tracker for 3-days/week plan */}
           {success.maxVisits > 0 && (
-            <div className="ml-9 mt-1">
+            <div className="mt-2">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs text-gray-400">This week's visits</span>
                 <span className={clsx(
@@ -226,7 +245,7 @@ export default function CheckIn() {
             type="tel"
             value={phone}
             onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Search by phone number..."
+            placeholder={t('checkIn.placeholder')}
             className="w-full pl-14 pr-4 py-5 bg-dark-200 border-2 border-gray-700 rounded-2xl text-white text-xl placeholder-gray-500 focus:border-gym-500 focus:outline-none transition-colors"
           />
           {loading && (
@@ -293,7 +312,7 @@ export default function CheckIn() {
                     ) : (
                       <>
                         <LogIn className="w-5 h-5" />
-                        Check In
+                        {t('checkIn.button')}
                       </>
                     )}
                   </button>
@@ -310,16 +329,16 @@ export default function CheckIn() {
                 <Search className="w-8 h-8 text-gray-500" />
               </div>
               <div>
-                <p className="text-gray-300 font-medium">No customers found</p>
-                <p className="text-gray-500 text-sm mt-1">Try a different phone number</p>
+                <p className="text-gray-300 font-medium">{t('checkIn.noCustomers')}</p>
+                <p className="text-gray-500 text-sm mt-1">{t('checkIn.tryDifferent')}</p>
               </div>
-              <Link 
+              <Link
                 to="/customers/new"
                 state={{ phone: phone }}
                 className="btn-primary inline-flex items-center gap-2"
               >
                 <UserPlus className="w-5 h-5" />
-                Add New Customer
+                {t('checkIn.addNew')}
               </Link>
             </div>
           </div>
@@ -334,7 +353,7 @@ export default function CheckIn() {
           className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
         >
           <UserPlus className="w-4 h-4" />
-          Customer not found? Add new customer
+          {t('checkIn.notFound')}
         </Link>
       </div>
 
@@ -343,7 +362,7 @@ export default function CheckIn() {
         <div className="card p-6">
           <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
             <Clock className="w-5 h-5 text-gray-400" />
-            Today's Check-ins
+            {t('checkIn.todaysCheckIns')}
           </h2>
           
           <div className="space-y-3">

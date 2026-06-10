@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import {
   Building,
   Phone,
@@ -53,6 +54,7 @@ function applyTheme(themeId) {
 export default function Settings() {
   const { gym, user, updateGym } = useAuth();
   const toast = useToast();
+  const { lang, setLang } = useLanguage();
 
   const [gymForm, setGymForm] = useState({
     name: '',
@@ -288,6 +290,36 @@ export default function Settings() {
             ))}
           </div>
           <p className="text-xs text-gray-500 mt-2">Clicking a theme previews it instantly. Hit Save to make it permanent.</p>
+        </div>
+
+        {/* Language */}
+        <div>
+          <p className="text-sm font-medium text-gray-300 mb-3">Language / ቋንቋ</p>
+          <div className="grid grid-cols-2 gap-3 max-w-md">
+            {[
+              { id: 'en', name: 'English',  flag: '🇬🇧' },
+              { id: 'am', name: 'አማርኛ',     flag: '🇪🇹' },
+            ].map(opt => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => { setLang(opt.id); toast.success(opt.id === 'am' ? 'ቋንቋ ወደ አማርኛ ተቀይሯል' : 'Language changed to English'); }}
+                className={clsx(
+                  'flex items-center gap-3 p-3 rounded-xl border-2 transition-all',
+                  lang === opt.id
+                    ? 'border-white/50 bg-white/5 scale-[1.02]'
+                    : 'border-gray-700 hover:border-gray-500'
+                )}
+              >
+                <span className="text-2xl">{opt.flag}</span>
+                <span className="text-sm font-semibold text-white">{opt.name}</span>
+                {lang === opt.id && (
+                  <CheckCircle className="w-4 h-4 text-white ml-auto" />
+                )}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500 mt-2">Changes apply instantly across the app.</p>
         </div>
 
         <div className="flex justify-end pt-2 border-t border-gray-800">
