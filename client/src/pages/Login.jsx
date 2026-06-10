@@ -1,9 +1,11 @@
 ﻿import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Dumbbell, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 export default function Login() {
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -21,7 +23,7 @@ export default function Login() {
       await login({ email, password });
       navigate('/');
     } catch (err) {
-      setError(err.message || 'Invalid credentials');
+      setError(err.message || t('login.invalidCredentials'));
       setLoading(false);
     }
   };
@@ -41,7 +43,7 @@ export default function Login() {
             <Dumbbell className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Hullu Gyms</h1>
-          <p className="text-gray-500 dark:text-gray-400">Sign in to your account</p>
+          <p className="text-gray-500 dark:text-gray-400">{t('login.subtitle')}</p>
         </div>
 
         {/* Login form */}
@@ -56,7 +58,7 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Email
+                {t('login.email')}
               </label>
               <input
                 id="email"
@@ -64,7 +66,7 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 rounded-lg bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="you@gym.com"
+                placeholder={t('login.emailPlaceholder')}
                 required
                 autoComplete="email"
               />
@@ -72,7 +74,7 @@ export default function Login() {
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Password
+                {t('login.password')}
               </label>
               <div className="relative">
                 <input
@@ -81,7 +83,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-3 rounded-lg bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter your password"
+                  placeholder={t('login.passwordPlaceholder')}
                   required
                   autoComplete="current-password"
                 />
@@ -106,16 +108,16 @@ export default function Login() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  Signing in...
+                  {t('login.signingIn')}
                 </>
               ) : (
-                'Sign in'
+                t('login.signIn')
               )}
             </button>
 
             <div className="text-center">
               <Link to="/forgot-password" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">
-                Forgot your password?
+                {t('login.forgotPassword')}
               </Link>
             </div>
           </form>

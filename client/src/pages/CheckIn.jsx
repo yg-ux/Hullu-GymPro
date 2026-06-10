@@ -197,15 +197,15 @@ export default function CheckIn() {
           {success.maxVisits > 0 && (
             <div className="mt-2">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs text-gray-400">This week's visits</span>
+                <span className="text-xs text-gray-400">{t('checkIn.weekVisits')}</span>
                 <span className={clsx(
                   'text-xs font-bold',
                   success.visitsUsed >= success.maxVisits ? 'text-red-400' : 'text-yellow-400'
                 )}>
-                  {success.visitsUsed} / {success.maxVisits} used
+                  {success.visitsUsed} / {success.maxVisits} {t('checkIn.used')}
                   {success.visitsUsed < success.maxVisits
-                    ? ` · ${success.maxVisits - success.visitsUsed} remaining`
-                    : ' · Limit reached this week'}
+                    ? ` · ${success.maxVisits - success.visitsUsed} ${t('checkIn.remaining')}`
+                    : ` · ${t('checkIn.limitReached')}`}
                 </span>
               </div>
               <div className="flex gap-1.5">
@@ -218,7 +218,7 @@ export default function CheckIn() {
               </div>
               {success.visitsUsed >= success.maxVisits && (
                 <p className="text-xs text-red-400 mt-1">
-                  ⚠ Weekly limit reached — next visits allowed from Monday
+                  {t('checkIn.limitMsg')}
                 </p>
               )}
             </div>
@@ -286,7 +286,7 @@ export default function CheckIn() {
                         customer.status === 'expiring' && 'status-expiring',
                         customer.status === 'expired' && 'status-expired'
                       )}>
-                        {customer.status === 'expiring' ? 'Expiring Soon' : customer.status}
+                        {customer.status === 'expiring' ? t('status.expiring') : customer.status}
                       </span>
                       {customer.days_until_expiry > 0 && (
                         <span className="text-xs text-gray-500">
@@ -375,15 +375,15 @@ export default function CheckIn() {
                   {(log.customer_name || log.customer?.name)?.charAt(0)?.toUpperCase() || '?'}
                 </div>
                 <div className="flex-1">
-                  <p className="text-white font-medium">{log.customer_name || log.customer?.name || 'Unknown'}</p>
+                  <p className="text-white font-medium">{log.customer_name || log.customer?.name || t('checkIn.unknown')}</p>
                   <p className="text-xs text-gray-400">{log.customer_phone || log.customer?.phone || ''}</p>
                 </div>
                 {log.check_out ? (
-                  <span className="text-xs text-red-400">Checked out</span>
+                  <span className="text-xs text-red-400">{t('checkIn.alreadyOut')}</span>
                 ) : (
                   <span className="flex items-center gap-1 text-xs text-green-400">
                     <Wifi className="w-3 h-3" />
-                    In gym
+                    {t('checkIn.inGym')}
                   </span>
                 )}
               </div>
@@ -394,7 +394,7 @@ export default function CheckIn() {
                 onClick={() => navigate('/check-out')}
                 className="w-full flex items-center justify-center gap-2 py-3 text-gray-400 hover:text-white transition-colors"
               >
-                View all ({recentCheckIns.length})
+                {t('checkIn.viewAll', { n: recentCheckIns.length })}
                 <ArrowRight className="w-4 h-4" />
               </button>
             )}

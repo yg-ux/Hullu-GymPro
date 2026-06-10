@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, formatDate, formatCurrency, getPaymentMethodLabel } from '../utils/api';
+import { useLanguage } from '../context/LanguageContext';
 import {
   DollarSign,
   TrendingUp,
@@ -78,7 +79,7 @@ function formatNumber(num) {
 }
 
 // Summary Card Component
-function SummaryCard({ title, value, icon: Icon, color, trend, trendUp, delay, animated }) {
+function SummaryCard({ title, value, icon: Icon, color, trend, trendUp, delay, animated, isCurrency }) {
   const { count, ref } = useAnimatedCounter(typeof value === 'number' ? value : 0, 1500, delay);
 
   const colors = {
@@ -104,9 +105,7 @@ function SummaryCard({ title, value, icon: Icon, color, trend, trendUp, delay, a
         <div className="flex-1">
           <p className="text-sm text-gray-400 mb-1">{title}</p>
           <p className="text-2xl lg:text-3xl font-bold text-white">
-            {title.includes('Revenue') || title.includes('Amount') || title.includes('Total')
-              ? formatCurrency(count)
-              : formatNumber(count)}
+            {isCurrency ? formatCurrency(count) : formatNumber(count)}
           </p>
           {trend && (
             <div className="flex items-center gap-1 mt-2">
@@ -129,29 +128,35 @@ function SummaryCard({ title, value, icon: Icon, color, trend, trendUp, delay, a
   );
 }
 
-// Label helpers for all periods
-const MONTH_NAMES_R = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const MONTH_SHORT_R  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-function parseLabel(str, period) {
+// Label helpers for all periods — locale-aware via Intl.DateTimeFormat
+function parseLabel(str, period, locale = 'default') {
   if (!str) return { short: '', long: str || '' };
 
   if (period === 'monthly') {
-    // "2026-06" → Jun / June 2026
+    // "2026-06" → localised month abbr / full month + year
     const parts = str.split('-');
     if (parts.length >= 2) {
       const idx = parseInt(parts[1], 10) - 1;
-      if (idx >= 0 && idx < 12) return { short: MONTH_SHORT_R[idx], long: `${MONTH_NAMES_R[idx]} ${parts[0]}` };
+      if (idx >= 0 && idx < 12) {
+        const d = new Date(parseInt(parts[0], 10), idx, 1);
+        return {
+          short: d.toLocaleDateString(locale, { month: 'short' }),
+          long:  d.toLocaleDateString(locale, { month: 'long', year: 'numeric' }),
+        };
+      }
     }
   }
 
   if (period === 'daily') {
-    // "2026-06-07" → "7 Jun" / "Jun 7, 2026"
+    // "2026-06-07" → localised short date
     const parts = str.split('-');
     if (parts.length === 3) {
-      const monthIdx = parseInt(parts[1], 10) - 1;
-      const day = parseInt(parts[2], 10);
-      if (monthIdx >= 0 && monthIdx < 12) {
-        return { short: `${day} ${MONTH_SHORT_R[monthIdx]}`, long: `${MONTH_SHORT_R[monthIdx]} ${day}, ${parts[0]}` };
+      const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      if (!isNaN(d)) {
+        return {
+          short: d.toLocaleDateString(locale, { day: 'numeric', month: 'short' }),
+          long:  d.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' }),
+        };
       }
     }
   }
@@ -163,7 +168,6 @@ function parseLabel(str, period) {
   }
 
   if (period === 'yearly') {
-    // "2026" → "2026" / "2026"
     return { short: str, long: str };
   }
 
@@ -172,13 +176,15 @@ function parseLabel(str, period) {
 
 // Revenue Chart Component
 function RevenueChart({ data, period, onPeriodChange, animated }) {
+  const { t, lang } = useLanguage();
+  const locale = lang === 'am' ? 'am-ET' : 'en-US';
   const [hoveredIdx, setHoveredIdx] = useState(null);
 
   const periods = [
-    { key: 'daily', label: 'Daily' },
-    { key: 'weekly', label: 'Weekly' },
-    { key: 'monthly', label: 'Monthly' },
-    { key: 'yearly', label: 'Yearly' },
+    { key: 'daily', label: t('revenue.daily') },
+    { key: 'weekly', label: t('revenue.weekly') },
+    { key: 'monthly', label: t('revenue.monthly') },
+    { key: 'yearly', label: t('revenue.yearly') },
   ];
 
   const VW = 900, VH = 260;
@@ -217,7 +223,7 @@ function RevenueChart({ data, period, onPeriodChange, animated }) {
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
             <BarChart3 className="w-5 h-5 text-white" />
           </div>
-          Revenue Over Time
+          {t('revenue.revenueOverTime')}
         </h2>
         <div className="flex items-center bg-dark-300/60 rounded-xl p-1 gap-0.5">
           {periods.map((p) => (
@@ -284,7 +290,7 @@ function RevenueChart({ data, period, onPeriodChange, animated }) {
             const barH = animated ? Math.max(rawH, item.total > 0 ? 3 : 0) : 0;
             const barY = baseY - barH;
             const isHov = hoveredIdx === i;
-            const { short, long } = parseLabel(item.label, period);
+            const { short, long } = parseLabel(item.label, period, locale);
 
             // Tooltip
             const TW = 112, TH = 34;
@@ -376,7 +382,7 @@ function RevenueChart({ data, period, onPeriodChange, animated }) {
         <div className="h-52 flex items-center justify-center text-gray-500">
           <div className="text-center">
             <BarChart3 className="w-10 h-10 mx-auto mb-3 text-gray-700" />
-            <p className="text-sm">No revenue data for this period</p>
+            <p className="text-sm">{t('revenue.noRevenueData')}</p>
           </div>
         </div>
       )}
@@ -386,6 +392,7 @@ function RevenueChart({ data, period, onPeriodChange, animated }) {
 
 // Payment Methods Breakdown
 function PaymentMethodsChart({ data, animated }) {
+  const { t } = useLanguage();
   const colors = [
     { icon: Building2, gradient: 'from-blue-500 to-cyan-500', text: 'text-blue-400' },
     { icon: CreditCard, gradient: 'from-purple-500 to-pink-500', text: 'text-purple-400' },
@@ -402,7 +409,7 @@ function PaymentMethodsChart({ data, animated }) {
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
           <PieChart className="w-6 h-6 text-white" />
         </div>
-        Payment Methods
+        {t('revenue.paymentMethods')}
       </h2>
 
       {data.length > 0 ? (
@@ -442,7 +449,7 @@ function PaymentMethodsChart({ data, animated }) {
       ) : (
         <div className="text-center py-8 text-gray-500">
           <PieChart className="w-12 h-12 mx-auto mb-3 text-gray-600" />
-          <p>No payment data available</p>
+          <p>{t('revenue.noPaymentData')}</p>
         </div>
       )}
     </div>
@@ -451,13 +458,14 @@ function PaymentMethodsChart({ data, animated }) {
 
 // Top Customers Component
 function TopCustomers({ customers, animated }) {
+  const { t } = useLanguage();
   return (
     <div className="glass-card p-6">
       <h2 className="text-xl font-semibold text-white flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
           <Users className="w-6 h-6 text-white" />
         </div>
-        Top Customers
+        {t('revenue.topCustomers')}
       </h2>
 
       {customers.length > 0 ? (
@@ -474,7 +482,7 @@ function TopCustomers({ customers, animated }) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white truncate">{customer.name}</p>
-                <p className="text-xs text-gray-400">{customer.payment_count || 0} payments</p>
+                <p className="text-xs text-gray-400">{t('revenue.paymentsLabel', { count: customer.payment_count || 0 })}</p>
               </div>
               <div className="text-right">
                 <p className="text-lg font-bold text-amber-400">{formatCurrency(customer.total_spent)}</p>
@@ -486,7 +494,7 @@ function TopCustomers({ customers, animated }) {
       ) : (
         <div className="text-center py-8 text-gray-500">
           <Users className="w-12 h-12 mx-auto mb-3 text-gray-600" />
-          <p>No customer data available</p>
+          <p>{t('revenue.noCustomerData')}</p>
         </div>
       )}
     </div>
@@ -495,6 +503,7 @@ function TopCustomers({ customers, animated }) {
 
 // Recent Transactions Component
 function RecentTransactions({ transactions, animated }) {
+  const { t } = useLanguage();
   return (
     <div className="glass-card p-6">
       <div className="flex items-center justify-between mb-6">
@@ -502,10 +511,10 @@ function RecentTransactions({ transactions, animated }) {
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/30">
             <Receipt className="w-6 h-6 text-white" />
           </div>
-          Recent Transactions
+          {t('revenue.recentTransactions')}
         </h2>
         <Link to="/customers" className="text-sm text-gym-400 hover:text-gym-300 flex items-center gap-1 transition-colors">
-          View all <ChevronRight className="w-4 h-4" />
+          {t('revenue.viewAll')} <ChevronRight className="w-4 h-4" />
         </Link>
       </div>
 
@@ -536,7 +545,7 @@ function RecentTransactions({ transactions, animated }) {
       ) : (
         <div className="text-center py-8 text-gray-500">
           <Receipt className="w-12 h-12 mx-auto mb-3 text-gray-600" />
-          <p>No recent transactions</p>
+          <p>{t('revenue.noRecentTx')}</p>
         </div>
       )}
     </div>
@@ -545,6 +554,7 @@ function RecentTransactions({ transactions, animated }) {
 
 // Forecast Card Component
 function ForecastCard({ forecast, animated }) {
+  const { t } = useLanguage();
   return (
     <div className="glass-card p-6 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10" />
@@ -554,20 +564,20 @@ function ForecastCard({ forecast, animated }) {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
-            Revenue Forecast
+            {t('revenue.revenueForecast')}
           </h2>
-          <div className="text-xs text-gray-400">Next 30 days</div>
+          <div className="text-xs text-gray-400">{t('revenue.next30Days')}</div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="p-4 bg-dark-200/50 rounded-xl border border-gray-800/50">
-            <p className="text-sm text-gray-400 mb-1">Predicted Revenue</p>
+            <p className="text-sm text-gray-400 mb-1">{t('revenue.predictedRevenue')}</p>
             <p className="text-2xl font-bold text-purple-400">
               {forecast?.predicted_revenue ? formatCurrency(forecast.predicted_revenue) : '--'}
             </p>
           </div>
           <div className="p-4 bg-dark-200/50 rounded-xl border border-gray-800/50">
-            <p className="text-sm text-gray-400 mb-1">Growth Rate</p>
+            <p className="text-sm text-gray-400 mb-1">{t('revenue.growthRate')}</p>
             <div className="flex items-center gap-2">
               {forecast?.growth_rate >= 0 ? (
                 <ArrowUpRight className="w-5 h-5 text-emerald-400" />
@@ -587,7 +597,7 @@ function ForecastCard({ forecast, animated }) {
         {forecast?.projected_payments !== undefined && (
           <div className="mt-4 p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-xl border border-purple-500/20">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-300">Projected Payments</span>
+              <span className="text-sm text-gray-300">{t('revenue.projectedPayments')}</span>
               <span className="text-lg font-bold text-white">{forecast.projected_payments}</span>
             </div>
           </div>
@@ -611,6 +621,7 @@ function EmptyState({ icon: Icon, title, description }) {
 }
 
 export default function Revenue() {
+  const { t } = useLanguage();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [animated, setAnimated] = useState(false);
@@ -702,60 +713,64 @@ export default function Revenue() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            Revenue Analytics
-            <span className="gradient-text">Overview</span>
+            {t('revenue.title')}
+            <span className="gradient-text">{t('revenue.overview')}</span>
           </h1>
-          <p className="text-gray-400 mt-1">Track your gym's financial performance and growth.</p>
+          <p className="text-gray-400 mt-1">{t('revenue.subtitle')}</p>
         </div>
         <button
           onClick={loadStats}
           className="btn-secondary inline-flex items-center gap-2"
         >
           <RefreshCw className="w-4 h-4" />
-          Refresh Data
+          {t('revenue.refreshData')}
         </button>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
         <SummaryCard
-          title="Total Revenue"
+          title={t('revenue.totalRevenue')}
           value={stats?.total_revenue || 0}
           icon={Wallet}
           color="emerald"
-          trend="All time"
+          trend={t('revenue.allTimeLabel')}
           delay={0}
           animated={animated}
+          isCurrency
         />
         <SummaryCard
-          title="This Month"
+          title={t('revenue.thisMonth')}
           value={stats?.this_month || 0}
           icon={Calendar}
           color="blue"
-          trend={`+12.5% vs last month`}
+          trend={t('revenue.vsLastMonth')}
           trendUp={true}
           delay={100}
           animated={animated}
+          isCurrency
         />
         <SummaryCard
-          title="This Week"
+          title={t('revenue.thisWeek')}
           value={stats?.this_week || 0}
           icon={TrendingUp}
           color="purple"
-          trend="On track"
+          trend={t('revenue.onTrack')}
           trendUp={true}
           delay={200}
           animated={animated}
+          isCurrency
         />
         <SummaryCard
-          title="Today"
+          title={t('revenue.today')}
           value={stats?.today || 0}
           icon={DollarSign}
           color="gold"
-          trend={stats?.today > 1000 ? "Good day!" : "Below average"}
+          trend={stats?.today > 1000 ? t('revenue.goodDay') : t('revenue.belowAverage')}
           trendUp={stats?.today > 1000}
           delay={300}
           animated={animated}
+          isCurrency
         />
       </div>
 

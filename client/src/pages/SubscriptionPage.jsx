@@ -1,8 +1,9 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import {
   CheckCircle, CreditCard, AlertTriangle, ArrowLeft,
   Crown, Zap, Clock, ChevronRight, Hash, Phone,
@@ -10,45 +11,65 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 
+// Static plan metadata — display strings are resolved via t() at render time
 const PLANS = [
   {
     id: 'free',
-    name: 'Free',
+    nameKey: 'subscription.plan.free',
     price: 0,
     color: 'from-gray-500 to-gray-600',
     icon: Shield,
     maxMembers: 10,
-    features: ['Up to 10 members', 'Customer management', 'Attendance tracking', 'Check-in / Check-out', 'Basic dashboard'],
+    featureKeys: [
+      'subscription.feature.upTo10',
+      'subscription.feature.customerMgmt',
+      'subscription.feature.attendance',
+      'subscription.feature.checkInOut',
+      'subscription.feature.basicDashboard',
+    ],
   },
   {
     id: 'starter',
-    name: 'Starter',
+    nameKey: 'subscription.plan.starter',
     price: 1499,
     color: 'from-blue-500 to-cyan-500',
     icon: Zap,
     maxMembers: 100,
     popular: false,
     promo: true,
-    features: ['Up to 100 members', 'Everything in Free', 'SMS notifications', 'Staff accounts', 'Reports & analytics'],
+    featureKeys: [
+      'subscription.feature.upTo100',
+      'subscription.feature.everythingFree',
+      'subscription.feature.sms',
+      'subscription.feature.staffAccounts',
+      'subscription.feature.reports',
+    ],
   },
   {
     id: 'pro',
-    name: 'Pro',
+    nameKey: 'subscription.plan.pro',
     price: 3499,
     color: 'from-purple-500 to-pink-500',
     icon: Crown,
     maxMembers: -1,
     popular: true,
     promo: true,
-    features: ['Unlimited members', 'Everything in Starter', 'Revenue analytics', 'CSV export', 'Priority support', 'QR code check-in'],
+    featureKeys: [
+      'subscription.feature.unlimited',
+      'subscription.feature.everythingStarter',
+      'subscription.feature.revenueAnalytics',
+      'subscription.feature.csvExport',
+      'subscription.feature.prioritySupport',
+      'subscription.feature.qrCheckin',
+    ],
   },
 ];
 
 const DURATION_OPTIONS = [
-  { months: 1,  label: '1 Month',   discount: 0,  available: true  },
-  { months: 3,  label: '3 Months',  discount: 5,  available: true  },
-  { months: 6,  label: '6 Months',  discount: 10, available: true  },
-  { months: 12, label: '12 Months', discount: 15, available: false },
+  { months: 1,  labelKey: 'subscription.duration.1month',   discount: 0,  available: true  },
+  { months: 3,  labelKey: 'subscription.duration.3months',  discount: 5,  available: true  },
+  { months: 6,  labelKey: 'subscription.duration.6months',  discount: 10, available: true  },
+  { months: 12, labelKey: 'subscription.duration.12months', discount: 15, available: false },
 ];
 
 const PAYMENT_METHODS = [
@@ -71,6 +92,7 @@ export default function SubscriptionPage() {
   const navigate = useNavigate();
   const { gym, subscription, refreshAuth } = useAuth();
   const toast = useToast();
+  const { t } = useLanguage();
 
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -117,11 +139,11 @@ export default function SubscriptionPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!transactionId.trim()) {
-      toast.error('Please enter your transaction ID');
+      toast.error(t('subscription.toast.txnRequired'));
       return;
     }
     if (transactionId.trim().length < 4) {
-      toast.error('Transaction ID seems too short. Please check and try again.');
+      toast.error(t('subscription.toast.txnTooShort'));
       return;
     }
 
@@ -135,13 +157,13 @@ export default function SubscriptionPage() {
         duration_months: durationMonths,
       });
 
-      toast.success('Request submitted! We\'ll review and activate your plan shortly.');
+      toast.success(t('subscription.toast.submitted'));
 
       await loadData();
       setStep('plans');
       setTransactionId('');
     } catch (err) {
-      toast.error(err.message || 'Failed to submit request');
+      toast.error(err.message || t('subscription.toast.submitFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -170,8 +192,8 @@ export default function SubscriptionPage() {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-white">Subscription</h1>
-          <p className="text-gray-400">Upgrade your Hullu Gyms plan</p>
+          <h1 className="text-2xl font-bold text-white">{t('subscription.title')}</h1>
+          <p className="text-gray-400">{t('subscription.subtitle')}</p>
         </div>
       </div>
 
@@ -185,8 +207,8 @@ export default function SubscriptionPage() {
             <Crown className="w-7 h-7 text-white" />
           </div>
           <div>
-            <p className="text-sm text-gray-400">Current Plan</p>
-            <p className="text-xl font-bold text-white capitalize">{gym?.subscription_plan || 'Free'}</p>
+            <p className="text-sm text-gray-400">{t('subscription.currentPlan')}</p>
+            <p className="text-xl font-bold text-white capitalize">{gym?.subscription_plan || t('subscription.plan.free')}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -194,7 +216,9 @@ export default function SubscriptionPage() {
             'px-3 py-1 rounded-full text-sm font-medium',
             subscription?.valid ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
           )}>
-            {subscription?.valid ? `${subscription.daysLeft} days left` : 'Expired'}
+            {subscription?.valid
+              ? t('subscription.daysLeft', { n: subscription.daysLeft })
+              : t('subscription.expired')}
           </span>
         </div>
       </div>
@@ -205,12 +229,16 @@ export default function SubscriptionPage() {
           <div className="flex items-start gap-4">
             <Clock className="w-6 h-6 text-yellow-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="font-semibold text-white">Subscription Request Under Review</p>
+              <p className="font-semibold text-white">{t('subscription.pendingTitle')}</p>
               <p className="text-sm text-gray-400 mt-1">
-                Your request to upgrade to <span className="text-yellow-400 font-medium capitalize">{pendingRequest.requested_plan}</span> plan
-                is being reviewed. Transaction ID: <span className="font-mono text-white">{pendingRequest.transaction_id}</span>
+                {t('subscription.pendingBody', {
+                  plan: pendingRequest.requested_plan,
+                  txn: pendingRequest.transaction_id,
+                })}
               </p>
-              <p className="text-xs text-gray-500 mt-1">Submitted {new Date(pendingRequest.created_at).toLocaleDateString()}</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {t('subscription.pendingSubmitted', { date: new Date(pendingRequest.created_at).toLocaleDateString() })}
+              </p>
             </div>
           </div>
         </div>
@@ -222,11 +250,13 @@ export default function SubscriptionPage() {
           <div className="flex items-start gap-4">
             <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="font-semibold text-white">Previous Request Declined</p>
+              <p className="font-semibold text-white">{t('subscription.declinedTitle')}</p>
               {declinedRequest.admin_notes && (
-                <p className="text-sm text-gray-400 mt-1">Reason: {declinedRequest.admin_notes}</p>
+                <p className="text-sm text-gray-400 mt-1">
+                  {t('subscription.declinedReason', { reason: declinedRequest.admin_notes })}
+                </p>
               )}
-              <p className="text-xs text-gray-500 mt-1">You can submit a new request below.</p>
+              <p className="text-xs text-gray-500 mt-1">{t('subscription.declinedRetry')}</p>
             </div>
           </div>
         </div>
@@ -238,15 +268,11 @@ export default function SubscriptionPage() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 px-5 py-4 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/25 rounded-2xl">
             <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm flex-shrink-0">
               <Flame className="w-4 h-4" />
-              Early Bird Offer
+              {t('subscription.earlyBirdLabel')}
             </div>
             <div className="hidden sm:block w-px h-4 bg-amber-500/30" />
             <p className="text-amber-200/75 text-sm">
-              The <span className="font-bold text-amber-300">first 10 gyms</span> to subscribe get the current price{' '}
-              <span className="inline-flex items-center gap-1 font-bold text-amber-300">
-                <Lock className="w-3 h-3" /> locked in for 6 months
-              </span>{' '}
-              — plus priority support &amp; free onboarding. Prices will increase after launch.
+              {t('subscription.earlyBirdBody')}
             </p>
           </div>
 
@@ -256,6 +282,7 @@ export default function SubscriptionPage() {
               const Icon = plan.icon;
               const isCurrent = isCurrentPlan(plan.id);
               const hasBadge = isCurrent || plan.popular;
+              const planName = t(plan.nameKey);
               return (
                 <div key={plan.id} className={clsx(
                   'card p-6 flex flex-col relative transition-all overflow-visible',
@@ -266,14 +293,14 @@ export default function SubscriptionPage() {
                   {plan.popular && !isCurrent && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap">
                       <span className="px-3 py-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-bold rounded-full shadow-lg">
-                        MOST POPULAR
+                        {t('subscription.mostPopular')}
                       </span>
                     </div>
                   )}
                   {isCurrent && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap">
                       <span className="px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-bold rounded-full shadow-lg">
-                        ✓ CURRENT PLAN
+                        {t('subscription.currentPlanBadge')}
                       </span>
                     </div>
                   )}
@@ -283,24 +310,26 @@ export default function SubscriptionPage() {
                   </div>
 
                   <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-xl font-bold text-white">{plan.name}</h3>
+                    <h3 className="text-xl font-bold text-white">{planName}</h3>
                     {plan.promo && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/15 border border-amber-500/30 rounded-full text-amber-400 text-xs font-semibold">
-                        <Flame className="w-3 h-3" /> Promo
+                        <Flame className="w-3 h-3" /> {t('subscription.promo')}
                       </span>
                     )}
                   </div>
                   <p className="text-gray-400 text-sm mb-4">
-                    {plan.maxMembers === -1 ? 'Unlimited members' : `Up to ${plan.maxMembers} members`}
+                    {plan.maxMembers === -1
+                      ? t('subscription.unlimitedMembers')
+                      : t('subscription.upToMembers', { n: plan.maxMembers })}
                   </p>
 
                   <div className="mb-2">
                     {plan.price === 0 ? (
-                      <span className="text-3xl font-bold text-white">Free</span>
+                      <span className="text-3xl font-bold text-white">{t('subscription.free')}</span>
                     ) : (
                       <>
                         <span className="text-3xl font-bold text-white">ETB {plan.price.toLocaleString()}</span>
-                        <span className="text-gray-400 text-sm">/month</span>
+                        <span className="text-gray-400 text-sm">{t('subscription.perMonth')}</span>
                       </>
                     )}
                   </div>
@@ -308,15 +337,15 @@ export default function SubscriptionPage() {
                   {plan.promo && (
                     <div className="mb-4 flex items-start gap-1.5 text-xs text-amber-400/80 bg-amber-500/8 border border-amber-500/20 rounded-lg px-3 py-2">
                       <Lock className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                      <span>First 10 gyms get this price locked in for 6 months.</span>
+                      <span>{t('subscription.promoLock')}</span>
                     </div>
                   )}
 
                   <ul className="space-y-2 mb-6 flex-1">
-                    {plan.features.map(f => (
-                      <li key={f} className="flex items-center gap-2 text-sm text-gray-300">
+                    {plan.featureKeys.map(fKey => (
+                      <li key={fKey} className="flex items-center gap-2 text-sm text-gray-300">
                         <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
-                        {f}
+                        {t(fKey)}
                       </li>
                     ))}
                   </ul>
@@ -333,7 +362,11 @@ export default function SubscriptionPage() {
                           : `bg-gradient-to-r ${plan.color} text-white hover:opacity-90 hover:shadow-lg`
                     )}
                   >
-                    {isCurrent ? 'Active Plan' : plan.price === 0 ? 'Default Plan' : `Choose ${plan.name}`}
+                    {isCurrent
+                      ? t('subscription.activePlan')
+                      : plan.price === 0
+                        ? t('subscription.defaultPlan')
+                        : t('subscription.choosePlan', { name: planName })}
                   </button>
                 </div>
               );
@@ -346,20 +379,20 @@ export default function SubscriptionPage() {
               <div className="w-9 h-9 rounded-lg bg-blue-600/20 flex items-center justify-center">
                 <CreditCard className="w-5 h-5 text-blue-400" />
               </div>
-              <h2 className="text-lg font-semibold text-white">How It Works</h2>
+              <h2 className="text-lg font-semibold text-white">{t('subscription.howItWorks')}</h2>
             </div>
             <ol className="space-y-3">
               {[
-                'Choose the plan that fits your gym',
-                'Select how many months you want to pay for',
-                'Send payment via Telebirr / CBE Birr / Bank Transfer',
-                'Enter your transaction ID — we\'ll verify and activate within hours',
-              ].map((step, i) => (
+                t('subscription.step1'),
+                t('subscription.step2'),
+                t('subscription.step3'),
+                t('subscription.step4'),
+              ].map((stepText, i) => (
                 <li key={i} className="flex items-start gap-3 text-gray-300 text-sm">
                   <span className="w-6 h-6 rounded-full bg-gym-600/30 text-gym-400 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
                     {i + 1}
                   </span>
-                  {step}
+                  {stepText}
                 </li>
               ))}
             </ol>
@@ -374,7 +407,7 @@ export default function SubscriptionPage() {
             onClick={() => setStep('plans')}
             className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm"
           >
-            <ArrowLeft className="w-4 h-4" /> Back to plans
+            <ArrowLeft className="w-4 h-4" /> {t('subscription.backToPlans')}
           </button>
 
           {/* Selected plan summary */}
@@ -385,13 +418,18 @@ export default function SubscriptionPage() {
                   <selectedPlanData.icon className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="font-bold text-white text-lg">{selectedPlanData.name} Plan</p>
-                  <p className="text-gray-400 text-sm">ETB {selectedPlanData.price.toLocaleString()}/month</p>
+                  <p className="font-bold text-white text-lg">{t('subscription.planSummary', { name: t(selectedPlanData.nameKey) })}</p>
+                  <p className="text-gray-400 text-sm">{t('subscription.pricePerMonth', { price: selectedPlanData.price.toLocaleString() })}</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-2xl font-bold text-white">ETB {totalPrice.toLocaleString()}</p>
-                <p className="text-xs text-gray-400">for {durationMonths} month{durationMonths > 1 ? 's' : ''}{discount > 0 ? ` (${discount}% off)` : ''}</p>
+                <p className="text-2xl font-bold text-white">{t('subscription.totalPrice', { total: totalPrice.toLocaleString() })}</p>
+                <p className="text-xs text-gray-400">
+                  {durationMonths === 1
+                    ? t('subscription.forMonths', { n: durationMonths })
+                    : t('subscription.forMonthsPlural', { n: durationMonths })}
+                  {discount > 0 ? ` ${t('subscription.discountOff', { pct: discount })}` : ''}
+                </p>
               </div>
             </div>
           </div>
@@ -399,7 +437,7 @@ export default function SubscriptionPage() {
           {/* Duration */}
           <div className="card p-5 space-y-3">
             <h3 className="font-semibold text-white flex items-center gap-2">
-              <Clock className="w-4 h-4 text-gray-400" /> Duration
+              <Clock className="w-4 h-4 text-gray-400" /> {t('subscription.duration')}
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {DURATION_OPTIONS.map(opt => (
@@ -417,9 +455,9 @@ export default function SubscriptionPage() {
                         : 'border-gray-700 text-gray-400 hover:border-gray-600'
                   )}
                 >
-                  <p className="font-semibold text-sm">{opt.label}</p>
+                  <p className="font-semibold text-sm">{t(opt.labelKey)}</p>
                   {!opt.available ? (
-                    <p className="text-xs text-gray-500 mt-0.5">Coming soon</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{t('subscription.comingSoon')}</p>
                   ) : opt.discount > 0 ? (
                     <p className="text-xs text-green-400 mt-0.5">{opt.discount}% off</p>
                   ) : null}
@@ -436,7 +474,7 @@ export default function SubscriptionPage() {
           {/* Payment Method */}
           <div className="card p-5 space-y-3">
             <h3 className="font-semibold text-white flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-gray-400" /> Payment Method
+              <CreditCard className="w-4 h-4 text-gray-400" /> {t('subscription.paymentMethod')}
             </h3>
             <div className="grid grid-cols-2 gap-3">
               {PAYMENT_METHODS.map(method => (
@@ -456,12 +494,11 @@ export default function SubscriptionPage() {
               ))}
             </div>
 
-
             {/* Context-sensitive payment details */}
             {paymentMethod !== 'cash' && (
               <div className="p-4 bg-dark-200 rounded-xl border border-gray-700 space-y-3">
                 <p className="text-sm font-medium text-gray-300">
-                  Send <span className="text-white font-bold">ETB {totalPrice.toLocaleString()}</span> to:
+                  {t('subscription.sendAmount', { amount: `ETB ${totalPrice.toLocaleString()}` })}
                 </p>
                 <div className="flex items-center gap-3">
                   <div>
@@ -469,14 +506,16 @@ export default function SubscriptionPage() {
                     <p className="text-white font-mono font-bold text-lg tracking-wider">
                       {PAYMENT_DETAILS[paymentMethod]?.number}
                     </p>
-                    <p className="text-sm text-gray-400">Account name: <span className="text-white font-medium">{ACCOUNT_NAME}</span></p>
+                    <p className="text-sm text-gray-400">
+                      {t('subscription.accountName', { name: ACCOUNT_NAME })}
+                    </p>
                   </div>
                 </div>
               </div>
             )}
             {paymentMethod === 'cash' && (
               <div className="p-4 bg-dark-200 rounded-xl border border-gray-700">
-                <p className="text-sm text-gray-400">Visit our office to pay in cash. Your plan will be activated after payment is confirmed.</p>
+                <p className="text-sm text-gray-400">{t('subscription.cashNote')}</p>
               </div>
             )}
           </div>
@@ -484,20 +523,20 @@ export default function SubscriptionPage() {
           {/* Transaction ID */}
           <div className="card p-5 space-y-3">
             <h3 className="font-semibold text-white flex items-center gap-2">
-              <Hash className="w-4 h-4 text-gray-400" /> Transaction ID
+              <Hash className="w-4 h-4 text-gray-400" /> {t('subscription.transactionId')}
             </h3>
-            <p className="text-sm text-gray-400">After completing payment, enter the transaction reference number you received.</p>
+            <p className="text-sm text-gray-400">{t('subscription.transactionHint')}</p>
             <input
               type="text"
               value={transactionId}
               onChange={e => setTransactionId(e.target.value)}
               className="input-field font-mono tracking-wider"
-              placeholder="e.g. TXN-20260606-12345"
+              placeholder={t('subscription.transactionPlaceholder')}
               required
             />
             <p className="text-xs text-gray-500 flex items-center gap-1">
               <AlertCircle className="w-3 h-3" />
-              We will verify this transaction before activating your plan
+              {t('subscription.transactionWarning')}
             </p>
           </div>
 
@@ -507,9 +546,9 @@ export default function SubscriptionPage() {
             className="w-full btn-primary py-4 text-base font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {submitting ? (
-              <><Loader className="w-5 h-5 animate-spin" /> Submitting Request...</>
+              <><Loader className="w-5 h-5 animate-spin" /> {t('subscription.submitting')}</>
             ) : (
-              <>Submit Subscription Request <ChevronRight className="w-5 h-5" /></>
+              <>{t('subscription.submit')} <ChevronRight className="w-5 h-5" /></>
             )}
           </button>
         </form>

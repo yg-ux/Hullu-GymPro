@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import {
   ArrowLeft,
   User,
@@ -24,29 +25,29 @@ import clsx from 'clsx';
 const ROLES = [
   {
     value: 'admin',
-    label: 'Admin',
-    description: 'Full access to all features including billing, staff management, and settings',
+    labelKey: 'staff.roleAdmin',
+    descKey: 'staff.roleAdminDesc',
     icon: Shield,
     color: 'from-purple-500 to-pink-500'
   },
   {
     value: 'manager',
-    label: 'Manager',
-    description: 'Can manage customers, staff, and view reports. No access to billing.',
+    labelKey: 'staff.roleManager',
+    descKey: 'staff.roleManagerDesc',
     icon: Building,
     color: 'from-blue-500 to-cyan-500'
   },
   {
     value: 'trainer',
-    label: 'Trainer',
-    description: 'Can only view and manage customers assigned to them',
+    labelKey: 'staff.roleTrainer',
+    descKey: 'staff.roleTrainerDesc',
     icon: UserCheck,
     color: 'from-green-500 to-emerald-500'
   },
   {
     value: 'receptionist',
-    label: 'Receptionist',
-    description: 'Can only check-in and check-out customers',
+    labelKey: 'staff.roleReceptionist',
+    descKey: 'staff.roleReceptionistDesc',
     icon: Lock,
     color: 'from-yellow-500 to-orange-500'
   }
@@ -64,6 +65,7 @@ function generatePassword(length = 12) {
 export default function AddStaff() {
   const navigate = useNavigate();
   const toast = useToast();
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -97,23 +99,23 @@ export default function AddStaff() {
     const newErrors = {};
     
     if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
+      newErrors.name = t('staff.errorNameRequired');
     }
-    
+
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
+      newErrors.email = t('staff.errorEmailRequired');
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
+      newErrors.email = t('staff.errorEmailInvalid');
     }
-    
+
     if (!formData.password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = t('staff.errorPasswordRequired');
     } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
+      newErrors.password = t('staff.errorPasswordShort');
     }
-    
+
     if (!formData.role) {
-      newErrors.role = 'Please select a role';
+      newErrors.role = t('staff.errorRoleRequired');
     }
     
     setErrors(newErrors);
@@ -124,7 +126,7 @@ export default function AddStaff() {
     e.preventDefault();
 
     if (!validateForm()) {
-      toast.error('Please fix the errors below');
+      toast.error(t('staff.toastFixErrors'));
       return;
     }
 
@@ -141,10 +143,10 @@ export default function AddStaff() {
         password: formData.password,
       });
 
-      toast.success(`${formData.name} has been added to your team`);
+      toast.success(t('staff.toastAdded').replace('{name}', formData.name));
       setTimeout(() => navigate('/staff'), 1000);
     } catch (error) {
-      toast.error(error.message || 'Failed to create staff member');
+      toast.error(error.message || t('staff.toastCreateFailed'));
     } finally {
       setLoading(false);
     }
@@ -161,8 +163,8 @@ export default function AddStaff() {
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-white">Add Staff Member</h1>
-          <p className="text-gray-400 mt-1">Create a new team member account</p>
+          <h1 className="text-2xl font-bold text-white">{t('staff.addTitle')}</h1>
+          <p className="text-gray-400 mt-1">{t('staff.addSubtitle')}</p>
         </div>
       </div>
 
@@ -172,14 +174,14 @@ export default function AddStaff() {
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
             <User className="w-4 h-4" />
-            Full Name
+            {t('staff.fullName')}
           </label>
           <input
             type="text"
             name="name"
             value={formData.name}
             onChange={handleChange}
-            placeholder="Enter staff member's full name"
+            placeholder={t('staff.fullNamePlaceholder')}
             className={clsx(
               "input-field",
               errors.name && "border-red-500 focus:border-red-500"
@@ -197,14 +199,14 @@ export default function AddStaff() {
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
             <Mail className="w-4 h-4" />
-            Email Address
+            {t('staff.emailAddress')}
           </label>
           <input
             type="email"
             name="email"
             value={formData.email}
             onChange={handleChange}
-            placeholder="staff@example.com"
+            placeholder={t('staff.emailPlaceholder')}
             className={clsx(
               "input-field",
               errors.email && "border-red-500 focus:border-red-500"
@@ -222,14 +224,14 @@ export default function AddStaff() {
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
             <Phone className="w-4 h-4" />
-            Phone Number <span className="text-gray-500 font-normal">(optional)</span>
+            {t('staff.phoneNumber')} <span className="text-gray-500 font-normal">{t('staff.optional')}</span>
           </label>
           <input
             type="tel"
             name="phone"
             value={formData.phone}
             onChange={handleChange}
-            placeholder="+251 91 234 5678"
+            placeholder={t('staff.phonePlaceholder')}
             className="input-field"
           />
         </div>
@@ -238,7 +240,7 @@ export default function AddStaff() {
         <div className="space-y-3">
           <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
             <Shield className="w-4 h-4" />
-            Role & Permissions
+            {t('staff.rolePermissions')}
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {ROLES.map(role => {
@@ -269,10 +271,10 @@ export default function AddStaff() {
                         "font-semibold transition-colors",
                         isSelected ? "text-white" : "text-gray-300"
                       )}>
-                        {role.label}
+                        {t(role.labelKey)}
                       </h4>
                       <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                        {role.description}
+                        {t(role.descKey)}
                       </p>
                     </div>
                   </div>
@@ -301,7 +303,7 @@ export default function AddStaff() {
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
             <Key className="w-4 h-4" />
-            Password
+            {t('staff.password')}
           </label>
           <div className="relative">
             <input
@@ -309,7 +311,7 @@ export default function AddStaff() {
               name="password"
               value={formData.password}
               onChange={handleChange}
-              placeholder="Enter a secure password"
+              placeholder={t('staff.passwordPlaceholder')}
               className={clsx(
                 "input-field pr-12",
                 errors.password && "border-red-500 focus:border-red-500"
@@ -329,7 +331,7 @@ export default function AddStaff() {
             className="text-sm text-gym-400 hover:text-gym-300 flex items-center gap-1 transition-colors"
           >
             <Shuffle className="w-4 h-4" />
-            Auto-generate secure password
+            {t('staff.autoGenerate')}
           </button>
           {errors.password && (
             <p className="text-red-400 text-sm flex items-center gap-1">
@@ -352,10 +354,10 @@ export default function AddStaff() {
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <Send className="w-4 h-4 text-gym-400" />
-                <span className="font-medium text-white">Send login credentials via email</span>
+                <span className="font-medium text-white">{t('staff.sendCredentials')}</span>
               </div>
               <p className="text-sm text-gray-400 mt-1">
-                The staff member will receive an email with their login details
+                {t('staff.sendCredentialsHint')}
               </p>
             </div>
           </label>
@@ -367,7 +369,7 @@ export default function AddStaff() {
             to="/staff" 
             className="flex-1 px-4 py-3 bg-dark-200 text-white rounded-xl font-medium text-center hover:bg-dark-300 transition-all"
           >
-            Cancel
+            {t('staff.cancel')}
           </Link>
           <button
             type="submit"
@@ -377,10 +379,10 @@ export default function AddStaff() {
             {loading ? (
               <div className="flex items-center justify-center gap-2">
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Creating...
+                {t('staff.creating')}
               </div>
             ) : (
-              'Create Staff Member'
+              t('staff.createStaffMember')
             )}
           </button>
         </div>

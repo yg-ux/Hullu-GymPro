@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import {
   Dumbbell, Users, CreditCard, Clock, CheckCircle, ArrowRight,
   Menu, X, Upload, Palette, BarChart3, MessageSquare, Shield,
@@ -8,74 +9,75 @@ import {
 } from 'lucide-react';
 
 const COLOR_THEMES = [
-  { id: 'default', name: 'Ocean Blue',    primary: 'from-blue-500 to-blue-700',     dot: 'bg-blue-500' },
-  { id: 'emerald', name: 'Forest Green',  primary: 'from-emerald-500 to-emerald-700', dot: 'bg-emerald-500' },
-  { id: 'purple',  name: 'Royal Purple',  primary: 'from-purple-500 to-purple-700',  dot: 'bg-purple-500' },
-  { id: 'red',     name: 'Power Red',     primary: 'from-red-500 to-red-700',        dot: 'bg-red-500' },
-  { id: 'amber',   name: 'Golden Amber',  primary: 'from-amber-500 to-amber-700',    dot: 'bg-amber-500' },
-  { id: 'cyan',    name: 'Teal Cyan',     primary: 'from-cyan-500 to-cyan-700',      dot: 'bg-cyan-500' },
+  { id: 'default', nameKey: 'landing.theme.default', primary: 'from-blue-500 to-blue-700',     dot: 'bg-blue-500' },
+  { id: 'emerald', nameKey: 'landing.theme.emerald', primary: 'from-emerald-500 to-emerald-700', dot: 'bg-emerald-500' },
+  { id: 'purple',  nameKey: 'landing.theme.purple',  primary: 'from-purple-500 to-purple-700',  dot: 'bg-purple-500' },
+  { id: 'red',     nameKey: 'landing.theme.red',     primary: 'from-red-500 to-red-700',        dot: 'bg-red-500' },
+  { id: 'amber',   nameKey: 'landing.theme.amber',   primary: 'from-amber-500 to-amber-700',    dot: 'bg-amber-500' },
+  { id: 'cyan',    nameKey: 'landing.theme.cyan',    primary: 'from-cyan-500 to-cyan-700',      dot: 'bg-cyan-500' },
 ];
 
 const PLANS = [
   {
     id: 'free',
-    name: 'Free',
+    nameKey: 'landing.plan.free.name',
     price: 0,
-    priceLabel: 'Free forever',
-    description: 'Perfect to get started',
+    priceLabelKey: 'landing.plan.free.priceLabel',
+    descriptionKey: 'landing.plan.free.description',
     color: 'border-gray-700',
-    badge: null,
+    badgeKey: null,
     features: [
-      { text: 'Up to 10 members', included: true },
-      { text: 'Check-in / Check-out', included: true },
-      { text: 'Payment tracking', included: true },
-      { text: 'Basic reports', included: true },
-      { text: 'SMS notifications', included: false },
-      { text: 'Revenue analytics', included: false },
-      { text: 'Staff accounts', included: false },
+      { textKey: 'landing.feature.upTo10', included: true },
+      { textKey: 'landing.feature.checkinOut', included: true },
+      { textKey: 'landing.feature.paymentTracking', included: true },
+      { textKey: 'landing.feature.basicReports', included: true },
+      { textKey: 'landing.feature.smsNotifications', included: false },
+      { textKey: 'landing.feature.revenueAnalytics', included: false },
+      { textKey: 'landing.feature.staffAccounts', included: false },
     ],
   },
   {
     id: 'starter',
-    name: 'Starter',
+    nameKey: 'landing.plan.starter.name',
     price: 1499,
     priceLabel: 'ETB 1,499',
-    description: 'For growing gyms',
+    descriptionKey: 'landing.plan.starter.description',
     color: 'border-blue-500',
-    badge: 'Most Popular',
+    badgeKey: 'landing.plan.starter.badge',
     promo: true,
     features: [
-      { text: 'Up to 100 members', included: true },
-      { text: 'Check-in / Check-out', included: true },
-      { text: 'Payment tracking', included: true },
-      { text: 'SMS notifications', included: true },
-      { text: 'Staff accounts (3)', included: true },
-      { text: 'Revenue analytics', included: false },
-      { text: 'Unlimited members', included: false },
+      { textKey: 'landing.feature.upTo100', included: true },
+      { textKey: 'landing.feature.checkinOut', included: true },
+      { textKey: 'landing.feature.paymentTracking', included: true },
+      { textKey: 'landing.feature.smsNotifications', included: true },
+      { textKey: 'landing.feature.staffAccounts3', included: true },
+      { textKey: 'landing.feature.revenueAnalytics', included: false },
+      { textKey: 'landing.feature.unlimitedMembers', included: false },
     ],
   },
   {
     id: 'pro',
-    name: 'Pro',
+    nameKey: 'landing.plan.pro.name',
     price: 3499,
     priceLabel: 'ETB 3,499',
-    description: 'Full power, no limits',
+    descriptionKey: 'landing.plan.pro.description',
     color: 'border-purple-500',
-    badge: 'Best Value',
+    badgeKey: 'landing.plan.pro.badge',
     promo: true,
     features: [
-      { text: 'Unlimited members', included: true },
-      { text: 'Check-in / Check-out', included: true },
-      { text: 'Payment tracking', included: true },
-      { text: 'SMS notifications', included: true },
-      { text: 'Unlimited staff accounts', included: true },
-      { text: 'Revenue analytics', included: true },
-      { text: 'Priority support', included: true },
+      { textKey: 'landing.feature.unlimitedMembers', included: true },
+      { textKey: 'landing.feature.checkinOut', included: true },
+      { textKey: 'landing.feature.paymentTracking', included: true },
+      { textKey: 'landing.feature.smsNotifications', included: true },
+      { textKey: 'landing.feature.unlimitedStaff', included: true },
+      { textKey: 'landing.feature.revenueAnalytics', included: true },
+      { textKey: 'landing.feature.prioritySupport', included: true },
     ],
   },
 ];
 
 export default function Landing() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const { register } = useAuth();
   const [showRegister, setShowRegister] = useState(false);
@@ -109,7 +111,7 @@ export default function Landing() {
   const handleLogoUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 1024 * 1024) { setError('Logo must be under 1MB'); return; }
+    if (file.size > 1024 * 1024) { setError(t('landing.register.logoTooBig')); return; }
     const reader = new FileReader();
     reader.onloadend = () => setRegisterForm(p => ({ ...p, logo: reader.result }));
     reader.readAsDataURL(file);
@@ -132,18 +134,18 @@ export default function Landing() {
 
           {/* Desktop links */}
           <div className="hidden md:flex items-center gap-8 text-sm text-gray-400">
-            <a href="#features" className="hover:text-white transition-colors">Features</a>
-            <a href="#how" className="hover:text-white transition-colors">How it works</a>
-            <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
+            <a href="#features" className="hover:text-white transition-colors">{t('landing.nav.features')}</a>
+            <a href="#how" className="hover:text-white transition-colors">{t('landing.nav.howItWorks')}</a>
+            <a href="#pricing" className="hover:text-white transition-colors">{t('landing.nav.pricing')}</a>
           </div>
 
           {/* CTA */}
           <div className="hidden md:flex items-center gap-3">
             <button onClick={() => navigate('/login')} className="text-sm text-gray-400 hover:text-white transition-colors px-4 py-2">
-              Sign In
+              {t('landing.nav.signIn')}
             </button>
             <button onClick={() => setShowRegister(true)} className="text-sm px-5 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl font-medium transition-all shadow-lg shadow-blue-500/20">
-              Start Free Trial
+              {t('landing.nav.startFreeTrial')}
             </button>
           </div>
 
@@ -156,11 +158,11 @@ export default function Landing() {
         {/* Mobile menu */}
         {mobileMenuOpen && (
           <div className="md:hidden bg-gray-900 border-t border-gray-800 p-4 space-y-4">
-            <a href="#features" className="block text-gray-400 hover:text-white py-2" onClick={() => setMobileMenuOpen(false)}>Features</a>
-            <a href="#how" className="block text-gray-400 hover:text-white py-2" onClick={() => setMobileMenuOpen(false)}>How it works</a>
-            <a href="#pricing" className="block text-gray-400 hover:text-white py-2" onClick={() => setMobileMenuOpen(false)}>Pricing</a>
-            <button onClick={() => { navigate('/login'); setMobileMenuOpen(false); }} className="w-full py-3 border border-gray-700 rounded-xl text-white font-medium">Sign In</button>
-            <button onClick={() => { setShowRegister(true); setMobileMenuOpen(false); }} className="w-full py-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl text-white font-medium">Start Free Trial</button>
+            <a href="#features" className="block text-gray-400 hover:text-white py-2" onClick={() => setMobileMenuOpen(false)}>{t('landing.nav.features')}</a>
+            <a href="#how" className="block text-gray-400 hover:text-white py-2" onClick={() => setMobileMenuOpen(false)}>{t('landing.nav.howItWorks')}</a>
+            <a href="#pricing" className="block text-gray-400 hover:text-white py-2" onClick={() => setMobileMenuOpen(false)}>{t('landing.nav.pricing')}</a>
+            <button onClick={() => { navigate('/login'); setMobileMenuOpen(false); }} className="w-full py-3 border border-gray-700 rounded-xl text-white font-medium">{t('landing.nav.signIn')}</button>
+            <button onClick={() => { setShowRegister(true); setMobileMenuOpen(false); }} className="w-full py-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl text-white font-medium">{t('landing.nav.startFreeTrial')}</button>
           </div>
         )}
       </nav>
@@ -173,30 +175,30 @@ export default function Landing() {
         <div className="max-w-4xl mx-auto text-center relative">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-400 text-sm mb-8">
             <Zap className="w-3.5 h-3.5" />
-            14-Day Free Trial · No Credit Card Required
+            {t('landing.hero.badge')}
           </div>
 
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold leading-tight mb-6">
-            Run Your Gym Like
+            {t('landing.hero.title1')}
             <br />
             <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              A Pro
+              {t('landing.hero.title2')}
             </span>
           </h1>
 
           <p className="text-lg sm:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Hullu Gyms gives Ethiopian gym owners everything they need — member management, payments, SMS reminders, attendance tracking, and staff control — all in one place.
+            {t('landing.hero.subtitle')}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
             <button onClick={() => setShowRegister(true)}
               className="flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-2xl font-semibold text-lg transition-all shadow-2xl shadow-blue-500/30 hover:scale-[1.02]">
-              Start Free Trial
+              {t('landing.hero.ctaStart')}
               <ArrowRight className="w-5 h-5" />
             </button>
             <button onClick={() => navigate('/login')}
               className="flex items-center justify-center gap-2 px-8 py-4 bg-gray-800 hover:bg-gray-700 text-white rounded-2xl font-semibold text-lg transition-all border border-gray-700">
-              I Have an Account
+              {t('landing.hero.ctaHaveAccount')}
               <ChevronRight className="w-5 h-5" />
             </button>
           </div>
@@ -204,9 +206,9 @@ export default function Landing() {
           {/* Stats */}
           <div className="grid grid-cols-3 gap-6 max-w-lg mx-auto">
             {[
-              { value: '500+', label: 'Members Tracked' },
-              { value: '99%', label: 'Uptime' },
-              { value: '🇪🇹', label: 'Made in Ethiopia' },
+              { value: '500+', label: t('landing.hero.stat1') },
+              { value: '99%', label: t('landing.hero.stat2') },
+              { value: '🇪🇹', label: t('landing.hero.stat3') },
             ].map(s => (
               <div key={s.label} className="text-center">
                 <p className="text-2xl font-bold text-white">{s.value}</p>
@@ -221,22 +223,22 @@ export default function Landing() {
       <section id="features" className="py-20 px-4 bg-gray-900">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-blue-400 text-sm font-semibold uppercase tracking-widest mb-3">Features</p>
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Everything Your Gym Needs</h2>
-            <p className="text-gray-400 text-lg max-w-2xl mx-auto">Built specifically for Ethiopian gym owners who want to grow their business without the hassle.</p>
+            <p className="text-blue-400 text-sm font-semibold uppercase tracking-widest mb-3">{t('landing.features.kicker')}</p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{t('landing.features.title')}</h2>
+            <p className="text-gray-400 text-lg max-w-2xl mx-auto">{t('landing.features.subtitle')}</p>
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { icon: Users, title: 'Member Management', desc: 'Add members with photos, track their membership type, expiry date, and payment history all in one profile.', color: 'text-blue-400 bg-blue-500/10' },
-              { icon: CreditCard, title: 'Payment Tracking', desc: 'Record cash, card, or mobile payments instantly. Auto-calculate renewal dates. Never miss a payment again.', color: 'text-green-400 bg-green-500/10' },
-              { icon: Clock, title: 'Check-in / Check-out', desc: 'One-tap attendance tracking. See who\'s in the gym right now and track visit history per member.', color: 'text-purple-400 bg-purple-500/10' },
-              { icon: MessageSquare, title: 'SMS Notifications', desc: 'Automatic welcome messages, payment confirmations, and expiry reminders sent to your members in Amharic or English.', color: 'text-pink-400 bg-pink-500/10' },
-              { icon: BarChart3, title: 'Revenue Analytics', desc: 'See your monthly revenue, most popular plans, and growth trends with clean charts and reports.', color: 'text-amber-400 bg-amber-500/10' },
-              { icon: UserCheck, title: 'Staff Management', desc: 'Give your receptionists, trainers, and managers their own login with role-based access. Keep control of who sees what.', color: 'text-cyan-400 bg-cyan-500/10' },
-              { icon: Shield, title: 'Secure & Reliable', desc: 'Your data is safe. Encrypted tokens, rate limiting, and daily backups keep your gym\'s data protected.', color: 'text-red-400 bg-red-500/10' },
-              { icon: Bell, title: 'Expiry Reminders', desc: 'Automatic SMS reminders sent 7 days and 1 day before membership expiry. Reduce churn effortlessly.', color: 'text-indigo-400 bg-indigo-500/10' },
-              { icon: Globe, title: 'Access Anywhere', desc: 'Works on any device — phone, tablet, or desktop. No app install needed. Open your browser and go.', color: 'text-teal-400 bg-teal-500/10' },
+              { icon: Users, title: t('landing.features.memberMgmt.title'), desc: t('landing.features.memberMgmt.desc'), color: 'text-blue-400 bg-blue-500/10' },
+              { icon: CreditCard, title: t('landing.features.payments.title'), desc: t('landing.features.payments.desc'), color: 'text-green-400 bg-green-500/10' },
+              { icon: Clock, title: t('landing.features.checkin.title'), desc: t('landing.features.checkin.desc'), color: 'text-purple-400 bg-purple-500/10' },
+              { icon: MessageSquare, title: t('landing.features.sms.title'), desc: t('landing.features.sms.desc'), color: 'text-pink-400 bg-pink-500/10' },
+              { icon: BarChart3, title: t('landing.features.analytics.title'), desc: t('landing.features.analytics.desc'), color: 'text-amber-400 bg-amber-500/10' },
+              { icon: UserCheck, title: t('landing.features.staff.title'), desc: t('landing.features.staff.desc'), color: 'text-cyan-400 bg-cyan-500/10' },
+              { icon: Shield, title: t('landing.features.secure.title'), desc: t('landing.features.secure.desc'), color: 'text-red-400 bg-red-500/10' },
+              { icon: Bell, title: t('landing.features.reminders.title'), desc: t('landing.features.reminders.desc'), color: 'text-indigo-400 bg-indigo-500/10' },
+              { icon: Globe, title: t('landing.features.anywhere.title'), desc: t('landing.features.anywhere.desc'), color: 'text-teal-400 bg-teal-500/10' },
             ].map((f, i) => (
               <div key={i} className="p-6 rounded-2xl bg-gray-800 border border-gray-700 hover:border-gray-600 transition-all group">
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${f.color}`}>
@@ -254,16 +256,16 @@ export default function Landing() {
       <section id="how" className="py-20 px-4">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-purple-400 text-sm font-semibold uppercase tracking-widest mb-3">Simple Process</p>
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Up and Running in Minutes</h2>
-            <p className="text-gray-400 text-lg">No training required. If you can use a smartphone, you can use Hullu Gyms.</p>
+            <p className="text-purple-400 text-sm font-semibold uppercase tracking-widest mb-3">{t('landing.how.kicker')}</p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{t('landing.how.title')}</h2>
+            <p className="text-gray-400 text-lg">{t('landing.how.subtitle')}</p>
           </div>
 
           <div className="grid sm:grid-cols-3 gap-8">
             {[
-              { step: '01', title: 'Register Your Gym', desc: 'Create your free account in 60 seconds. Add your gym name, logo, and pick your brand color.', icon: Dumbbell },
-              { step: '02', title: 'Add Your Members', desc: 'Import or manually add your members. Set their membership type, record their first payment — done.', icon: Users },
-              { step: '03', title: 'Manage & Grow', desc: 'Check members in, send SMS reminders, track revenue, and give staff their own access. Everything automated.', icon: TrendingUp },
+              { step: '01', title: t('landing.how.step1.title'), desc: t('landing.how.step1.desc'), icon: Dumbbell },
+              { step: '02', title: t('landing.how.step2.title'), desc: t('landing.how.step2.desc'), icon: Users },
+              { step: '03', title: t('landing.how.step3.title'), desc: t('landing.how.step3.desc'), icon: TrendingUp },
             ].map((s, i) => (
               <div key={i} className="relative text-center">
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30 flex items-center justify-center mx-auto mb-4">
@@ -283,23 +285,23 @@ export default function Landing() {
       <section id="pricing" className="py-20 px-4 bg-gray-900">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-green-400 text-sm font-semibold uppercase tracking-widest mb-3">Pricing</p>
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Simple, Transparent Pricing</h2>
-            <p className="text-gray-400 text-lg">Start free. Upgrade when your gym grows.</p>
+            <p className="text-green-400 text-sm font-semibold uppercase tracking-widest mb-3">{t('landing.pricing.kicker')}</p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{t('landing.pricing.title')}</h2>
+            <p className="text-gray-400 text-lg">{t('landing.pricing.subtitle')}</p>
 
             {/* Early Bird Banner */}
             <div className="mt-8 inline-flex flex-col sm:flex-row items-center gap-3 px-6 py-4 bg-gradient-to-r from-amber-500/15 to-orange-500/15 border border-amber-500/30 rounded-2xl text-sm">
               <div className="flex items-center gap-2 text-amber-400 font-semibold">
                 <Flame className="w-4 h-4 flex-shrink-0" />
-                Early Bird Launch Offer — Limited Spots!
+                {t('landing.pricing.earlyBird')}
               </div>
               <span className="hidden sm:block text-amber-600">·</span>
               <span className="text-amber-200/80">
-                The <span className="font-bold text-amber-300">first 10 gyms</span> to register get the promotional price{' '}
+                {t('landing.pricing.earlyBirdPart1')} <span className="font-bold text-amber-300">{t('landing.pricing.earlyBirdFirst10')}</span> {t('landing.pricing.earlyBirdPart2')}{' '}
                 <span className="inline-flex items-center gap-1 font-bold text-amber-300">
-                  <Lock className="w-3 h-3" /> locked in for 6 months
+                  <Lock className="w-3 h-3" /> {t('landing.pricing.earlyBirdLocked')}
                 </span>{' '}
-                + priority support &amp; free onboarding.
+                {t('landing.pricing.earlyBirdPart3')}
               </span>
             </div>
           </div>
@@ -307,30 +309,30 @@ export default function Landing() {
           <div className="grid md:grid-cols-3 gap-6">
             {PLANS.map((plan) => (
               <div key={plan.id} className={`relative flex flex-col p-8 rounded-2xl bg-gray-800 border-2 transition-all ${plan.color}`}>
-                {plan.badge && (
+                {plan.badgeKey && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full text-xs font-bold text-white shadow-lg">
-                    {plan.badge}
+                    {t(plan.badgeKey)}
                   </div>
                 )}
 
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-xl font-bold text-white">{plan.name}</h3>
+                    <h3 className="text-xl font-bold text-white">{t(plan.nameKey)}</h3>
                     {plan.promo && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/15 border border-amber-500/30 rounded-full text-amber-400 text-xs font-semibold">
-                        <Flame className="w-3 h-3" /> Promo Price
+                        <Flame className="w-3 h-3" /> {t('landing.pricing.promoPrice')}
                       </span>
                     )}
                   </div>
-                  <p className="text-gray-400 text-sm mb-4">{plan.description}</p>
+                  <p className="text-gray-400 text-sm mb-4">{t(plan.descriptionKey)}</p>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-black text-white">{plan.priceLabel}</span>
-                    {plan.price > 0 && <span className="text-gray-400">/month</span>}
+                    <span className="text-4xl font-black text-white">{plan.priceLabelKey ? t(plan.priceLabelKey) : plan.priceLabel}</span>
+                    {plan.price > 0 && <span className="text-gray-400">{t('landing.pricing.perMonth')}</span>}
                   </div>
                   {plan.promo && (
                     <div className="mt-3 flex items-start gap-1.5 text-xs text-amber-400/80 bg-amber-500/8 border border-amber-500/20 rounded-lg px-3 py-2">
                       <Lock className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                      <span>First 10 gyms get this price locked in for 6 months.</span>
+                      <span>{t('landing.pricing.lockedNote')}</span>
                     </div>
                   )}
                 </div>
@@ -339,7 +341,7 @@ export default function Landing() {
                   {plan.features.map((f, i) => (
                     <li key={i} className={`flex items-center gap-3 text-sm ${f.included ? 'text-gray-300' : 'text-gray-600'}`}>
                       <CheckCircle className={`w-4 h-4 flex-shrink-0 ${f.included ? 'text-green-400' : 'text-gray-700'}`} />
-                      <span className={f.included ? '' : 'line-through'}>{f.text}</span>
+                      <span className={f.included ? '' : 'line-through'}>{t(f.textKey)}</span>
                     </li>
                   ))}
                 </ul>
@@ -354,7 +356,7 @@ export default function Landing() {
                         : 'bg-gray-700 hover:bg-gray-600 text-white'
                   }`}
                 >
-                  {plan.id === 'free' ? 'Get Started Free' : 'Start Free Trial'}
+                  {plan.id === 'free' ? t('landing.pricing.getStartedFree') : t('landing.pricing.startFreeTrial')}
                 </button>
               </div>
             ))}
@@ -362,11 +364,11 @@ export default function Landing() {
 
           <div className="mt-8 text-center space-y-1">
             <p className="text-gray-500 text-sm">
-              All paid plans include a 14-day free trial · No setup fees · Cancel anytime · Prices in Ethiopian Birr
+              {t('landing.pricing.footnote1')}
             </p>
             <p className="text-amber-500/70 text-xs flex items-center justify-center gap-1.5">
               <Flame className="w-3 h-3" />
-              Promotional pricing — available to the first 10 gyms only. Regular pricing applies after launch.
+              {t('landing.pricing.footnote2')}
             </p>
           </div>
         </div>
@@ -381,24 +383,24 @@ export default function Landing() {
               {[...Array(5)].map((_, i) => <Star key={i} className="w-5 h-5 text-amber-400 fill-amber-400" />)}
             </div>
             <p className="text-xl text-gray-300 italic mb-6 max-w-2xl mx-auto">
-              "Before Hullu Gyms I was using paper notebooks. Now I can see all my members, who paid, who didn't, and send them reminders from my phone. My gym feels professional."
+              {t('landing.testimonial.quote')}
             </p>
             <div className="flex items-center justify-center gap-3">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center font-bold">A</div>
               <div className="text-left">
-                <p className="font-semibold text-white">Abebe Tadesse</p>
-                <p className="text-sm text-gray-400">Owner, Addis Fitness Center</p>
+                <p className="font-semibold text-white">{t('landing.testimonial.name')}</p>
+                <p className="text-sm text-gray-400">{t('landing.testimonial.role')}</p>
               </div>
             </div>
           </div>
 
           {/* Final CTA */}
           <div className="text-center">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Ready to Modernize Your Gym?</h2>
-            <p className="text-gray-400 text-lg mb-8">Join gym owners across Ethiopia who manage smarter with Hullu Gyms.</p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{t('landing.finalCta.title')}</h2>
+            <p className="text-gray-400 text-lg mb-8">{t('landing.finalCta.subtitle')}</p>
             <button onClick={() => setShowRegister(true)}
               className="inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-2xl font-semibold text-lg transition-all shadow-2xl shadow-blue-500/30 hover:scale-[1.02]">
-              Start Free — No Commitment
+              {t('landing.finalCta.button')}
               <ArrowRight className="w-5 h-5" />
             </button>
           </div>
@@ -414,11 +416,11 @@ export default function Landing() {
             </div>
             <span className="font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Hullu Gyms</span>
           </div>
-          <p className="text-gray-500 text-sm">© 2025 Hullu Gyms. Gym Management Software · Built in Ethiopia 🇪🇹</p>
+          <p className="text-gray-500 text-sm">{t('landing.footer.copyright')} 🇪🇹</p>
           <div className="flex gap-6 text-sm text-gray-500">
-            <a href="#features" className="hover:text-white transition-colors">Features</a>
-            <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
-            <button onClick={() => navigate('/login')} className="hover:text-white transition-colors">Sign In</button>
+            <a href="#features" className="hover:text-white transition-colors">{t('landing.nav.features')}</a>
+            <a href="#pricing" className="hover:text-white transition-colors">{t('landing.nav.pricing')}</a>
+            <button onClick={() => navigate('/login')} className="hover:text-white transition-colors">{t('landing.nav.signIn')}</button>
           </div>
         </div>
       </footer>
@@ -433,8 +435,8 @@ export default function Landing() {
             </button>
 
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-white mb-1">Create Your Gym Account</h2>
-              <p className="text-gray-400 text-sm">14 days free · No credit card required</p>
+              <h2 className="text-2xl font-bold text-white mb-1">{t('landing.register.title')}</h2>
+              <p className="text-gray-400 text-sm">{t('landing.register.subtitle')}</p>
             </div>
 
             {error && (
@@ -453,8 +455,8 @@ export default function Landing() {
                   </div>
                 </label>
                 <div>
-                  <p className="text-sm font-medium text-gray-300">Gym Logo</p>
-                  <p className="text-xs text-gray-500">Click to upload (JPG/PNG, max 1MB)</p>
+                  <p className="text-sm font-medium text-gray-300">{t('landing.register.logoLabel')}</p>
+                  <p className="text-xs text-gray-500">{t('landing.register.logoHint')}</p>
                 </div>
               </div>
 

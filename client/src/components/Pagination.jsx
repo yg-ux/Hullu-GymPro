@@ -1,6 +1,8 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function Pagination({ pagination, onPageChange }) {
+  const { t } = useLanguage();
   if (!pagination || pagination.pages <= 1) return null;
 
   const { page, pages, total, limit } = pagination;
@@ -22,14 +24,14 @@ export default function Pagination({ pagination, onPageChange }) {
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-1">
       <p className="text-sm text-gray-400">
-        Showing <span className="font-medium text-white">{from}–{to}</span> of <span className="font-medium text-white">{total}</span> members
+        {t('pagination.showing', { from, to, total })}
       </p>
       <div className="flex items-center gap-1">
         <button
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
           className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          aria-label="Previous page"
+          aria-label={t('pagination.previousPage')}
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
@@ -56,7 +58,7 @@ export default function Pagination({ pagination, onPageChange }) {
           onClick={() => onPageChange(page + 1)}
           disabled={page >= pages}
           className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          aria-label="Next page"
+          aria-label={t('pagination.nextPage')}
         >
           <ChevronRight className="w-4 h-4" />
         </button>

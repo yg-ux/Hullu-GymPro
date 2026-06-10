@@ -143,9 +143,9 @@ export default function Dashboard() {
           icon: Clock,
           color: 'from-amber-500 to-amber-600',
           type: 'expiring',
-          title: `${stats.overview.expiring_soon} memberships expiring soon`,
+          title: t('dashboard.expiringMemberships', { count: stats.overview.expiring_soon }),
           time: new Date().toISOString(),
-          timeAgo: 'Today'
+          timeAgo: t('dashboard.todayWord')
         }]);
       }
     }
@@ -180,7 +180,7 @@ export default function Dashboard() {
             icon: UserPlus,
             color: 'from-gym-500 to-gym-600',
             type: 'new_member',
-            title: `New member: ${customer.name}`,
+            title: t('dashboard.newMember', { name: customer.name }),
             time: customer.created_at,
             timeAgo: getTimeAgo(customer.created_at)
           });
@@ -195,7 +195,7 @@ export default function Dashboard() {
             icon: DollarSign,
             color: 'from-emerald-500 to-emerald-600',
             type: 'payment',
-            title: `Payment received: ${formatCurrency(payment.amount)}`,
+            title: t('dashboard.paymentReceived', { amount: formatCurrency(payment.amount) }),
             time: payment.payment_date,
             timeAgo: getTimeAgo(payment.payment_date),
             customer: payment.customer_name
@@ -215,7 +215,7 @@ export default function Dashboard() {
             icon: UserCheck,
             color: 'from-gym-400 to-gym-500',
             type: 'check_in',
-            title: `${record.customer_name} checked in`,
+            title: t('dashboard.checkedIn', { name: record.customer_name }),
             time: record.check_in,
             timeAgo: getTimeAgo(record.check_in)
           });
@@ -242,10 +242,10 @@ export default function Dashboard() {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
-    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    if (diffMins < 1) return t('dashboard.justNow');
+    if (diffMins < 60) return t(diffMins > 1 ? 'dashboard.minsAgo' : 'dashboard.minAgo', { n: diffMins });
+    if (diffHours < 24) return t(diffHours > 1 ? 'dashboard.hoursAgo' : 'dashboard.hourAgo', { n: diffHours });
+    if (diffDays < 7) return t(diffDays > 1 ? 'dashboard.daysAgo' : 'dashboard.dayAgo', { n: diffDays });
     return formatDate(dateStr);
   };
 
@@ -294,26 +294,26 @@ export default function Dashboard() {
           )}
           <div>
             <p className="text-sm font-medium text-gray-400 mb-0.5">
-              {stats?.overview?.total_customers === 0 ? 'Welcome!' : 'Welcome back!'}
+              {stats?.overview?.total_customers === 0 ? t('dashboard.welcome') : t('dashboard.welcomeBack')}
             </p>
             <h1 className={`text-3xl font-bold bg-gradient-to-r from-${theme.accent}-400 to-${theme.accent}-500 bg-clip-text text-transparent leading-tight`}>
-              {gym?.name || 'Your Gym'}
+              {gym?.name || t('dashboard.yourGym')}
             </h1>
             <p className="text-gray-400 mt-1 text-sm">
               {stats?.overview?.total_customers === 0
-                ? "Let's get started — add your first member!"
-                : `Here's what's happening at ${gym?.name || 'your gym'} today.`}
+                ? t('dashboard.getStarted')
+                : t('dashboard.todayAt', { gym: gym?.name || t('dashboard.yourGym') })}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <Link to="/customers" className="btn-secondary inline-flex items-center gap-2">
             <Users className="w-4 h-4" />
-            View All Customers
+            {t('dashboard.viewAllCustomers')}
           </Link>
           <Link to="/customers/new" className="btn-primary inline-flex items-center gap-2">
             <Plus className="w-5 h-5" />
-            Add Customer
+            {t('dashboard.addCustomer')}
           </Link>
         </div>
       </div>
@@ -331,7 +331,7 @@ export default function Dashboard() {
               )}
             </div>
             <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">In Gym Right Now</p>
+              <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">{t('dashboard.inGymRightNow')}</p>
               <div className="flex items-center gap-3 mt-0.5">
                 <span className="text-2xl font-bold text-white">{liveAttendance.count ?? 0}</span>
                 {liveAttendance.count > 0 && (
@@ -342,12 +342,12 @@ export default function Dashboard() {
                       </span>
                     ))}
                     {liveAttendance.count > 5 && (
-                      <span className="text-xs text-gray-500">+{liveAttendance.count - 5} more</span>
+                      <span className="text-xs text-gray-500">{t('dashboard.morePeople', { count: liveAttendance.count - 5 })}</span>
                     )}
                   </div>
                 )}
                 {liveAttendance.count === 0 && (
-                  <span className="text-sm text-gray-600">Gym is empty</span>
+                  <span className="text-sm text-gray-600">{t('dashboard.gymIsEmpty')}</span>
                 )}
               </div>
             </div>
@@ -357,7 +357,7 @@ export default function Dashboard() {
             className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-gym-500/15 border border-gym-500/30 rounded-xl text-gym-400 text-sm font-medium hover:bg-gym-500/25 transition-all"
           >
             <KioskIcon className="w-4 h-4" />
-            Kiosk
+            {t('dashboard.kiosk')}
           </Link>
         </div>
       )}
@@ -369,7 +369,7 @@ export default function Dashboard() {
           value={stats?.overview?.total_customers || 0}
           icon={Users}
           color="blue"
-          trend={`+${stats?.new_this_month || 0} this month`}
+          trend={t('dashboard.thisMonthShort', { count: stats?.new_this_month || 0 })}
           animated={animated}
           delay={0}
         />
@@ -378,7 +378,7 @@ export default function Dashboard() {
           value={stats?.overview?.active_customers || 0}
           icon={UserCheck}
           color="green"
-          trend={`${activeRate}% active rate`}
+          trend={t('dashboard.activeRate', { rate: activeRate })}
           animated={animated}
           delay={100}
         />
@@ -387,16 +387,16 @@ export default function Dashboard() {
           value={stats?.overview?.expiring_soon || 0}
           icon={Clock}
           color="yellow"
-          trend="Within 7 days"
+          trend={t('dashboard.within7Days')}
           animated={animated}
           delay={200}
         />
         <AnimatedStatCard
-          title="Expired"
+          title={t('dashboard.expired')}
           value={stats?.overview?.expired || 0}
           icon={AlertTriangle}
           color="red"
-          trend="Need renewal"
+          trend={t('dashboard.needRenewal')}
           animated={animated}
           delay={300}
         />
@@ -414,7 +414,7 @@ export default function Dashboard() {
                   <div className="w-10 h-10 rounded-xl bg-gym-500/20 flex items-center justify-center">
                     <DollarSign className="w-6 h-6 text-gym-400" />
                   </div>
-                  Revenue Overview
+                  {t('dashboard.revenueOverview')}
                 </h2>
                 <div className="flex items-center gap-2 text-emerald-400 text-sm">
                   <TrendingUp className="w-4 h-4" />
@@ -425,28 +425,28 @@ export default function Dashboard() {
               {/* Revenue Stats */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <AnimatedRevenueCard
-                  title="Today"
+                  title={t('dashboard.revenueToday')}
                   value={stats?.revenue?.today || 0}
                   icon={Calendar}
                   animated={animated}
                   delay={0}
                 />
                 <AnimatedRevenueCard
-                  title="This Month"
+                  title={t('dashboard.revenueThisMonth')}
                   value={stats?.revenue?.this_month || 0}
                   icon={Activity}
                   animated={animated}
                   delay={100}
                 />
                 <AnimatedRevenueCard
-                  title="Last 30 Days"
+                  title={t('dashboard.revenueLast30')}
                   value={stats?.revenue?.last_30_days || 0}
                   icon={TrendingUp}
                   animated={animated}
                   delay={200}
                 />
                 <AnimatedRevenueCard
-                  title="All Time"
+                  title={t('dashboard.revenueAllTime')}
                   value={stats?.revenue?.all_time || 0}
                   icon={Wallet}
                   animated={animated}
@@ -459,7 +459,7 @@ export default function Dashboard() {
                 <div className="mt-6">
                   <h3 className="text-sm font-medium text-gray-400 mb-4 flex items-center gap-2">
                     <Activity className="w-4 h-4" />
-                    Monthly Revenue (Last 12 Months)
+                    {t('dashboard.monthlyRevenue12')}
                   </h3>
                   <AnimatedBarChart data={stats.monthly_trend} animated={animated} />
                 </div>
@@ -476,7 +476,7 @@ export default function Dashboard() {
               <div className="relative">
                 <div className="flex items-center gap-2 mb-4">
                   <Star className="w-4 h-4 text-amber-400" />
-                  <span className="text-xs font-semibold text-amber-400 uppercase tracking-wide">Latest Payment</span>
+                  <span className="text-xs font-semibold text-amber-400 uppercase tracking-wide">{t('dashboard.latestPayment')}</span>
                 </div>
                 <div className="flex items-center gap-4 mb-4">
                   <div className="w-12 h-12 rounded-xl bg-gym-500/25 flex items-center justify-center text-lg font-bold text-gym-300">
@@ -484,11 +484,11 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-white">{customerOfDay.customer_name}</h3>
-                    <p className="text-sm text-gray-400">Just made a payment</p>
+                    <p className="text-sm text-gray-400">{t('dashboard.justPaid')}</p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/25">
-                  <span className="text-sm text-gray-400">Amount Paid</span>
+                  <span className="text-sm text-gray-400">{t('dashboard.amountPaid')}</span>
                   <span className="text-xl font-bold text-emerald-400">
                     +{formatCurrency(customerOfDay.amount)}
                   </span>
@@ -501,7 +501,7 @@ export default function Dashboard() {
           <div className="glass-card p-6">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
               <Target className="w-5 h-5 text-gym-400" />
-              Quick Stats
+              {t('dashboard.quickStats')}
             </h2>
             
             <div className="space-y-3">
@@ -510,7 +510,7 @@ export default function Dashboard() {
                   <div className="w-9 h-9 rounded-lg bg-gym-500/15 flex items-center justify-center">
                     <Wallet className="w-4 h-4 text-gym-400" />
                   </div>
-                  <span className="text-gray-400 text-sm">Total Revenue</span>
+                  <span className="text-gray-400 text-sm">{t('dashboard.totalRevenue')}</span>
                 </div>
                 <span className="text-lg font-bold text-white">
                   {formatCurrency(stats?.revenue?.all_time || 0)}
@@ -522,7 +522,7 @@ export default function Dashboard() {
                   <div className="w-9 h-9 rounded-lg bg-gym-500/15 flex items-center justify-center">
                     <Receipt className="w-4 h-4 text-gym-400" />
                   </div>
-                  <span className="text-gray-400 text-sm">Total Payments</span>
+                  <span className="text-gray-400 text-sm">{t('dashboard.totalPayments')}</span>
                 </div>
                 <span className="text-lg font-bold text-white">
                   {stats?.revenue?.all_time_count || 0}
@@ -534,7 +534,7 @@ export default function Dashboard() {
                   <div className="w-9 h-9 rounded-lg bg-gym-500/15 flex items-center justify-center">
                     <UserPlus className="w-4 h-4 text-gym-400" />
                   </div>
-                  <span className="text-gray-400 text-sm">New This Month</span>
+                  <span className="text-gray-400 text-sm">{t('dashboard.newThisMonth')}</span>
                 </div>
                 <span className="text-lg font-bold text-gym-400">
                   +{stats?.new_this_month || 0}
@@ -552,7 +552,7 @@ export default function Dashboard() {
           <div className="glass-card p-6">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
               <PieChart className="w-5 h-5 text-gym-400" />
-              Active Memberships
+              {t('dashboard.activeMemberships')}
             </h2>
             <AnimatedPieChart data={stats.membership_distribution} animated={animated} />
           </div>
@@ -563,7 +563,7 @@ export default function Dashboard() {
           <div className="glass-card p-6">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
               <CreditCard className="w-5 h-5 text-gray-400" />
-              Payment Methods
+              {t('dashboard.paymentMethods')}
             </h2>
             <div className="space-y-4">
               {stats.payment_methods.map((method, index) => {
@@ -574,7 +574,7 @@ export default function Dashboard() {
                   <div key={method.payment_method} className="animate-slide-up" style={{ animationDelay: `${index * 100}ms` }}>
                     <div className="flex justify-between text-sm mb-2">
                       <span className="text-gray-300">{getPaymentMethodLabel(method.payment_method)}</span>
-                      <span className="text-gray-400">{method.count} payments • {formatCurrency(method.total)}</span>
+                      <span className="text-gray-400">{t('dashboard.paymentsCount', { count: method.count })} • {formatCurrency(method.total)}</span>
                     </div>
                     <div className="h-2.5 bg-dark-300 rounded-full overflow-hidden">
                       <div
@@ -597,7 +597,7 @@ export default function Dashboard() {
         <div className="glass-card p-6">
           <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
             <Zap className="w-5 h-5 text-amber-400" />
-            Quick Actions
+            {t('dashboard.quickActions')}
           </h2>
           <div className="grid grid-cols-2 gap-3">
             <Link
@@ -607,7 +607,7 @@ export default function Dashboard() {
               <div className="w-10 h-10 rounded-xl bg-gym-500/25 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <UserPlus className="w-5 h-5 text-gym-400" />
               </div>
-              <span className="text-sm text-gray-300">Add Customer</span>
+              <span className="text-sm text-gray-300">{t('dashboard.addCustomer')}</span>
             </Link>
             <Link
               to="/customers?status=expiring"
@@ -616,7 +616,7 @@ export default function Dashboard() {
               <div className="w-10 h-10 rounded-xl bg-amber-500/25 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Clock className="w-5 h-5 text-amber-400" />
               </div>
-              <span className="text-sm text-gray-300">Expiring Soon</span>
+              <span className="text-sm text-gray-300">{t('dashboard.expiringSoon')}</span>
             </Link>
             <Link
               to="/customers"
@@ -625,7 +625,7 @@ export default function Dashboard() {
               <div className="w-10 h-10 rounded-xl bg-emerald-500/25 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <CheckCircle className="w-5 h-5 text-emerald-400" />
               </div>
-              <span className="text-sm text-gray-300">Check-in</span>
+              <span className="text-sm text-gray-300">{t('dashboard.checkIn')}</span>
             </Link>
             <Link
               to="/subscription"
@@ -634,7 +634,7 @@ export default function Dashboard() {
               <div className="w-10 h-10 rounded-xl bg-gray-700/50 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Award className="w-5 h-5 text-gray-300" />
               </div>
-              <span className="text-sm text-gray-400">Upgrade Plan</span>
+              <span className="text-sm text-gray-400">{t('dashboard.upgradePlan')}</span>
             </Link>
           </div>
         </div>
@@ -664,7 +664,7 @@ export default function Dashboard() {
               {t('dashboard.recentPayments')}
             </h2>
             <Link to="/customers" className="text-sm text-gym-400 hover:text-gym-300 flex items-center gap-1 transition-colors">
-              View all <ChevronRight className="w-4 h-4" />
+              {t('dashboard.viewAll')} <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
           
@@ -696,7 +696,7 @@ export default function Dashboard() {
               <div className="w-16 h-16 rounded-2xl bg-dark-200 flex items-center justify-center mx-auto mb-4">
                 <Receipt className="w-8 h-8 text-gray-600" />
               </div>
-              <p className="text-gray-500">No payments recorded yet</p>
+              <p className="text-gray-500">{t('dashboard.noPaymentsYet')}</p>
             </div>
           )}
         </div>
@@ -706,7 +706,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
               <Activity className="w-5 h-5 text-gym-400" />
-              Activity Feed
+              {t('dashboard.activityFeed')}
             </h2>
           </div>
           
@@ -764,7 +764,7 @@ export default function Dashboard() {
                 <div className="w-16 h-16 rounded-2xl bg-dark-200 flex items-center justify-center mx-auto mb-4">
                   <Activity className="w-8 h-8 text-gray-600" />
                 </div>
-                <p className="text-gray-500">No recent activity</p>
+                <p className="text-gray-500">{t('dashboard.noRecentActivity')}</p>
               </div>
             )}
           </div>
@@ -779,18 +779,18 @@ export default function Dashboard() {
               <AlertTriangle className="w-5 h-5 text-amber-400" />
             </div>
             <div className="flex-1">
-              <h3 className="text-base font-semibold text-white mb-1.5">Attention Required</h3>
+              <h3 className="text-base font-semibold text-white mb-1.5">{t('dashboard.attentionRequired')}</h3>
               <div className="space-y-1">
                 {stats.overview.expiring_soon > 0 && (
                   <p className="text-sm text-gray-400">
-                    <span className="text-amber-400 font-semibold">{stats.overview.expiring_soon} members</span>
-                    {' '}expire within 7 days
+                    <span className="text-amber-400 font-semibold">{t('dashboard.membersExpireIn7', { count: stats.overview.expiring_soon })}</span>
+                    {t('dashboard.expireWithin7')}
                   </p>
                 )}
                 {stats.overview.expired > 0 && (
                   <p className="text-sm text-gray-400">
-                    <span className="text-red-400 font-semibold">{stats.overview.expired} members</span>
-                    {' '}have expired memberships
+                    <span className="text-red-400 font-semibold">{t('dashboard.membersExpireIn7', { count: stats.overview.expired })}</span>
+                    {t('dashboard.haveExpired')}
                   </p>
                 )}
               </div>
@@ -798,7 +798,7 @@ export default function Dashboard() {
                 to="/customers?status=expiring"
                 className="inline-flex items-center gap-2 mt-3 px-3 py-1.5 bg-amber-500/15 border border-amber-500/30 text-amber-400 text-sm font-medium rounded-lg hover:bg-amber-500/25 transition-all"
               >
-                View affected customers
+                {t('dashboard.viewAffected')}
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
@@ -810,7 +810,8 @@ export default function Dashboard() {
 }
 
 function AttendanceHeatmap({ matrix, max }) {
-  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const { t } = useLanguage();
+  const dayLabels = [t('day.sun'), t('day.mon'), t('day.tue'), t('day.wed'), t('day.thu'), t('day.fri'), t('day.sat')];
   const hourLabels = [0, 3, 6, 9, 12, 15, 18, 21];
 
   const cellColor = (v) => {
@@ -838,7 +839,7 @@ function AttendanceHeatmap({ matrix, max }) {
             {row.map((v, h) => (
               <div
                 key={h}
-                title={`${dayLabels[d]} ${h}:00 — ${v} check-ins`}
+                title={t('dashboard.checkInsTooltip', { day: dayLabels[d], hour: h, count: v })}
                 className="flex-1 min-w-[18px] aspect-square mx-[1px] rounded-[3px] transition-transform hover:scale-125 cursor-pointer"
                 style={{ background: cellColor(v) }}
               />
@@ -847,11 +848,11 @@ function AttendanceHeatmap({ matrix, max }) {
         ))}
         {/* Legend */}
         <div className="flex items-center justify-end gap-2 mt-3 text-[10px] text-gray-500">
-          <span>Less</span>
+          <span>{t('dashboard.less')}</span>
           {[0.04, 0.2, 0.4, 0.6, 0.9].map((a, i) => (
             <div key={i} className="w-3 h-3 rounded-[3px]" style={{ background: a === 0.04 ? 'rgba(255,255,255,0.04)' : `rgba(var(--gym-500-rgb), ${a})` }} />
           ))}
-          <span>More</span>
+          <span>{t('dashboard.more')}</span>
         </div>
       </div>
     </div>
@@ -917,28 +918,31 @@ function AnimatedRevenueCard({ title, value, icon: Icon, animated, delay }) {
   );
 }
 
-// Parse "2026-06" → { short: "Jun", long: "June 2026" }
-const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const MONTH_SHORT  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-function parseMonthLabel(str) {
+// Parse "2026-06" → { short: "Jun", long: "June 2026" } — uses browser locale
+function parseMonthLabel(str, locale = 'default') {
   if (!str) return { short: '', long: str || '' };
   const parts = str.split('-');
   if (parts.length >= 2) {
     const idx = parseInt(parts[1], 10) - 1;
     if (idx >= 0 && idx < 12) {
-      return { short: MONTH_SHORT[idx], long: `${MONTH_NAMES[idx]} ${parts[0]}` };
+      const d = new Date(parseInt(parts[0], 10), idx, 1);
+      const short = d.toLocaleDateString(locale, { month: 'short' });
+      const long  = d.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
+      return { short, long };
     }
   }
   return { short: str, long: str };
 }
 
 function AnimatedBarChart({ data, animated }) {
+  const { t, lang } = useLanguage();
+  const locale = lang === 'am' ? 'am-ET' : 'en-US';
   const [hoveredIdx, setHoveredIdx] = useState(null);
 
   if (!data || data.length === 0) {
     return (
       <div className="h-48 flex items-center justify-center text-gray-600 text-sm">
-        No data yet
+        {t('dashboard.noDataYet')}
       </div>
     );
   }
@@ -1007,7 +1011,7 @@ function AnimatedBarChart({ data, animated }) {
         const isLast = i === data.length - 1;
         const isHov = hoveredIdx === i;
         const fillId = isHov ? 'url(#dbBarHov)' : isLast ? 'url(#dbBarLast)' : 'url(#dbBarGrad)';
-        const { short, long } = parseMonthLabel(month.month || month.label || '');
+        const { short, long } = parseMonthLabel(month.month || month.label || '', locale);
 
         // Tooltip — compact, always above bar, clamped to top of SVG
         const TW = 96, TH = 30;

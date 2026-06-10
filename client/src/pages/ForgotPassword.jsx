@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
+import { useLanguage } from '../context/LanguageContext';
 import { Dumbbell, Mail, Key, Lock, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 
 export default function ForgotPassword() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [step, setStep] = useState('email'); // 'email' | 'otp' | 'done'
   const [email, setEmail] = useState('');
@@ -16,15 +18,15 @@ export default function ForgotPassword() {
 
   const handleRequestOtp = async (e) => {
     e.preventDefault();
-    if (!email) return setError('Email is required');
+    if (!email) return setError(t('forgot.emailRequired'));
     setError('');
     setLoading(true);
     try {
       const data = await api.post('/auth/forgot-password', { email });
-      setMessage(data.message || 'Check your email inbox for the 6-digit reset code.');
+      setMessage(data.message || t('forgot.checkInbox'));
       setStep('otp');
     } catch (err) {
-      setError(err.message || 'Failed to send OTP');
+      setError(err.message || t('forgot.failedToSendOtp'));
     } finally {
       setLoading(false);
     }
@@ -32,17 +34,17 @@ export default function ForgotPassword() {
 
   const handleResetPassword = async (e) => {
     e.preventDefault();
-    if (!otp || !newPassword || !confirmPassword) return setError('All fields are required');
-    if (newPassword.length < 8) return setError('Password must be at least 8 characters');
-    if (newPassword !== confirmPassword) return setError('Passwords do not match');
-    if (!/\d/.test(newPassword)) return setError('Password must contain at least one number');
+    if (!otp || !newPassword || !confirmPassword) return setError(t('forgot.allFieldsRequired'));
+    if (newPassword.length < 8) return setError(t('forgot.passwordTooShort'));
+    if (newPassword !== confirmPassword) return setError(t('forgot.passwordsNoMatch'));
+    if (!/\d/.test(newPassword)) return setError(t('forgot.passwordNeedsNumber'));
     setError('');
     setLoading(true);
     try {
       await api.post('/auth/reset-password', { email, otp, newPassword });
       setStep('done');
     } catch (err) {
-      setError(err.message || 'Failed to reset password');
+      setError(err.message || t('forgot.failedToReset'));
     } finally {
       setLoading(false);
     }
@@ -59,11 +61,11 @@ export default function ForgotPassword() {
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-xl shadow-blue-600/30 mb-4">
             <Dumbbell className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Reset Password</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('forgot.title')}</h1>
           <p className="text-gray-500 dark:text-gray-400">
-            {step === 'email' && 'Enter your email to receive a reset code'}
-            {step === 'otp' && 'Enter the 6-digit code sent to your email'}
-            {step === 'done' && 'Your password has been reset'}
+            {step === 'email' && t('forgot.subtitleEmail')}
+            {step === 'otp' && t('forgot.subtitleOtp')}
+            {step === 'done' && t('forgot.subtitleDone')}
           </p>
         </div>
 
@@ -78,7 +80,7 @@ export default function ForgotPassword() {
           {step === 'email' && (
             <form onSubmit={handleRequestOtp} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email address</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('forgot.emailLabel')}</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
@@ -86,7 +88,7 @@ export default function ForgotPassword() {
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="you@gym.com"
+                    placeholder={t('forgot.emailPlaceholder')}
                     autoComplete="email"
                   />
                 </div>
@@ -97,7 +99,7 @@ export default function ForgotPassword() {
                 className="w-full py-3 btn-primary flex items-center justify-center gap-2"
               >
                 {loading ? <span className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" /> : null}
-                {loading ? 'Sending OTP...' : 'Send OTP'}
+                {loading ? t('forgot.sendingOtp') : t('forgot.sendOtp')}
               </button>
             </form>
           )}
@@ -111,7 +113,7 @@ export default function ForgotPassword() {
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">OTP Code</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('forgot.otpLabel')}</label>
                 <div className="relative">
                   <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
@@ -119,13 +121,13 @@ export default function ForgotPassword() {
                     value={otp}
                     onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 tracking-widest text-center text-xl font-bold"
-                    placeholder="000000"
+                    placeholder={t('forgot.otpPlaceholder')}
                     maxLength={6}
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">New Password</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('forgot.newPassword')}</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
@@ -133,12 +135,12 @@ export default function ForgotPassword() {
                     value={newPassword}
                     onChange={e => setNewPassword(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Min. 8 characters, include a number"
+                    placeholder={t('forgot.newPasswordPlaceholder')}
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Confirm Password</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('forgot.confirmPassword')}</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
@@ -146,7 +148,7 @@ export default function ForgotPassword() {
                     value={confirmPassword}
                     onChange={e => setConfirmPassword(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Repeat your new password"
+                    placeholder={t('forgot.confirmPasswordPlaceholder')}
                   />
                 </div>
               </div>
@@ -156,7 +158,7 @@ export default function ForgotPassword() {
                 className="w-full py-3 btn-primary flex items-center justify-center gap-2"
               >
                 {loading ? <span className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" /> : null}
-                {loading ? 'Resetting...' : 'Reset Password'}
+                {loading ? t('forgot.resetting') : t('forgot.resetPassword')}
               </button>
             </form>
           )}
@@ -166,12 +168,12 @@ export default function ForgotPassword() {
               <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto">
                 <CheckCircle className="w-8 h-8 text-green-400" />
               </div>
-              <p className="text-gray-300">Your password has been reset successfully.</p>
+              <p className="text-gray-300">{t('forgot.doneMessage')}</p>
               <button
                 onClick={() => navigate('/login')}
                 className="w-full py-3 btn-primary"
               >
-                Go to Login
+                {t('forgot.goToLogin')}
               </button>
             </div>
           )}
@@ -179,7 +181,7 @@ export default function ForgotPassword() {
           <div className="mt-5 text-center">
             <Link to="/login" className="inline-flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300 transition-colors">
               <ArrowLeft className="w-4 h-4" />
-              Back to login
+              {t('forgot.backToLogin')}
             </Link>
           </div>
         </div>

@@ -54,7 +54,7 @@ function applyTheme(themeId) {
 export default function Settings() {
   const { gym, user, updateGym } = useAuth();
   const toast = useToast();
-  const { lang, setLang } = useLanguage();
+  const { lang, setLang, t } = useLanguage();
 
   const [gymForm, setGymForm] = useState({
     name: '',
@@ -94,7 +94,7 @@ export default function Settings() {
       setSelectedTheme(data.gym?.color_theme || 'default');
       setLogoPreview(data.gym?.logo || null);
     } catch (err) {
-      toast.error('Failed to load settings');
+      toast.error(t('settings.failedLoad'));
     } finally {
       setPageLoading(false);
     }
@@ -105,9 +105,9 @@ export default function Settings() {
     setGymLoading(true);
     try {
       await api.put('/auth/gym', { address: gymForm.address });
-      toast.success('Address updated');
+      toast.success(t('settings.addressUpdated'));
     } catch (err) {
-      toast.error(err.message || 'Failed to update address');
+      toast.error(err.message || t('settings.failedAddress'));
     } finally {
       setGymLoading(false);
     }
@@ -117,9 +117,9 @@ export default function Settings() {
     setSmsLoading(true);
     try {
       await api.put('/auth/gym', { sms_enabled: smsEnabled });
-      toast.success(smsEnabled ? 'SMS notifications enabled' : 'SMS notifications disabled');
+      toast.success(smsEnabled ? t('settings.smsEnabled') : t('settings.smsDisabled'));
     } catch (err) {
-      toast.error(err.message || 'Failed to save SMS settings');
+      toast.error(err.message || t('settings.failedSms'));
     } finally {
       setSmsLoading(false);
     }
@@ -134,7 +134,7 @@ export default function Settings() {
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > 1024 * 1024) {
-      toast.error('Photo too large. Use an image under 1MB.');
+      toast.error(t('settings.photoTooLarge'));
       return;
     }
     setLogoFile(file);
@@ -173,10 +173,10 @@ export default function Settings() {
       updateGym({ color_theme: selectedTheme, logo: res.gym?.logo ?? logoData });
       applyTheme(selectedTheme);
 
-      toast.success('Appearance saved!');
+      toast.success(t('settings.appearanceSaved'));
       setLogoFile(null);
     } catch (err) {
-      toast.error(err.message || 'Failed to save appearance');
+      toast.error(err.message || t('settings.failedAppearance'));
       // Revert theme preview on error
       applyTheme(gym?.color_theme || 'default');
       setSelectedTheme(gym?.color_theme || 'default');
@@ -202,8 +202,8 @@ export default function Settings() {
   return (
     <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-white">Settings</h1>
-        <p className="text-gray-400 mt-1">Manage your gym profile and appearance</p>
+        <h1 className="text-2xl font-bold text-white">{t('settings.title')}</h1>
+        <p className="text-gray-400 mt-1">{t('settings.subtitle')}</p>
       </div>
 
       {/* ── Gym Appearance ── */}
@@ -212,12 +212,12 @@ export default function Settings() {
           <div className="w-9 h-9 rounded-lg bg-gym-600/20 flex items-center justify-center">
             <Palette className="w-5 h-5 text-gym-400" />
           </div>
-          <h2 className="text-lg font-semibold text-white">Gym Appearance</h2>
+          <h2 className="text-lg font-semibold text-white">{t('settings.appearance')}</h2>
         </div>
 
         {/* Logo Upload */}
         <div>
-          <p className="text-sm font-medium text-gray-300 mb-3">Gym Profile Photo</p>
+          <p className="text-sm font-medium text-gray-300 mb-3">{t('settings.gymProfilePhoto')}</p>
           <div className="flex items-center gap-5">
             <div className="relative flex-shrink-0">
               {logoPreview ? (
@@ -238,12 +238,12 @@ export default function Settings() {
               ) : (
                 <div className="w-20 h-20 rounded-2xl bg-dark-200 border-2 border-dashed border-gray-700 flex flex-col items-center justify-center">
                   <Image className="w-7 h-7 text-gray-600 mb-1" />
-                  <span className="text-xs text-gray-600">No photo</span>
+                  <span className="text-xs text-gray-600">{t('settings.noPhoto')}</span>
                 </div>
               )}
             </div>
             <div className="flex-1">
-              <p className="text-sm text-gray-400 mb-2">Upload a logo or photo for your gym. Shown in the sidebar and on your profile.</p>
+              <p className="text-sm text-gray-400 mb-2">{t('settings.uploadLogoHint')}</p>
               <label className="cursor-pointer">
                 <input
                   ref={logoInputRef}
@@ -254,17 +254,17 @@ export default function Settings() {
                 />
                 <span className="btn-secondary inline-flex items-center gap-2 text-sm">
                   <Upload className="w-4 h-4" />
-                  {logoPreview ? 'Change Photo' : 'Upload Photo'}
+                  {logoPreview ? t('settings.changePhoto') : t('settings.uploadPhoto')}
                 </span>
               </label>
-              <p className="text-xs text-gray-600 mt-1.5">JPG, PNG up to 1MB</p>
+              <p className="text-xs text-gray-600 mt-1.5">{t('settings.photoFormatHint')}</p>
             </div>
           </div>
         </div>
 
         {/* Color Theme */}
         <div>
-          <p className="text-sm font-medium text-gray-300 mb-3">Color Theme</p>
+          <p className="text-sm font-medium text-gray-300 mb-3">{t('settings.colorTheme')}</p>
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
             {COLOR_THEMES.map(theme => (
               <button
@@ -289,12 +289,12 @@ export default function Settings() {
               </button>
             ))}
           </div>
-          <p className="text-xs text-gray-500 mt-2">Clicking a theme previews it instantly. Hit Save to make it permanent.</p>
+          <p className="text-xs text-gray-500 mt-2">{t('settings.themePreviewHint')}</p>
         </div>
 
         {/* Language */}
         <div>
-          <p className="text-sm font-medium text-gray-300 mb-3">Language / ቋንቋ</p>
+          <p className="text-sm font-medium text-gray-300 mb-3">{t('settings.languageLabel')}</p>
           <div className="grid grid-cols-2 gap-3 max-w-md">
             {[
               { id: 'en', name: 'English',  flag: '🇬🇧' },
@@ -303,7 +303,7 @@ export default function Settings() {
               <button
                 key={opt.id}
                 type="button"
-                onClick={() => { setLang(opt.id); toast.success(opt.id === 'am' ? 'ቋንቋ ወደ አማርኛ ተቀይሯል' : 'Language changed to English'); }}
+                onClick={() => { setLang(opt.id); toast.success(opt.id === 'am' ? t('settings.langChangedAm') : t('settings.langChangedEn')); }}
                 className={clsx(
                   'flex items-center gap-3 p-3 rounded-xl border-2 transition-all',
                   lang === opt.id
@@ -319,7 +319,7 @@ export default function Settings() {
               </button>
             ))}
           </div>
-          <p className="text-xs text-gray-500 mt-2">Changes apply instantly across the app.</p>
+          <p className="text-xs text-gray-500 mt-2">{t('settings.languageChangeHint')}</p>
         </div>
 
         <div className="flex justify-end pt-2 border-t border-gray-800">
@@ -330,7 +330,7 @@ export default function Settings() {
             className="btn-primary flex items-center gap-2"
           >
             <Save className="w-4 h-4" />
-            {appearanceLoading ? 'Saving...' : 'Save Appearance'}
+            {appearanceLoading ? t('settings.saving') : t('settings.saveAppearance')}
           </button>
         </div>
       </div>
@@ -341,47 +341,47 @@ export default function Settings() {
           <div className="w-9 h-9 rounded-lg bg-gym-600/20 flex items-center justify-center">
             <Building className="w-5 h-5 text-gym-400" />
           </div>
-          <h2 className="text-lg font-semibold text-white">Gym Profile</h2>
+          <h2 className="text-lg font-semibold text-white">{t('settings.gymProfile')}</h2>
         </div>
 
         {/* Read-only info */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-dark-200 rounded-xl">
           <div>
-            <p className="text-xs text-gray-500 mb-1">Gym Name</p>
+            <p className="text-xs text-gray-500 mb-1">{t('settings.gymName')}</p>
             <p className="text-white font-medium">{gymForm.name || '—'}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-500 mb-1">Phone Number</p>
+            <p className="text-xs text-gray-500 mb-1">{t('settings.phoneNumber')}</p>
             <p className="text-white font-medium">{gymForm.phone || '—'}</p>
           </div>
           <div className="sm:col-span-2">
-            <p className="text-xs text-gray-500 mb-1">Email</p>
+            <p className="text-xs text-gray-500 mb-1">{t('settings.email')}</p>
             <p className="text-white font-medium">{gymForm.email || '—'}</p>
           </div>
         </div>
         <p className="text-xs text-gray-500 flex items-center gap-1">
           <AlertCircle className="w-3 h-3" />
-          Gym name and phone are set at registration. Contact support to change them.
+          {t('settings.profileNote')}
         </p>
 
         {/* Editable address */}
         <form onSubmit={handleGymSave} className="space-y-3 pt-2">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Address</label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">{t('settings.address')}</label>
             <div className="relative">
               <MapPin className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
               <textarea
                 value={gymForm.address}
                 onChange={e => setGymForm(p => ({ ...p, address: e.target.value }))}
                 className="input-field pl-10 h-20 resize-none"
-                placeholder="Your gym address"
+                placeholder={t('settings.addressPlaceholder')}
               />
             </div>
           </div>
           <div className="flex justify-end">
             <button type="submit" disabled={gymLoading} className="btn-primary flex items-center gap-2">
               <Save className="w-4 h-4" />
-              {gymLoading ? 'Saving...' : 'Save Address'}
+              {gymLoading ? t('settings.saving') : t('settings.saveAddress')}
             </button>
           </div>
         </form>
@@ -400,12 +400,12 @@ export default function Settings() {
                   <Lock className="w-6 h-6 text-gray-400" />
                 </div>
                 <div className="text-center px-6">
-                  <p className="font-semibold text-white mb-1">SMS is a Starter &amp; Pro feature</p>
-                  <p className="text-sm text-gray-400">Upgrade your plan to send automatic SMS messages to your members.</p>
+                  <p className="font-semibold text-white mb-1">{t('settings.smsLockedTitle')}</p>
+                  <p className="text-sm text-gray-400">{t('settings.smsLockedDesc')}</p>
                 </div>
                 <a href="/subscription"
                   className="mt-1 px-5 py-2 bg-gradient-to-r from-gym-500 to-purple-600 text-white text-sm font-semibold rounded-lg hover:opacity-90 transition-opacity shadow-lg">
-                  Upgrade Now
+                  {t('settings.upgradeNow')}
                 </a>
               </div>
             )}
@@ -415,10 +415,10 @@ export default function Settings() {
                 <MessageSquare className="w-5 h-5 text-green-400" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-white">SMS Notifications</h2>
+                <h2 className="text-lg font-semibold text-white">{t('settings.smsNotifications')}</h2>
                 <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
                   <Zap className="w-3 h-3 text-gym-400" />
-                  Powered by Hullu Gyms — no setup required
+                  {t('settings.smsPoweredBy')}
                 </p>
               </div>
             </div>
@@ -426,14 +426,14 @@ export default function Settings() {
             {smsPlanAllowed && !smsAvailable && (
               <div className="flex items-start gap-3 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-sm text-yellow-400">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <p>SMS is not yet activated on this platform. Contact Hullu Gyms support to enable it.</p>
+                <p>{t('settings.smsNotActivated')}</p>
               </div>
             )}
 
             <div className="flex items-center justify-between p-4 bg-dark-200 rounded-lg border border-gray-700">
               <div>
-                <p className="font-medium text-white">Enable SMS for my gym</p>
-                <p className="text-sm text-gray-400 mt-0.5">Your members will receive automatic SMS updates</p>
+                <p className="font-medium text-white">{t('settings.enableSmsTitle')}</p>
+                <p className="text-sm text-gray-400 mt-0.5">{t('settings.enableSmsDesc')}</p>
               </div>
               <button
                 type="button"
@@ -453,9 +453,9 @@ export default function Settings() {
 
             <div className="space-y-2 px-1">
               {[
-                'Welcome message when a new member joins',
-                'Payment confirmation after each payment',
-                'Membership expiry reminder (7 days &amp; 1 day before)',
+                t('settings.smsFeatureWelcome'),
+                t('settings.smsFeaturePayment'),
+                t('settings.smsFeatureExpiry'),
               ].map(text => (
                 <div key={text} className="flex items-center gap-2 text-sm text-gray-400">
                   <CheckCircle className="w-4 h-4 flex-shrink-0 text-green-400" />
@@ -472,7 +472,7 @@ export default function Settings() {
                 className="btn-primary flex items-center gap-2"
               >
                 <Save className="w-4 h-4" />
-                {smsLoading ? 'Saving...' : 'Save'}
+                {smsLoading ? t('settings.saving') : t('settings.save')}
               </button>
             </div>
           </div>
@@ -480,12 +480,12 @@ export default function Settings() {
       })()}
 
       {/* ── Change Password ── */}
-      <ChangePasswordForm toast={toast} />
+      <ChangePasswordForm toast={toast} t={t} />
     </div>
   );
 }
 
-function ChangePasswordForm({ toast }) {
+function ChangePasswordForm({ toast, t }) {
   const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -500,10 +500,10 @@ function ChangePasswordForm({ toast }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = {};
-    if (!form.currentPassword) errs.currentPassword = 'Required';
-    if (form.newPassword.length < 8) errs.newPassword = 'At least 8 characters';
-    if (!/\d/.test(form.newPassword)) errs.newPassword = 'Must contain a number';
-    if (form.newPassword !== form.confirmPassword) errs.confirmPassword = 'Passwords do not match';
+    if (!form.currentPassword) errs.currentPassword = t('settings.errRequired');
+    if (form.newPassword.length < 8) errs.newPassword = t('settings.errMin8');
+    if (!/\d/.test(form.newPassword)) errs.newPassword = t('settings.errMustNumber');
+    if (form.newPassword !== form.confirmPassword) errs.confirmPassword = t('settings.errNoMatch');
     if (Object.keys(errs).length) { setErrors(errs); return; }
 
     setLoading(true);
@@ -512,10 +512,10 @@ function ChangePasswordForm({ toast }) {
         currentPassword: form.currentPassword,
         newPassword: form.newPassword,
       });
-      toast.success('Password changed successfully');
+      toast.success(t('settings.passwordChanged'));
       setForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err) {
-      toast.error(err.message || 'Failed to change password');
+      toast.error(err.message || t('settings.failedPassword'));
     } finally {
       setLoading(false);
     }
@@ -527,13 +527,13 @@ function ChangePasswordForm({ toast }) {
         <div className="w-9 h-9 rounded-lg bg-purple-600/20 flex items-center justify-center">
           <Lock className="w-5 h-5 text-purple-400" />
         </div>
-        <h2 className="text-lg font-semibold text-white">Change Password</h2>
+        <h2 className="text-lg font-semibold text-white">{t('settings.changePassword')}</h2>
       </div>
 
       {[
-        { name: 'currentPassword', label: 'Current Password' },
-        { name: 'newPassword', label: 'New Password', hint: 'Min 8 characters, include a number' },
-        { name: 'confirmPassword', label: 'Confirm New Password' },
+        { name: 'currentPassword', label: t('settings.currentPassword') },
+        { name: 'newPassword', label: t('settings.newPassword'), hint: t('settings.passwordHint') },
+        { name: 'confirmPassword', label: t('settings.confirmPassword') },
       ].map(({ name, label, hint }) => (
         <div key={name}>
           <label className="block text-sm font-medium text-gray-300 mb-2">{label}</label>
@@ -568,7 +568,7 @@ function ChangePasswordForm({ toast }) {
       <div className="flex justify-end pt-2">
         <button type="submit" disabled={loading} className="btn-primary flex items-center gap-2">
           <Lock className="w-4 h-4" />
-          {loading ? 'Updating...' : 'Change Password'}
+          {loading ? t('settings.updating') : t('settings.changePassword')}
         </button>
       </div>
     </form>

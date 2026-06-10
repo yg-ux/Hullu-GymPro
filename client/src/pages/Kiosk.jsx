@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, getMembershipLabel, formatDate } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import {
   ArrowLeft, Search, CheckCircle, XCircle, Clock, Snowflake,
   AlertTriangle, User, Dumbbell
@@ -13,6 +14,7 @@ const RESET_DELAY = 4000;
 export default function Kiosk() {
   const navigate = useNavigate();
   const { gym } = useAuth();
+  const { t: tr } = useLanguage();
   const inputRef = useRef(null);
 
   const [phone, setPhone] = useState('');
@@ -25,15 +27,15 @@ export default function Kiosk() {
 
   // Clock
   useEffect(() => {
-    const t = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(t);
+    const intervalId = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(intervalId);
   }, []);
 
   // Auto-reset after success/error
   useEffect(() => {
     if (['success', 'error', 'frozen', 'expired'].includes(stage)) {
-      const t = setTimeout(reset, RESET_DELAY);
-      return () => clearTimeout(t);
+      const timerId = setTimeout(reset, RESET_DELAY);
+      return () => clearTimeout(timerId);
     }
   }, [stage]);
 
@@ -58,27 +60,27 @@ export default function Kiosk() {
       const res = await api.get(`/customers?search=${encodeURIComponent(phone)}&limit=1`);
       const customers = res.customers || res.data || [];
       if (customers.length === 0) {
-        setMessage('No member found with that phone number');
+        setMessage(tr('kiosk.notFound'));
         setStage('error');
         return;
       }
       const found = customers[0];
       if (found.is_frozen) {
         setCustomer(found);
-        setMessage(`Membership frozen until ${formatDate(found.frozen_until)}`);
+        setMessage(tr('kiosk.frozenUntil', { date: formatDate(found.frozen_until) }));
         setStage('frozen');
         return;
       }
       if (found.status === 'expired') {
         setCustomer(found);
-        setMessage('Membership has expired — please renew');
+        setMessage(tr('kiosk.expiredRenew'));
         setStage('expired');
         return;
       }
       setCustomer(found);
       setStage('found');
     } catch (e) {
-      setMessage(e.message || 'Search failed');
+      setMessage(e.message || tr('kiosk.notFound'));
       setStage('error');
     } finally {
       setSearching(false);
@@ -90,21 +92,21 @@ export default function Kiosk() {
     setCheckingIn(true);
     try {
       await api.post('/attendance/check-in', { customer_id: customer.id });
-      setMessage(`Welcome, ${customer.name.split(' ')[0]}!`);
+      setMessage(tr('kiosk.welcome', { name: customer.name.split(' ')[0] }));
       setStage('success');
     } catch (e) {
-      const msg = e.message || 'Check-in failed';
+      const msg = e.message || '';
       if (msg.toLowerCase().includes('frozen')) {
         setMessage(msg);
         setStage('frozen');
       } else if (msg.toLowerCase().includes('expired')) {
-        setMessage('Membership has expired — please renew');
+        setMessage(tr('kiosk.expiredRenew'));
         setStage('expired');
       } else if (msg.toLowerCase().includes('already checked in')) {
-        setMessage(`${customer.name.split(' ')[0]} is already checked in`);
+        setMessage(tr('kiosk.alreadyCheckedIn', { name: customer.name.split(' ')[0] }));
         setStage('success');
       } else {
-        setMessage(msg);
+        setMessage(msg || tr('kiosk.notFound'));
         setStage('error');
       }
     } finally {
@@ -125,7 +127,7 @@ export default function Kiosk() {
           className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span className="text-sm">Exit Kiosk</span>
+          <span className="text-sm">{tr('kiosk.exitKiosk')}</span>
         </button>
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-gym-500/20 flex items-center justify-center">
@@ -153,8 +155,8 @@ export default function Kiosk() {
               <CheckCircle className="w-20 h-20 text-emerald-400" />
             </div>
             <h2 className="text-5xl font-bold text-white mb-2">{message}</h2>
-            <p className="text-emerald-400 text-xl mt-3">Check-in successful</p>
-            <p className="text-gray-500 mt-4 text-sm">Resetting in a moment…</p>
+            <p className="text-emerald-400 text-xl mt-3">{tr('kiosk.checkInSuccess')}</p>
+            <p className="text-gray-500 mt-4 text-sm">{tr('kiosk.resetting')}</p>
           </div>
         )}
 
@@ -165,9 +167,9 @@ export default function Kiosk() {
               <Snowflake className="w-20 h-20 text-blue-400" />
             </div>
             {customer && <h2 className="text-4xl font-bold text-white mb-3">{customer.name}</h2>}
-            <p className="text-blue-400 text-xl">Membership Frozen</p>
+            <p className="text-blue-400 text-xl">{tr('kiosk.membershipFrozen')}</p>
             <p className="text-gray-400 mt-2">{message}</p>
-            <p className="text-gray-500 mt-4 text-sm">Please see staff to unfreeze.</p>
+            <p className="text-gray-500 mt-4 text-sm">{tr('kiosk.seeStaffUnfreeze')}</p>
           </div>
         )}
 
@@ -178,9 +180,9 @@ export default function Kiosk() {
               <AlertTriangle className="w-20 h-20 text-amber-400" />
             </div>
             {customer && <h2 className="text-4xl font-bold text-white mb-3">{customer.name}</h2>}
-            <p className="text-amber-400 text-xl">Membership Expired</p>
+            <p className="text-amber-400 text-xl">{tr('kiosk.membershipExpired')}</p>
             <p className="text-gray-400 mt-2">{message}</p>
-            <p className="text-gray-500 mt-4 text-sm">Please see staff to renew.</p>
+            <p className="text-gray-500 mt-4 text-sm">{tr('kiosk.seeStaffRenew')}</p>
           </div>
         )}
 
@@ -191,7 +193,7 @@ export default function Kiosk() {
               <XCircle className="w-20 h-20 text-red-400" />
             </div>
             <p className="text-red-400 text-2xl font-semibold">{message}</p>
-            <p className="text-gray-500 mt-4 text-sm">Resetting in a moment…</p>
+            <p className="text-gray-500 mt-4 text-sm">{tr('kiosk.resetting')}</p>
           </div>
         )}
 
@@ -213,12 +215,18 @@ export default function Kiosk() {
               {['3_days_week', 'daily'].includes(customer.membership_type) ? (
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gym-500/15 border border-gym-500/30">
                   <span className="text-2xl font-bold text-gym-400">{sessionsLeft}</span>
-                  <span className="text-gray-400 text-sm">{customer.membership_type === 'daily' ? 'passes remaining' : 'sessions remaining'}</span>
+                  <span className="text-gray-400 text-sm">
+                    {customer.membership_type === 'daily'
+                      ? tr('kiosk.passesRemaining')
+                      : tr('kiosk.sessionsRemaining')}
+                  </span>
                 </div>
               ) : (
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gym-500/15 border border-gym-500/30">
                   <Clock className="w-5 h-5 text-gym-400" />
-                  <span className="text-gym-400 font-semibold">{customer.days_until_expiry > 0 ? customer.days_until_expiry : 0} days left</span>
+                  <span className="text-gym-400 font-semibold">
+                    {tr('kiosk.daysLeft', { n: customer.days_until_expiry > 0 ? customer.days_until_expiry : 0 })}
+                  </span>
                 </div>
               )}
             </div>
@@ -228,7 +236,7 @@ export default function Kiosk() {
                 onClick={reset}
                 className="flex-1 py-4 rounded-xl bg-dark-300 border border-gray-700 text-gray-300 text-lg font-medium hover:bg-dark-100 transition-all"
               >
-                Cancel
+                {tr('kiosk.cancel')}
               </button>
               <button
                 onClick={handleCheckIn}
@@ -240,7 +248,7 @@ export default function Kiosk() {
                 ) : (
                   <>
                     <CheckCircle className="w-6 h-6" />
-                    Check In
+                    {tr('kiosk.checkIn')}
                   </>
                 )}
               </button>
@@ -254,8 +262,8 @@ export default function Kiosk() {
             <div className="w-20 h-20 rounded-2xl bg-gym-500/20 flex items-center justify-center mx-auto mb-6">
               <User className="w-10 h-10 text-gym-400" />
             </div>
-            <h1 className="text-4xl font-bold text-white mb-2">Member Check-in</h1>
-            <p className="text-gray-400 mb-10">Enter your phone number to check in</p>
+            <h1 className="text-4xl font-bold text-white mb-2">{tr('kiosk.title')}</h1>
+            <p className="text-gray-400 mb-10">{tr('kiosk.subtitle')}</p>
 
             <div className="flex gap-3">
               <input
@@ -264,7 +272,7 @@ export default function Kiosk() {
                 value={phone}
                 onChange={e => setPhone(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                placeholder="Phone number"
+                placeholder={tr('kiosk.phonePlaceholder')}
                 className="flex-1 px-5 py-4 text-2xl bg-dark-100 border border-gray-700 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-gym-500 text-center tracking-widest font-mono"
                 autoFocus
                 inputMode="numeric"

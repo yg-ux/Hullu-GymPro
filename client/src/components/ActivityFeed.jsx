@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import clsx from 'clsx';
-import { 
+import {
   Activity,
   UserPlus,
   DollarSign,
@@ -12,18 +12,20 @@ import {
   TrendingUp,
   MoreHorizontal
 } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 /**
  * ActivityFeed Component
  * A timeline component for displaying activity events
  */
-export function ActivityFeed({ 
+export function ActivityFeed({
   activities = [],
   maxItems = 10,
   showHeader = true,
-  headerTitle = 'Activity Feed',
+  headerTitle,
   className = ''
 }) {
+  const { t } = useLanguage();
   const [visibleItems, setVisibleItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -42,7 +44,7 @@ export function ActivityFeed({
           <div className="w-16 h-16 rounded-2xl bg-dark-200 flex items-center justify-center mx-auto mb-4">
             <Activity className="w-8 h-8 text-gray-600" />
           </div>
-          <p className="text-gray-500">No recent activity</p>
+          <p className="text-gray-500">{t('activity.noActivity')}</p>
         </div>
       </div>
     );
@@ -55,10 +57,10 @@ export function ActivityFeed({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Activity className="w-5 h-5 text-gym-400" />
-              <h3 className="font-semibold text-white">{headerTitle}</h3>
+              <h3 className="font-semibold text-white">{headerTitle || t('activity.feedTitle')}</h3>
             </div>
             {activities.length > maxItems && (
-              <span className="text-xs text-gray-400">{activities.length} total</span>
+              <span className="text-xs text-gray-400">{t('activity.nTotal', { n: activities.length })}</span>
             )}
           </div>
         </div>
@@ -83,7 +85,7 @@ export function ActivityFeed({
         {activities.length > maxItems && (
           <div className="mt-4 pt-4 border-t border-gray-800/50 text-center">
             <button className="text-sm text-gym-400 hover:text-gym-300 transition-colors">
-              View all activity
+              {t('activity.viewAll')}
             </button>
           </div>
         )}
@@ -93,6 +95,7 @@ export function ActivityFeed({
 }
 
 function ActivityItem({ activity, index }) {
+  const { t } = useLanguage();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -146,9 +149,11 @@ function ActivityItem({ activity, index }) {
             <Icon className="w-4 h-4 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm text-white">{activity.message}</p>
+            <p className="text-sm text-white">
+              {activity.msgKey ? t(activity.msgKey, activity.msgVars) : activity.message}
+            </p>
             <p className="text-xs text-gray-500 mt-1 flex items-center gap-2">
-              <span>{activity.time || 'Just now'}</span>
+              <span>{activity.time || t('time.justNow')}</span>
               {activity.metadata && (
                 <>
                   <span className="text-gray-600">•</span>

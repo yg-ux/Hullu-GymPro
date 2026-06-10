@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, getStatusColor, formatDate, formatDateTime, getMembershipLabel, MEMBERSHIP_TYPES, formatCurrency, getMembershipPrice, getPaymentMethodLabel } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import {
   ArrowLeft,
   Edit2,
@@ -34,6 +35,7 @@ export default function CustomerDetail() {
   const navigate = useNavigate();
   const toast = useToast();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const canDelete = !['receptionist', 'trainer'].includes(user?.role);
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -59,11 +61,11 @@ export default function CustomerDetail() {
   const [customAmount, setCustomAmount] = useState('');
 
   const THREE_DAYS_DURATIONS = [
-    { value: '1_month',  label: '1 Month',  sessions: 12  },
-    { value: '2_months', label: '2 Months', sessions: 24  },
-    { value: '3_months', label: '3 Months', sessions: 36  },
-    { value: '6_months', label: '6 Months', sessions: 72  },
-    { value: '1_year',   label: '1 Year',   sessions: 144 },
+    { value: '1_month',  label: t('membership.monthly'),    sessions: 12  },
+    { value: '2_months', label: '2 ' + t('customers.period'), sessions: 24  },
+    { value: '3_months', label: t('membership.quarterly'),  sessions: 36  },
+    { value: '6_months', label: '6 ' + t('customers.period'), sessions: 72  },
+    { value: '1_year',   label: t('membership.yearly'),     sessions: 144 },
   ];
   
   useEffect(() => {
@@ -86,7 +88,7 @@ export default function CustomerDetail() {
   const handleFreeze = async (e) => {
     e.preventDefault();
     if (!freezeDays || parseInt(freezeDays) < 1) {
-      toast.error('Enter at least 1 day');
+      toast.error(t('customers.toastEnterDay'));
       return;
     }
     try {
@@ -100,9 +102,9 @@ export default function CustomerDetail() {
       setFreezeDays('');
       setFreezeReason('');
       await loadFreezeHistory();
-      toast.success(res.message || 'Membership frozen');
+      toast.success(res.message || t('customers.toastFrozen'));
     } catch (error) {
-      toast.error(error.message || 'Failed to freeze membership');
+      toast.error(error.message || t('customers.toastFreezeFailed'));
     } finally {
       setActionLoading(false);
     }
@@ -113,9 +115,9 @@ export default function CustomerDetail() {
       setActionLoading(true);
       const res = await api.post(`/customers/${id}/unfreeze`, {});
       setCustomer(res.customer);
-      toast.success(res.message || 'Membership unfrozen');
+      toast.success(res.message || t('customers.toastUnfrozen'));
     } catch (error) {
-      toast.error(error.message || 'Failed to unfreeze');
+      toast.error(error.message || t('customers.toastUnfreezeFailed'));
     } finally {
       setActionLoading(false);
     }
@@ -139,9 +141,9 @@ export default function CustomerDetail() {
       setActionLoading(true);
       await api.post(`/customers/${id}/check-in`);
       await loadCustomer();
-      toast.success('Checked in successfully');
+      toast.success(t('customers.toastCheckInSuccess'));
     } catch (error) {
-      toast.error(error.message || 'Failed to check in');
+      toast.error(error.message || t('customers.toastCheckInFailed2'));
     } finally {
       setActionLoading(false);
     }
@@ -152,9 +154,9 @@ export default function CustomerDetail() {
       setActionLoading(true);
       await api.post(`/customers/${id}/check-out`);
       await loadCustomer();
-      toast.success('Checked out successfully');
+      toast.success(t('customers.toastCheckOutSuccess'));
     } catch (error) {
-      toast.error(error.message || 'Failed to check out');
+      toast.error(error.message || t('customers.toastCheckOutFailed2'));
     } finally {
       setActionLoading(false);
     }
@@ -175,13 +177,13 @@ export default function CustomerDetail() {
       await loadCustomer();
       setShowExtendModal(false);
       const msg = extendMembershipType === 'daily'
-        ? '1 daily pass added!'
+        ? t('customers.toastDailyAdded')
         : extendMembershipType === '3_days_week'
-          ? `Sessions added successfully!`
-          : 'Membership extended successfully!';
+          ? t('customers.toastSessionsAdded')
+          : t('customers.toastExtended');
       toast.success(msg);
     } catch (error) {
-      toast.error(error.message || 'Failed to extend membership');
+      toast.error(error.message || t('customers.toastExtendFailed'));
     } finally {
       setActionLoading(false);
     }
@@ -192,10 +194,10 @@ export default function CustomerDetail() {
     try {
       setActionLoading(true);
       await api.delete(`/customers/${id}`, { delete_code: deleteCode });
-      toast.success('Customer deleted');
+      toast.success(t('customers.toastDeleted'));
       navigate('/customers');
     } catch (error) {
-      toast.error(error.message || 'Failed to delete customer');
+      toast.error(error.message || t('customers.toastDeleteFailed'));
     } finally {
       setActionLoading(false);
     }
@@ -227,13 +229,13 @@ export default function CustomerDetail() {
         </Link>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-white">{customer.name}</h1>
-          <p className="text-gray-400">Customer Details</p>
+          <p className="text-gray-400">{t('customers.detailSubtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
           {canDelete && (
             <Link to={`/customers/${id}/edit`} className="btn-secondary inline-flex items-center gap-2">
               <Edit2 className="w-4 h-4" />
-              Edit
+              {t('common.edit')}
             </Link>
           )}
           {canDelete && (
@@ -242,7 +244,7 @@ export default function CustomerDetail() {
             className="btn-danger inline-flex items-center gap-2"
           >
             <Trash2 className="w-4 h-4" />
-            Delete
+            {t('common.delete')}
           </button>
           )}
         </div>
@@ -278,19 +280,22 @@ export default function CustomerDetail() {
                   )}
                 </div>
                 <span className={clsx('status-badge mt-3', getStatusColor(customer.status))}>
-                  {customer.status === 'expiring' ? 'Expiring Soon' : customer.status.charAt(0).toUpperCase() + customer.status.slice(1)}
+                  {customer.status === 'expiring' ? t('customers.statusExpiringSoon')
+                    : customer.status === 'active' ? t('customers.statusActive')
+                    : customer.status === 'expired' ? t('customers.statusExpired')
+                    : t('customers.statusInactive')}
                 </span>
               </div>
 
               {/* Info */}
               <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <InfoItem icon={Phone} label="Phone" value={customer.phone || 'Not provided'} />
-                <InfoItem icon={Mail} label="Email" value={customer.email || 'Not provided'} />
-                <InfoItem icon={Calendar} label="Member Since" value={formatDate(customer.membership_start)} />
-                <InfoItem icon={Calendar} label="Membership Ends" value={formatDate(customer.membership_end)} highlight={customer.status === 'expiring'} />
-                <InfoItem icon={CreditCard} label="Membership Type" value={getMembershipLabel(customer.membership_type)} />
+                <InfoItem icon={Phone} label={t('customers.phone')} value={customer.phone || t('customers.notProvided')} />
+                <InfoItem icon={Mail} label={t('customers.email')} value={customer.email || t('customers.notProvided')} />
+                <InfoItem icon={Calendar} label={t('customers.memberSince')} value={formatDate(customer.membership_start)} />
+                <InfoItem icon={Calendar} label={t('customers.membershipEnds')} value={formatDate(customer.membership_end)} highlight={customer.status === 'expiring'} />
+                <InfoItem icon={CreditCard} label={t('customers.membershipType')} value={getMembershipLabel(customer.membership_type)} />
                 {customer.emergency_contact && (
-                  <InfoItem icon={Phone} label="Emergency Contact" value={customer.emergency_contact} />
+                  <InfoItem icon={Phone} label={t('customers.emergencyContact')} value={customer.emergency_contact} />
                 )}
               </div>
             </div>
@@ -299,7 +304,7 @@ export default function CustomerDetail() {
               <div className="mt-6 pt-6 border-t border-gray-800">
                 <div className="flex items-center gap-2 mb-2">
                   <FileText className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm font-medium text-gray-400">Notes</span>
+                  <span className="text-sm font-medium text-gray-400">{t('customers.notes')}</span>
                 </div>
                 <p className="text-gray-300">{customer.notes}</p>
               </div>
@@ -308,7 +313,7 @@ export default function CustomerDetail() {
 
           {/* Membership Progress */}
           <div className="card p-6">
-            <h2 className="text-lg font-semibold text-white mb-4">Membership Progress</h2>
+            <h2 className="text-lg font-semibold text-white mb-4">{t('customers.membershipProgress')}</h2>
 
             {['3_days_week', 'daily'].includes(customer.membership_type) ? (() => {
               const used = customer.sessions_used || 0;
@@ -323,7 +328,7 @@ export default function CustomerDetail() {
                   <div className="space-y-2">
                     <div className="flex justify-between items-end">
                       <div>
-                        <p className="text-gray-400 text-sm">{isDaily ? 'Daily Passes' : 'Sessions'} Remaining</p>
+                        <p className="text-gray-400 text-sm">{isDaily ? t('customers.dailyPasses') : t('customers.sessions')} {t('customers.remainingLabel')}</p>
                         <p className={clsx(
                           'text-3xl font-bold',
                           remaining > 3 ? 'text-green-400' : remaining > 0 ? 'text-yellow-400' : 'text-red-400'
@@ -331,7 +336,7 @@ export default function CustomerDetail() {
                           {remaining} <span className="text-lg font-normal text-gray-500">/ {total}</span>
                         </p>
                       </div>
-                      <p className="text-sm text-gray-500">{used} used</p>
+                      <p className="text-sm text-gray-500">{t('customers.used').replace('{n}', used)}</p>
                     </div>
                     <div className="relative h-3 bg-dark-300 rounded-full overflow-hidden">
                       <div
@@ -351,15 +356,15 @@ export default function CustomerDetail() {
                     <div className="space-y-2 pt-2 border-t border-gray-800">
                       <div className="flex justify-between items-end">
                         <div>
-                          <p className="text-gray-400 text-sm">Days Remaining</p>
+                          <p className="text-gray-400 text-sm">{t('customers.daysRemaining')}</p>
                           <p className={clsx(
                             'text-2xl font-bold',
                             daysLeft > 7 ? 'text-green-400' : daysLeft > 0 ? 'text-yellow-400' : 'text-red-400'
                           )}>
-                            {daysLeft > 0 ? daysLeft : 0} <span className="text-base font-normal text-gray-500">days</span>
+                            {daysLeft > 0 ? daysLeft : 0} <span className="text-base font-normal text-gray-500">{t('customers.days')}</span>
                           </p>
                         </div>
-                        <p className="text-xs text-gray-500">Ends {formatDate(customer.membership_end)}</p>
+                        <p className="text-xs text-gray-500">{t('customers.endsOn').replace('{date}', formatDate(customer.membership_end))}</p>
                       </div>
                       <div className="relative h-2 bg-dark-300 rounded-full overflow-hidden">
                         {(() => {
@@ -385,31 +390,31 @@ export default function CustomerDetail() {
 
                   {/* Warnings */}
                   {remaining <= 3 && remaining > 0 && (
-                    <p className="text-xs text-yellow-400">⚠ Only {remaining} {isDaily ? 'pass' : 'session'}{remaining !== 1 ? 'es' : ''} left — renew soon</p>
+                    <p className="text-xs text-yellow-400">{t('customers.warnFewLeft').replace('{n}', remaining).replace('{label}', isDaily ? t('customers.dailyPasses') : t('customers.sessions'))}</p>
                   )}
                   {remaining === 0 && (
-                    <p className="text-xs text-red-400">✕ No {isDaily ? 'passes' : 'sessions'} remaining — please renew</p>
+                    <p className="text-xs text-red-400">{t('customers.warnNoneLeft').replace('{label}', isDaily ? t('customers.dailyPasses') : t('customers.sessions'))}</p>
                   )}
                   {!isDaily && daysLeft <= 7 && daysLeft > 0 && (
-                    <p className="text-xs text-yellow-400">⚠ Period expires in {daysLeft} day{daysLeft !== 1 ? 's' : ''}</p>
+                    <p className="text-xs text-yellow-400">{t('customers.warnPeriodExpires').replace('{n}', daysLeft).replace('{s}', daysLeft !== 1 ? 's' : '')}</p>
                   )}
                   <div className="flex justify-between text-xs text-gray-500">
-                    <span>Started: {formatDate(customer.membership_start)}</span>
-                    <span className="text-gray-600">{isDaily ? 'Session-tracked' : '3 days/week'}</span>
+                    <span>{t('customers.started').replace('{date}', formatDate(customer.membership_start))}</span>
+                    <span className="text-gray-600">{isDaily ? t('customers.sessionTracked') : t('customers.threePerWeek')}</span>
                   </div>
                 </div>
               );
             })() : (
               <div className="mb-4">
                 <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-400">Days Remaining</span>
+                  <span className="text-gray-400">{t('customers.daysRemaining')}</span>
                   <span className={clsx(
                     "font-bold text-xl",
                     customer.days_until_expiry > 7 && "text-green-400",
                     customer.days_until_expiry > 0 && customer.days_until_expiry <= 7 && "text-yellow-400",
                     customer.days_until_expiry <= 0 && "text-red-400"
                   )}>
-                    {customer.days_until_expiry > 0 ? customer.days_until_expiry : 0} days
+                    {customer.days_until_expiry > 0 ? customer.days_until_expiry : 0} {t('customers.days')}
                   </span>
                 </div>
                 <div className="relative h-4 bg-dark-300 rounded-full overflow-hidden">
@@ -434,8 +439,8 @@ export default function CustomerDetail() {
                   })()}
                 </div>
                 <div className="flex justify-between text-xs text-gray-500 mt-2">
-                  <span>Started: {formatDate(customer.membership_start)}</span>
-                  <span>Ends: {formatDate(customer.membership_end)}</span>
+                  <span>{t('customers.started').replace('{date}', formatDate(customer.membership_start))}</span>
+                  <span>{t('customers.expiresLabel')} {formatDate(customer.membership_end)}</span>
                 </div>
               </div>
             )}
@@ -443,7 +448,7 @@ export default function CustomerDetail() {
 
           {/* Check-in / Check-out Section */}
           <div className="card p-6">
-            <h2 className="text-lg font-semibold text-white mb-4">Attendance Today</h2>
+            <h2 className="text-lg font-semibold text-white mb-4">{t('customers.attendanceToday')}</h2>
             
             <div className="flex flex-col sm:flex-row gap-4">
               {/* Current Status */}
@@ -465,11 +470,11 @@ export default function CustomerDetail() {
                   )}
                   <div>
                     <p className="font-medium text-white">
-                      {isCheckedIn ? 'Currently Checked In' : 'Not Checked In'}
+                      {isCheckedIn ? t('customers.currentlyCheckedIn') : t('customers.notCheckedIn')}
                     </p>
                     {isCheckedIn && currentAttendance && (
                       <p className="text-sm text-green-400">
-                        Since {new Date(currentAttendance.check_in).toLocaleTimeString()}
+                        {t('customers.since').replace('{time}', new Date(currentAttendance.check_in).toLocaleTimeString())}
                       </p>
                     )}
                   </div>
@@ -489,12 +494,12 @@ export default function CustomerDetail() {
                     ) : (
                       <>
                         <LogOut className="w-5 h-5" />
-                        Check Out
+                        {t('customers.checkOut')}
                       </>
                     )}
                   </button>
                 ) : (
-                  <button 
+                  <button
                     onClick={handleCheckIn}
                     disabled={actionLoading}
                     className="btn-primary h-full flex items-center justify-center gap-2"
@@ -504,7 +509,7 @@ export default function CustomerDetail() {
                     ) : (
                       <>
                         <LogIn className="w-5 h-5" />
-                        Check In
+                        {t('customers.checkIn')}
                       </>
                     )}
                   </button>
@@ -515,7 +520,7 @@ export default function CustomerDetail() {
             {/* Attendance History */}
             {attendanceHistory.length > 0 && (
               <div className="mt-6">
-                <h3 className="text-sm font-medium text-gray-400 mb-3">Recent Attendance</h3>
+                <h3 className="text-sm font-medium text-gray-400 mb-3">{t('customers.recentAttendance')}</h3>
                 <div className="space-y-2">
                   {attendanceHistory.slice(0, 5).map((log, index) => (
                     <div 
@@ -559,7 +564,7 @@ export default function CustomerDetail() {
                           ) : (
                             <div className="flex items-center gap-2 mt-1">
                               <Clock className="w-4 h-4 text-yellow-400" />
-                              <span className="text-sm text-yellow-400">Still in gym</span>
+                              <span className="text-sm text-yellow-400">{t('customers.stillInGym')}</span>
                             </div>
                           )}
                         </div>
@@ -568,9 +573,9 @@ export default function CustomerDetail() {
                       {/* Duration */}
                       {log.check_out && (
                         <div className="text-right">
-                          <p className="text-xs text-gray-500">Duration</p>
+                          <p className="text-xs text-gray-500">{t('customers.duration')}</p>
                           <p className="text-sm text-gray-300">
-                            {Math.round((new Date(log.check_out) - new Date(log.check_in)) / (1000 * 60))} min
+                            {t('customers.minutesShort').replace('{n}', Math.round((new Date(log.check_out) - new Date(log.check_in)) / (1000 * 60)))}
                           </p>
                         </div>
                       )}
@@ -586,7 +591,7 @@ export default function CustomerDetail() {
             <div className="card p-6">
               <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <Receipt className="w-5 h-5 text-gym-400" />
-                Payment History
+                {t('customers.paymentHistory')}
               </h2>
               <div className="space-y-3">
                 {customer.payments.map((payment) => (
@@ -607,7 +612,7 @@ export default function CustomerDetail() {
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gym-500/10 border border-gym-500/20 text-gym-400 text-xs hover:bg-gym-500/20 transition-all"
                     >
                       <Printer className="w-3.5 h-3.5" />
-                      Receipt
+                      {t('customers.receipt')}
                     </a>
                   </div>
                 ))}
@@ -620,7 +625,7 @@ export default function CustomerDetail() {
             <div className="card p-6">
               <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <History className="w-5 h-5 text-blue-400" />
-                Freeze History
+                {t('customers.freezeHistoryTitle')}
               </h2>
               {freezeHistoryLoading ? (
                 <div className="space-y-2">
@@ -637,11 +642,11 @@ export default function CustomerDetail() {
                       </div>
                       <div className="flex-1">
                         <p className="text-sm text-white">
-                          Frozen for <span className="font-semibold">{f.duration_days} day{f.duration_days !== 1 ? 's' : ''}</span>
+                          {t('customers.frozenFor')} <span className="font-semibold">{f.duration_days} {t('customers.daysLabel').replace('{s}', f.duration_days !== 1 ? 's' : '')}</span>
                         </p>
                         <p className="text-xs text-gray-500 mt-0.5">
                           {formatDate(f.frozen_at)} → {formatDate(f.unfreeze_at)}
-                          {f.created_by_name && ` · by ${f.created_by_name}`}
+                          {f.created_by_name && ` · ${t('customers.byUser').replace('{name}', f.created_by_name)}`}
                         </p>
                         {f.reason && <p className="text-xs text-gray-400 mt-0.5 italic">"{f.reason}"</p>}
                       </div>
@@ -654,7 +659,7 @@ export default function CustomerDetail() {
 
           {/* Check-in/Check-out History */}
           <div className="card p-6">
-            <h2 className="text-lg font-semibold text-white mb-4">Check-in/Check-out History</h2>
+            <h2 className="text-lg font-semibold text-white mb-4">{t('customers.checkHistory')}</h2>
             {customer.attendance && customer.attendance.length > 0 ? (
               <div className="space-y-3 max-h-80 overflow-y-auto">
                 {customer.attendance.slice(0, 10).map((log) => (
@@ -674,7 +679,7 @@ export default function CustomerDetail() {
                     </div>
                     <div className="flex-1">
                       <p className="text-white text-sm">
-                        {log.check_out ? 'Checked out' : 'Checked in'}
+                        {log.check_out ? t('customers.checkedOut') : t('customers.checkedIn')}
                       </p>
                       <p className="text-xs text-gray-400">
                         {formatDateTime(log.check_in)}
@@ -683,7 +688,7 @@ export default function CustomerDetail() {
                     </div>
                     {log.check_in && log.check_out && (
                       <span className="text-xs text-gray-500">
-                        {Math.round((new Date(log.check_out) - new Date(log.check_in)) / 60000)}min
+                        {Math.round((new Date(log.check_out) - new Date(log.check_in)) / 60000)}{t('time.minAbbrev')}
                       </span>
                     )}
                   </div>
@@ -692,7 +697,7 @@ export default function CustomerDetail() {
             ) : (
               <div className="text-center py-8 text-gray-500">
                 <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>No attendance history</p>
+                <p>{t('customers.noAttendanceHistory')}</p>
               </div>
             )}
 </div>
@@ -702,7 +707,7 @@ export default function CustomerDetail() {
         <div className="space-y-6">
           {/* Quick Actions */}
           <div className="card p-6">
-            <h2 className="text-lg font-semibold text-white mb-4">Quick Actions</h2>
+            <h2 className="text-lg font-semibold text-white mb-4">{t('customers.quickActions')}</h2>
             <div className="space-y-3">
               <button
                 onClick={() => setShowExtendModal(true)}
@@ -710,7 +715,7 @@ export default function CustomerDetail() {
                 disabled={customer.is_frozen}
               >
                 <Calendar className="w-5 h-5" />
-                Extend Membership
+                {t('customers.extendMembership')}
               </button>
 
               {customer.is_frozen ? (
@@ -720,7 +725,7 @@ export default function CustomerDetail() {
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-500/15 border border-blue-500/30 text-blue-400 hover:bg-blue-500/25 transition-all text-sm font-medium"
                 >
                   <Play className="w-4 h-4" />
-                  {actionLoading ? 'Unfreezing…' : 'Unfreeze Membership'}
+                  {actionLoading ? t('customers.unfreezing') : t('customers.unfreezeMembership')}
                 </button>
               ) : (
                 <button
@@ -729,7 +734,7 @@ export default function CustomerDetail() {
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-dark-300 border border-gray-700 text-gray-300 hover:border-blue-500/40 hover:text-blue-400 transition-all text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Snowflake className="w-4 h-4" />
-                  Freeze Membership
+                  {t('customers.freezeMembership')}
                 </button>
               )}
             </div>
@@ -741,11 +746,11 @@ export default function CustomerDetail() {
               <div className="flex items-start gap-3">
                 <Snowflake className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-semibold text-blue-400">Membership Frozen</p>
+                  <p className="text-sm font-semibold text-blue-400">{t('customers.membershipFrozen')}</p>
                   <p className="text-xs text-gray-400 mt-1">
-                    Frozen until <span className="text-white font-medium">{formatDate(customer.frozen_until)}</span>
+                    {t('customers.frozenUntil')} <span className="text-white font-medium">{formatDate(customer.frozen_until)}</span>
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">Check-in is disabled during freeze.</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('customers.checkInDisabled')}</p>
                 </div>
               </div>
             </div>
@@ -753,19 +758,19 @@ export default function CustomerDetail() {
 
           {/* Membership Info */}
           <div className="card p-6">
-            <h2 className="text-lg font-semibold text-white mb-4">Membership Summary</h2>
+            <h2 className="text-lg font-semibold text-white mb-4">{t('customers.membershipSummary')}</h2>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-gray-400">Plan</span>
+                <span className="text-gray-400">{t('customers.plan')}</span>
                 <span className="text-white font-medium">{getMembershipLabel(customer.membership_type)}</span>
               </div>
               {customer.membership_start && customer.membership_end && !['daily'].includes(customer.membership_type) && (
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Period</span>
+                  <span className="text-gray-400">{t('customers.period')}</span>
                   <span className="text-white font-medium text-sm">
                     {new Date(customer.membership_start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                     {customer.membership_type !== '3_days_week' && ' → ' + new Date(customer.membership_end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    {customer.membership_type === '3_days_week' && ' (session-tracked)'}
+                    {customer.membership_type === '3_days_week' && ' ' + t('customers.sessionTrackedShort')}
                   </span>
                 </div>
               )}
@@ -777,14 +782,14 @@ export default function CustomerDetail() {
                 return (
                   <div className="py-1">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-gray-400">Weekly Visits</span>
+                      <span className="text-gray-400">{t('customers.weeklyVisits')}</span>
                       <span className={clsx(
                         'text-sm font-bold',
                         limitReached ? 'text-red-400' : 'text-yellow-400'
                       )}>
-                        {used} / {max} used
+                        {t('customers.usedSlash').replace('{used}', used).replace('{max}', max)}
                         {!limitReached && (
-                          <span className="text-gray-400 font-normal"> · {remaining} left</span>
+                          <span className="text-gray-400 font-normal"> {t('customers.leftSuffix').replace('{n}', remaining)}</span>
                         )}
                       </span>
                     </div>
@@ -800,27 +805,30 @@ export default function CustomerDetail() {
                       ))}
                     </div>
                     {limitReached ? (
-                      <p className="text-xs text-red-400">⚠ Weekly limit reached — resets Monday</p>
+                      <p className="text-xs text-red-400">{t('customers.weeklyLimitReached')}</p>
                     ) : (
-                      <p className="text-xs text-gray-500">{remaining} visit{remaining !== 1 ? 's' : ''} remaining this week</p>
+                      <p className="text-xs text-gray-500">{t('customers.visitsRemaining').replace('{n}', remaining).replace('{s}', remaining !== 1 ? 's' : '')}</p>
                     )}
                   </div>
                 );
               })()}
               <div className="flex items-center justify-between">
-                <span className="text-gray-400">Status</span>
+                <span className="text-gray-400">{t('customers.statusLabel')}</span>
                 <span className={clsx(
                   customer.status === 'active' && "text-green-400",
                   customer.status === 'expiring' && "text-yellow-400",
                   customer.status === 'expired' && "text-red-400"
                 )}>
-                  {customer.status === 'expiring' ? 'Expiring Soon' : customer.status.charAt(0).toUpperCase() + customer.status.slice(1)}
+                  {customer.status === 'expiring' ? t('customers.statusExpiringSoon')
+                    : customer.status === 'active' ? t('customers.statusActive')
+                    : customer.status === 'expired' ? t('customers.statusExpired')
+                    : t('customers.statusInactive')}
                 </span>
               </div>
               {['3_days_week', 'daily'].includes(customer.membership_type) ? (
                 <>
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-400">{customer.membership_type === 'daily' ? 'Passes Left' : 'Sessions Left'}</span>
+                    <span className="text-gray-400">{customer.membership_type === 'daily' ? t('customers.passesLeft') : t('customers.sessionsLeft')}</span>
                     <span className={clsx(
                       "font-bold text-lg",
                       Math.max(0, (customer.total_sessions || 0) - (customer.sessions_used || 0)) > 3 && "text-green-400",
@@ -832,7 +840,7 @@ export default function CustomerDetail() {
                   </div>
                   {customer.membership_type === '3_days_week' && (
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-400">Days Left</span>
+                      <span className="text-gray-400">{t('customers.colDaysLeft')}</span>
                       <span className={clsx(
                         "font-bold text-lg",
                         customer.days_until_expiry > 7 && "text-green-400",
@@ -846,7 +854,7 @@ export default function CustomerDetail() {
                 </>
               ) : (
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Days Left</span>
+                  <span className="text-gray-400">{t('customers.colDaysLeft')}</span>
                   <span className={clsx(
                     "font-bold text-lg",
                     customer.days_until_expiry > 7 && "text-green-400",
@@ -858,7 +866,7 @@ export default function CustomerDetail() {
                 </div>
               )}
               <div className="flex items-center justify-between">
-                <span className="text-gray-400">Total Paid</span>
+                <span className="text-gray-400">{t('customers.totalPaid')}</span>
                 <span className="text-gym-400 font-medium">
                   {formatCurrency(customer.payments?.reduce((sum, p) => sum + p.amount, 0) || 0)}
                 </span>
@@ -892,9 +900,9 @@ export default function CustomerDetail() {
       {/* Extend Modal */}
       {showExtendModal && (
         <Modal onClose={() => setShowExtendModal(false)} title={
-          customer.membership_type === 'daily' ? 'Add Daily Pass'
-          : customer.membership_type === '3_days_week' ? 'Add Sessions'
-          : 'Extend Membership'
+          customer.membership_type === 'daily' ? t('customers.addDailyPass')
+          : customer.membership_type === '3_days_week' ? t('customers.addSessions')
+          : t('customers.extendMembership')
         }>
           <form onSubmit={handleExtend} className="space-y-4">
             {/* Current status badge */}
@@ -912,9 +920,9 @@ export default function CustomerDetail() {
                     : (customer.total_sessions - customer.sessions_used) > 0 ? 'text-yellow-400'
                     : 'text-red-400'
                   )}>
-                    {Math.max(0, customer.total_sessions - customer.sessions_used)} sessions left
+                    {t('customers.sessionsLeftNum').replace('{n}', Math.max(0, customer.total_sessions - customer.sessions_used))}
                   </p>
-                  <p className="text-gray-400 text-sm mt-1">{customer.sessions_used} of {customer.total_sessions} used</p>
+                  <p className="text-gray-400 text-sm mt-1">{t('customers.usedOfTotal').replace('{used}', customer.sessions_used).replace('{total}', customer.total_sessions)}</p>
                 </>
               ) : (
                 <>
@@ -924,10 +932,13 @@ export default function CustomerDetail() {
                     customer.status === 'expiring' && "text-yellow-400",
                     customer.status === 'expired' && "text-red-400"
                   )}>
-                    {customer.status === 'expiring' ? 'Expiring Soon' : customer.status.charAt(0).toUpperCase() + customer.status.slice(1)}
+                    {customer.status === 'expiring' ? t('customers.statusExpiringSoon')
+                      : customer.status === 'active' ? t('customers.statusActive')
+                      : customer.status === 'expired' ? t('customers.statusExpired')
+                      : t('customers.statusInactive')}
                   </p>
                   <p className="text-gray-400 text-sm mt-1">
-                    {customer.days_until_expiry > 0 ? `${customer.days_until_expiry} days remaining` : 'Expired'}
+                    {customer.days_until_expiry > 0 ? t('customers.daysRemainingShort').replace('{n}', customer.days_until_expiry) : t('customers.expiredLabel')}
                   </p>
                 </>
               )}
@@ -936,15 +947,15 @@ export default function CustomerDetail() {
             {/* Daily: fixed — just 1 pass per payment */}
             {customer.membership_type === 'daily' && (
               <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-center">
-                <p className="text-amber-400 font-semibold text-lg">+ 1 Daily Pass</p>
-                <p className="text-gray-400 text-sm mt-1">Each payment adds 1 walk-in session</p>
+                <p className="text-amber-400 font-semibold text-lg">{t('customers.onePerPayment')}</p>
+                <p className="text-gray-400 text-sm mt-1">{t('customers.eachAddsSession')}</p>
               </div>
             )}
 
             {/* 3_days_week: duration selector */}
             {customer.membership_type === '3_days_week' && (
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Duration to add</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">{t('customers.durationToAdd')}</label>
                 <div className="space-y-2">
                   {THREE_DAYS_DURATIONS.map(opt => (
                     <label key={opt.value} className={clsx(
@@ -964,7 +975,7 @@ export default function CustomerDetail() {
                         />
                         <span className="text-sm font-medium">{opt.label}</span>
                       </div>
-                      <span className="text-sm font-bold text-gym-400">+{opt.sessions} sessions</span>
+                      <span className="text-sm font-bold text-gym-400">{t('customers.plusSessions').replace('{n}', opt.sessions)}</span>
                     </label>
                   ))}
                 </div>
@@ -975,7 +986,7 @@ export default function CustomerDetail() {
             {!['daily', '3_days_week'].includes(customer.membership_type) && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Membership Duration</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">{t('customers.membershipDuration')}</label>
                   <select
                     value={extendMembershipType}
                     onChange={(e) => setExtendMembershipType(e.target.value)}
@@ -988,7 +999,7 @@ export default function CustomerDetail() {
                 </div>
                 <div className="p-4 bg-dark-200 rounded-lg">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-400">New End Date</span>
+                    <span className="text-gray-400">{t('customers.newEndDate')}</span>
                     <span className="text-white font-medium">
                       {(() => {
                         const currentEnd = new Date(customer.membership_end);
@@ -1005,39 +1016,39 @@ export default function CustomerDetail() {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Payment Amount (ETB)</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">{t('customers.paymentAmountEtb')}</label>
               <input
                 type="number"
                 value={customAmount}
                 onChange={(e) => setCustomAmount(e.target.value)}
-                placeholder="Enter amount"
+                placeholder={t('customers.enterAmount')}
                 className="input-field"
                 min="0"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Payment Method</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">{t('customers.paymentMethod')}</label>
               <select
                 value={extendPaymentMethod}
                 onChange={(e) => setExtendPaymentMethod(e.target.value)}
                 className="input-field"
               >
-                <option value="cash">Cash</option>
-                <option value="mobile_transfer">Mobile Transfer</option>
-                <option value="bank_transfer">Bank Transfer</option>
+                <option value="cash">{t('customers.cash')}</option>
+                <option value="mobile_transfer">{t('customers.mobileTransfer')}</option>
+                <option value="bank_transfer">{t('customers.bankTransfer')}</option>
               </select>
             </div>
 
             <div className="flex gap-3 pt-4">
               <button type="button" onClick={() => setShowExtendModal(false)} className="btn-secondary flex-1">
-                Cancel
+                {t('common.cancel')}
               </button>
               <button type="submit" disabled={actionLoading} className="btn-primary flex-1 bg-green-600 hover:bg-green-700 border-green-600">
-                {actionLoading ? 'Processing...' :
-                  customer.membership_type === 'daily' ? 'Pay & Add Pass'
-                  : customer.membership_type === '3_days_week' ? 'Pay & Add Sessions'
-                  : 'Pay & Extend'}
+                {actionLoading ? t('customers.processing') :
+                  customer.membership_type === 'daily' ? t('customers.payAndAddPass')
+                  : customer.membership_type === '3_days_week' ? t('customers.payAndAddSessions')
+                  : t('customers.payAndExtend')}
               </button>
             </div>
           </form>
@@ -1046,26 +1057,25 @@ export default function CustomerDetail() {
 
       {/* Freeze Modal */}
       {showFreezeModal && (
-        <Modal onClose={() => setShowFreezeModal(false)} title="Freeze Membership">
+        <Modal onClose={() => setShowFreezeModal(false)} title={t('customers.freezeMembership')}>
           <form onSubmit={handleFreeze} className="space-y-4">
             <div className="flex items-start gap-3 p-4 bg-blue-500/10 border border-blue-500/25 rounded-xl">
               <Snowflake className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm text-blue-300 font-medium">Pauses the membership</p>
+                <p className="text-sm text-blue-300 font-medium">{t('customers.pausesMembership')}</p>
                 <p className="text-xs text-gray-400 mt-1">
-                  The membership end date will be extended by the freeze duration.
-                  Check-ins will be blocked while frozen.
+                  {t('customers.freezeExplain')}
                 </p>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Freeze Duration (days)</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">{t('customers.freezeDuration')}</label>
               <input
                 type="number"
                 value={freezeDays}
                 onChange={e => setFreezeDays(e.target.value)}
-                placeholder="e.g. 14"
+                placeholder={t('customers.freezeDaysPlaceholder')}
                 className="input-field"
                 min="1"
                 max="365"
@@ -1073,26 +1083,26 @@ export default function CustomerDetail() {
               />
               {freezeDays && parseInt(freezeDays) > 0 && (
                 <p className="text-xs text-gray-500 mt-1">
-                  Will unfreeze on {new Date(Date.now() + parseInt(freezeDays) * 86400000)
-                    .toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {t('customers.willUnfreezeOn').replace('{date}', new Date(Date.now() + parseInt(freezeDays) * 86400000)
+                    .toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }))}
                 </p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Reason <span className="text-gray-600">(optional)</span></label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">{t('customers.reason')} <span className="text-gray-600">{t('customers.optional')}</span></label>
               <input
                 type="text"
                 value={freezeReason}
                 onChange={e => setFreezeReason(e.target.value)}
-                placeholder="e.g. Holiday, Injury…"
+                placeholder={t('customers.reasonPlaceholder')}
                 className="input-field"
               />
             </div>
 
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={() => setShowFreezeModal(false)} className="btn-secondary flex-1">
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
@@ -1100,7 +1110,7 @@ export default function CustomerDetail() {
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-500/20 border border-blue-500/40 text-blue-300 hover:bg-blue-500/30 transition-all font-medium disabled:opacity-40"
               >
                 <Snowflake className="w-4 h-4" />
-                {actionLoading ? 'Freezing…' : 'Freeze Membership'}
+                {actionLoading ? t('customers.freezing') : t('customers.freezeMembership')}
               </button>
             </div>
           </form>
@@ -1109,36 +1119,36 @@ export default function CustomerDetail() {
 
       {/* Delete Modal */}
       {showDeleteModal && (
-        <Modal onClose={() => setShowDeleteModal(false)} title="Delete Customer">
+        <Modal onClose={() => setShowDeleteModal(false)} title={t('customers.deleteCustomer')}>
           <div className="space-y-4">
             <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
               <AlertTriangle className="w-6 h-6 text-red-400" />
               <div>
-                <p className="text-red-400 font-medium">Warning!</p>
+                <p className="text-red-400 font-medium">{t('customers.deleteWarning')}</p>
                 <p className="text-sm text-gray-400">
-                  This will permanently delete {customer.name} and all their records.
+                  {t('customers.deleteExplain').replace('{name}', customer.name)}
                 </p>
               </div>
             </div>
             <form onSubmit={handleDelete} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Security Code</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">{t('customers.securityCode')}</label>
                 <input
                   type="password"
                   value={deleteCode}
                   onChange={(e) => setDeleteCode(e.target.value)}
                   className="input-field"
-                  placeholder="Enter security code"
+                  placeholder={t('customers.enterSecurityCode')}
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">Default code: DELETE123</p>
+                <p className="text-xs text-gray-500 mt-1">{t('customers.defaultCode')}</p>
               </div>
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => setShowDeleteModal(false)} className="btn-secondary flex-1">
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button type="submit" disabled={actionLoading} className="btn-danger flex-1">
-                  {actionLoading ? 'Deleting...' : 'Delete Customer'}
+                  {actionLoading ? t('customers.deleting') : t('customers.deleteCustomer')}
                 </button>
               </div>
             </form>

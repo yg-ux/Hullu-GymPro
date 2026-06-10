@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api, getStatusColor, formatDate, getMembershipLabel } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import Pagination from '../components/Pagination';
 import { CustomerCardSkeleton } from '../components/Skeleton';
 import {
@@ -60,6 +61,7 @@ function useLocalStorage(key, initialValue) {
 export default function Customers() {
   const { subscription } = useAuth();
   const toast = useToast();
+  const { t } = useLanguage();
   const [customers, setCustomers] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [summary, setSummary] = useState({ total: 0, active: 0, expiring: 0, expired: 0, inactive: 0 });
@@ -91,9 +93,9 @@ export default function Customers() {
     try {
       await api.post('/attendance/check-in', { customer_id: customerId });
       setCheckedInIds(prev => new Set([...prev, customerId]));
-      toast.success('Checked in!');
+      toast.success(t('customers.toastCheckedIn'));
     } catch (err) {
-      toast.error(err.message || 'Check-in failed');
+      toast.error(err.message || t('customers.toastCheckInFailed'));
     }
   };
 
@@ -102,9 +104,9 @@ export default function Customers() {
     try {
       await api.post('/attendance/check-out', { customer_id: customerId });
       setCheckedInIds(prev => { const s = new Set(prev); s.delete(customerId); return s; });
-      toast.success('Checked out!');
+      toast.success(t('customers.toastCheckedOut'));
     } catch (err) {
-      toast.error(err.message || 'Check-out failed');
+      toast.error(err.message || t('customers.toastCheckOutFailed'));
     }
   };
 
@@ -134,7 +136,7 @@ export default function Customers() {
       setSummary(data.summary || { total: 0, active: 0, expiring: 0, expired: 0, inactive: 0 });
     } catch (error) {
       console.error('Failed to load customers:', error);
-      toast.error('Failed to load customers');
+      toast.error(t('customers.toastLoadFailed'));
     } finally {
       setLoading(false);
     }
@@ -158,9 +160,9 @@ export default function Customers() {
       a.download = `customers-${new Date().toISOString().split('T')[0]}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success('Export downloaded successfully');
+      toast.success(t('customers.toastExportSuccess'));
     } catch (err) {
-      toast.error(err.message || 'Export failed');
+      toast.error(err.message || t('customers.toastExportFailed'));
     } finally {
       setExporting(false);
     }
@@ -179,11 +181,11 @@ export default function Customers() {
   const getDaysDisplay = (customer) => {
     const days = customer.days_until_expiry;
     if (days > 0) {
-      return `${days} days left`;
+      return t('customers.daysLeft').replace('{n}', days);
     } else if (days === 0) {
-      return 'Expires today';
+      return t('customers.expiresToday');
     } else {
-      return `${Math.abs(days)} days overdue`;
+      return t('customers.daysOverdue').replace('{n}', Math.abs(days));
     }
   };
 
@@ -224,11 +226,11 @@ export default function Customers() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white">
-            Customers
+            {t('customers.title')}
             <span className="ml-2 text-lg font-normal text-gray-400">({statusCounts.all})</span>
           </h1>
           <p className="text-gray-400 mt-1">
-            Manage your gym members and their memberships
+            {t('customers.subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -236,24 +238,24 @@ export default function Customers() {
             onClick={handleExport}
             disabled={exporting}
             className="btn-secondary hidden sm:inline-flex items-center gap-2"
-            title="Export customers to CSV"
+            title={t('customers.exportTitle')}
           >
             {exporting ? <span className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full" /> : <Download className="w-4 h-4" />}
-            Export
+            {t('customers.export')}
           </button>
           {subscription?.valid ? (
             <Link to="/customers/new" className="btn-primary inline-flex items-center gap-2 shadow-lg shadow-gym-500/30">
               <Plus className="w-5 h-5" />
-              Add Customer
+              {t('customers.addCustomer')}
             </Link>
           ) : (
             <button
               disabled
               className="opacity-50 cursor-not-allowed btn-primary inline-flex items-center gap-2"
-              title="Subscription expired"
+              title={t('customers.subscriptionExpired')}
             >
               <Plus className="w-5 h-5" />
-              Add Customer
+              {t('customers.addCustomer')}
             </button>
           )}
         </div>
@@ -262,10 +264,10 @@ export default function Customers() {
       {/* Status Tabs */}
       <div className="flex flex-wrap gap-2 stagger-children">
         {[
-          { key: 'all', label: 'All', color: 'gray' },
-          { key: 'active', label: 'Active', color: 'green' },
-          { key: 'expiring', label: 'Expiring Soon', color: 'yellow' },
-          { key: 'expired', label: 'Expired', color: 'red' },
+          { key: 'all', label: t('customers.tabAll'), color: 'gray' },
+          { key: 'active', label: t('customers.tabActive'), color: 'green' },
+          { key: 'expiring', label: t('customers.tabExpiring'), color: 'yellow' },
+          { key: 'expired', label: t('customers.tabExpired'), color: 'red' },
         ].map(tab => (
           <button
             key={tab.key}
@@ -294,7 +296,7 @@ export default function Customers() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by name or phone..."
+              placeholder={t('customers.searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="input-field pl-12 pr-10"
@@ -318,9 +320,9 @@ export default function Customers() {
               onChange={(e) => setSortBy(e.target.value)}
               className="input-field pr-8 appearance-none cursor-pointer"
             >
-              <option value="membership_end">By Expiry Date</option>
-              <option value="name">By Name (A-Z)</option>
-              <option value="created_at">Newest First</option>
+              <option value="membership_end">{t('customers.sortByExpiry')}</option>
+              <option value="name">{t('customers.sortByName')}</option>
+              <option value="created_at">{t('customers.sortNewest')}</option>
             </select>
             <SortAsc className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           </div>
@@ -337,7 +339,7 @@ export default function Customers() {
                 ? "bg-gym-500/20 text-gym-400 border border-gym-500/30"
                 : "bg-dark-100 text-gray-400 hover:text-white border border-gray-800"
             )}
-            title="Bulk selection"
+            title={t('customers.bulkSelection')}
           >
             <CheckSquare className="w-5 h-5" />
           </button>
@@ -377,14 +379,14 @@ export default function Customers() {
             <div className="w-10 h-10 rounded-xl bg-gym-500/20 flex items-center justify-center">
               <CheckSquare className="w-5 h-5 text-gym-400" />
             </div>
-            <span className="text-white font-medium">{selectedCustomers.length} selected</span>
+            <span className="text-white font-medium">{t('customers.selected').replace('{n}', selectedCustomers.length)}</span>
           </div>
           <div className="flex items-center gap-2">
             <button className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg font-medium hover:shadow-lg transition-all">
-              Check-in All
+              {t('customers.checkInAll')}
             </button>
             <button className="px-4 py-2 bg-dark-200 text-white rounded-lg font-medium hover:bg-dark-300 transition-all">
-              Export
+              {t('customers.export')}
             </button>
             <button 
               onClick={() => setSelectedCustomers([])}
@@ -406,16 +408,16 @@ export default function Customers() {
           <div className="w-20 h-20 rounded-2xl bg-dark-200 flex items-center justify-center mx-auto mb-4">
             <User className="w-10 h-10 text-gray-600" />
           </div>
-          <h3 className="text-lg font-medium text-white mb-2">No customers found</h3>
+          <h3 className="text-lg font-medium text-white mb-2">{t('customers.noCustomersFound')}</h3>
           <p className="text-gray-400 mb-6">
             {search || statusFilter !== 'all'
-              ? 'Try adjusting your filters or search term'
-              : 'Start by adding your first customer'}
+              ? t('customers.adjustFilters')
+              : t('customers.startAdding')}
           </p>
           {!search && statusFilter === 'all' && (
             <Link to="/customers/new" className="btn-primary inline-flex items-center gap-2 shadow-lg">
               <Plus className="w-5 h-5" />
-              Add Your First Member
+              {t('customers.addFirstMember')}
             </Link>
           )}
         </div>
@@ -435,6 +437,7 @@ export default function Customers() {
               selected={selectedCustomers.includes(customer.id)}
               onSelect={() => bulkActionOpen && toggleSelect(customer.id)}
               showBulkActions={bulkActionOpen}
+              t={t}
             />
           ))}
         </div>
@@ -457,13 +460,13 @@ export default function Customers() {
                     </button>
                   </th>
                 )}
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-400">Customer</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-400 hidden sm:table-cell">Phone</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-400">Status</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-400 hidden md:table-cell">Membership</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-400 whitespace-nowrap">Days Left</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-400 hidden sm:table-cell">Expires</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-400">Actions</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-gray-400">{t('customers.colCustomer')}</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-gray-400 hidden sm:table-cell">{t('common.phone')}</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-gray-400">{t('common.status')}</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-gray-400 hidden md:table-cell">{t('customers.colMembership')}</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-gray-400 whitespace-nowrap">{t('customers.colDaysLeft')}</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-gray-400 hidden sm:table-cell">{t('customers.colExpires')}</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-gray-400">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -504,7 +507,10 @@ export default function Customers() {
                   <td className="px-4 py-3 text-gray-400 hidden sm:table-cell">{customer.phone || '-'}</td>
                   <td className="px-4 py-3">
                     <span className={clsx('status-badge', getStatusColor(customer.status))}>
-                      {customer.status === 'expiring' ? 'Expiring' : customer.status.charAt(0).toUpperCase() + customer.status.slice(1)}
+                      {customer.status === 'expiring' ? t('customers.statusExpiring')
+                        : customer.status === 'active' ? t('customers.statusActive')
+                        : customer.status === 'expired' ? t('customers.statusExpired')
+                        : t('customers.statusInactive')}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-gray-400 hidden md:table-cell">
@@ -517,10 +523,10 @@ export default function Customers() {
                         <span className="hidden sm:inline">{getDaysDisplay(customer)}</span>
                         <span className="sm:hidden">
                           {customer.days_until_expiry > 0
-                            ? `${customer.days_until_expiry}d`
+                            ? t('customers.daysShort').replace('{n}', customer.days_until_expiry)
                             : customer.days_until_expiry === 0
-                            ? 'Today'
-                            : `${Math.abs(customer.days_until_expiry)}d over`}
+                            ? t('customers.today')
+                            : t('customers.daysOverShort').replace('{n}', Math.abs(customer.days_until_expiry))}
                         </span>
                       </span>
                     </div>
@@ -538,14 +544,14 @@ export default function Customers() {
                       <button 
                         onClick={() => navigate(`/customers/${customer.id}`)}
                         className="p-2 text-gray-400 hover:text-gym-400 hover:bg-gym-500/10 rounded-lg transition-all"
-                        title="View"
+                        title={t('customers.view')}
                       >
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => navigate(`/customers/${customer.id}?edit=true`)}
                         className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
-                        title="Edit"
+                        title={t('common.edit')}
                       >
                         <Edit className="w-4 h-4" />
                       </button>
@@ -563,7 +569,7 @@ export default function Customers() {
   );
 }
 
-function CustomerCard({ customer, onClick, onCheckIn, onCheckOut, isCheckedIn, getDaysDisplay, getDaysColor, selected, onSelect, showBulkActions }) {
+function CustomerCard({ customer, onClick, onCheckIn, onCheckOut, isCheckedIn, getDaysDisplay, getDaysColor, selected, onSelect, showBulkActions, t }) {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -610,14 +616,14 @@ function CustomerCard({ customer, onClick, onCheckIn, onCheckOut, isCheckedIn, g
           <button 
             onClick={(e) => { e.stopPropagation(); onClick(); }}
             className="p-2 bg-dark-200 text-gray-400 hover:text-gym-400 rounded-lg shadow-lg transition-all hover:scale-110"
-            title="View"
+            title={t('customers.view')}
           >
             <Eye className="w-4 h-4" />
           </button>
-          <button 
+          <button
             onClick={(e) => { e.stopPropagation(); /* Edit action */ }}
             className="p-2 bg-dark-200 text-gray-400 hover:text-blue-400 rounded-lg shadow-lg transition-all hover:scale-110"
-            title="Edit"
+            title={t('common.edit')}
           >
             <Edit className="w-4 h-4" />
           </button>
@@ -664,12 +670,15 @@ function CustomerCard({ customer, onClick, onCheckIn, onCheckOut, isCheckedIn, g
         <h3 className="font-semibold text-white text-center mb-1 truncate w-full">{customer.name}</h3>
         
         {/* Phone */}
-        <p className="text-sm text-gray-400 text-center mb-3">{customer.phone || 'No phone'}</p>
+        <p className="text-sm text-gray-400 text-center mb-3">{customer.phone || t('customers.noPhone')}</p>
 
         {/* Status Badge */}
         <div className="flex justify-center mb-3">
           <span className={clsx('status-badge', getStatusColor(customer.status))}>
-            {customer.status === 'expiring' ? 'Expiring Soon' : customer.status.charAt(0).toUpperCase() + customer.status.slice(1)}
+            {customer.status === 'expiring' ? t('customers.statusExpiringSoon')
+              : customer.status === 'active' ? t('customers.statusActive')
+              : customer.status === 'expired' ? t('customers.statusExpired')
+              : t('customers.statusInactive')}
           </span>
         </div>
 
@@ -685,7 +694,7 @@ function CustomerCard({ customer, onClick, onCheckIn, onCheckOut, isCheckedIn, g
               <span className={clsx("font-bold text-xl", getDaysColor(customer.days_until_expiry))}>
                 {customer.days_until_expiry > 0 ? customer.days_until_expiry : 0}
               </span>
-              <span className="text-gray-400 text-sm ml-1">days</span>
+              <span className="text-gray-400 text-sm ml-1">{t('customers.days')}</span>
             </div>
           </div>
         </div>
@@ -694,7 +703,7 @@ function CustomerCard({ customer, onClick, onCheckIn, onCheckOut, isCheckedIn, g
         <div className="w-full pt-3 border-t border-gray-800/50">
           <div className="flex items-center justify-center gap-2 text-sm">
             <Calendar className="w-4 h-4 text-gray-500" />
-            <span className="text-gray-400">Expires: </span>
+            <span className="text-gray-400">{t('customers.expiresLabel')} </span>
             <span className="text-gray-300">{formatDate(customer.membership_end)}</span>
           </div>
         </div>
@@ -710,7 +719,7 @@ function CustomerCard({ customer, onClick, onCheckIn, onCheckOut, isCheckedIn, g
               className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-medium rounded-lg hover:shadow-lg hover:shadow-red-500/30 transition-all hover:scale-105"
             >
               <Zap className="w-3 h-3" />
-              Check-out
+              {t('customers.cardCheckOut')}
             </button>
           ) : (
             <button
@@ -718,15 +727,15 @@ function CustomerCard({ customer, onClick, onCheckIn, onCheckOut, isCheckedIn, g
               className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-medium rounded-lg hover:shadow-lg hover:shadow-green-500/30 transition-all hover:scale-105"
             >
               <Zap className="w-3 h-3" />
-              Check-in
+              {t('customers.cardCheckIn')}
             </button>
           )}
-          <button 
+          <button
             onClick={(e) => { e.stopPropagation(); onClick(); }}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-200 text-gray-300 text-xs font-medium rounded-lg hover:bg-dark-300 transition-all hover:scale-105"
           >
             <Eye className="w-3 h-3" />
-            View
+            {t('customers.view')}
           </button>
         </div>
       </div>

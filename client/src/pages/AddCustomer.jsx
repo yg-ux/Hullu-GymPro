@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, MEMBERSHIP_TYPES, getMembershipDays } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import clsx from 'clsx';
 import {
   ArrowLeft,
@@ -22,6 +23,7 @@ export default function AddCustomer() {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { t } = useLanguage();
   const isEditing = Boolean(id);
 
   const [formData, setFormData] = useState({
@@ -36,11 +38,11 @@ export default function AddCustomer() {
   });
 
   const THREE_DAYS_DURATIONS = [
-    { value: '1_month',  label: '1 Month',  days: 30,  sessions: 12  },
-    { value: '2_months', label: '2 Months', days: 60,  sessions: 24  },
-    { value: '3_months', label: '3 Months', days: 90,  sessions: 36  },
-    { value: '6_months', label: '6 Months', days: 180, sessions: 72  },
-    { value: '1_year',   label: '1 Year',   days: 365, sessions: 144 },
+    { value: '1_month',  label: t('membership.monthly'),    days: 30,  sessions: 12  },
+    { value: '2_months', label: '2 ' + t('customers.period'), days: 60,  sessions: 24  },
+    { value: '3_months', label: t('membership.quarterly'),  days: 90,  sessions: 36  },
+    { value: '6_months', label: '6 ' + t('customers.period'), days: 180, sessions: 72  },
+    { value: '1_year',   label: t('membership.yearly'),     days: 365, sessions: 144 },
   ];
 
   const [fieldErrors, setFieldErrors] = useState({});
@@ -71,7 +73,7 @@ export default function AddCustomer() {
       }
     } catch (error) {
       console.error('Failed to load customer:', error);
-      toast.error('Failed to load customer data');
+      toast.error(t('customers.toastLoadDataFailed'));
     }
   };
 
@@ -87,7 +89,7 @@ export default function AddCustomer() {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 1024 * 1024) {
-        toast.error('Photo too large. Please use an image under 1MB.');
+        toast.error(t('customers.toastPhotoTooLarge'));
         return;
       }
       setPhoto(file);
@@ -112,22 +114,22 @@ export default function AddCustomer() {
     const amount = formData.amount;
 
     if (!name) {
-      errors.name = 'Name is required';
+      errors.name = t('customers.errorNameRequired');
     } else if (name.length < 2) {
-      errors.name = 'Name must be at least 2 characters';
+      errors.name = t('customers.errorNameShort');
     }
 
     if (phone && phone.replace(/\D/g, '').length < 7) {
-      errors.phone = 'Enter a valid phone number (at least 7 digits)';
+      errors.phone = t('customers.errorPhoneInvalid');
     }
 
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      errors.email = 'Enter a valid email address';
+      errors.email = t('customers.errorEmailInvalid');
     }
 
     if (!isEditing) {
       if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-        errors.amount = 'Amount must be greater than 0';
+        errors.amount = t('customers.errorAmountInvalid');
       }
     }
 
@@ -140,7 +142,7 @@ export default function AddCustomer() {
     const errors = validate();
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
-      toast.error('Please fix the errors below');
+      toast.error(t('customers.toastFixErrors'));
       return;
     }
 
@@ -170,7 +172,7 @@ export default function AddCustomer() {
 
       if (isEditing) {
         await api.put(`/customers/${id}`, submitData);
-        toast.success('Customer updated successfully!');
+        toast.success(t('customers.toastUpdated'));
       } else {
         submitData.membership_type = formData.membership_type;
         submitData.amount = formData.amount;
@@ -178,14 +180,14 @@ export default function AddCustomer() {
           submitData.membership_duration = formData.membership_duration;
         }
         await api.post('/customers', submitData);
-        toast.success('Customer added successfully!');
+        toast.success(t('customers.toastAdded'));
       }
 
       setTimeout(() => {
         navigate('/customers');
       }, 1000);
     } catch (error) {
-      toast.error(error.message || 'Failed to save customer');
+      toast.error(error.message || t('customers.toastSaveFailed'));
     } finally {
       setLoading(false);
     }
@@ -208,10 +210,10 @@ export default function AddCustomer() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-white">
-            {isEditing ? 'Edit Customer' : 'Add New Customer'}
+            {isEditing ? t('customers.editCustomer') : t('customers.addNewCustomer')}
           </h1>
           <p className="text-gray-400">
-            {isEditing ? 'Update customer information' : 'Fill in the details to add a new member'}
+            {isEditing ? t('customers.updateInfo') : t('customers.fillDetails')}
           </p>
         </div>
       </div>
@@ -220,7 +222,7 @@ export default function AddCustomer() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Photo Upload */}
         <div className="card p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Customer Photo</h2>
+          <h2 className="text-lg font-semibold text-white mb-4">{t('customers.customerPhoto')}</h2>
 
           <div className="flex flex-col items-center">
             <div className="relative mb-4">
@@ -242,7 +244,7 @@ export default function AddCustomer() {
               ) : (
                 <div className="w-40 h-40 rounded-2xl bg-dark-200 border-2 border-dashed border-gray-700 flex flex-col items-center justify-center">
                   <Camera className="w-12 h-12 text-gray-500 mb-2" />
-                  <span className="text-sm text-gray-500">No photo</span>
+                  <span className="text-sm text-gray-500">{t('customers.noPhoto')}</span>
                 </div>
               )}
             </div>
@@ -256,20 +258,20 @@ export default function AddCustomer() {
               />
               <span className="btn-secondary inline-flex items-center gap-2">
                 <Upload className="w-4 h-4" />
-                {photoPreview ? 'Change Photo' : 'Upload Photo'}
+                {photoPreview ? t('customers.changePhoto') : t('customers.uploadPhoto')}
               </span>
             </label>
-            <p className="text-xs text-gray-500 mt-2">JPG, PNG, GIF up to 1MB</p>
+            <p className="text-xs text-gray-500 mt-2">{t('customers.photoFormat')}</p>
           </div>
         </div>
 
         {/* Basic Info */}
         <div className="card p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-white">Basic Information</h2>
+          <h2 className="text-lg font-semibold text-white">{t('customers.basicInfo')}</h2>
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              Full Name <span className="text-red-400">*</span>
+              {t('customers.fullName')} <span className="text-red-400">*</span>
             </label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -279,7 +281,7 @@ export default function AddCustomer() {
                 value={formData.name}
                 onChange={handleChange}
                 className={clsx('input-field pl-10', fieldErrors.name && 'border-red-500 focus:ring-red-500')}
-                placeholder="Enter customer's full name"
+                placeholder={t('customers.fullNamePlaceholder')}
               />
             </div>
             {fieldErrors.name && (
@@ -292,7 +294,7 @@ export default function AddCustomer() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Phone Number</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">{t('customers.phoneNumber')}</label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
@@ -313,7 +315,7 @@ export default function AddCustomer() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">{t('customers.email')}</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
@@ -322,7 +324,7 @@ export default function AddCustomer() {
                   value={formData.email}
                   onChange={handleChange}
                   className={clsx('input-field pl-10', fieldErrors.email && 'border-red-500 focus:ring-red-500')}
-                  placeholder="email@example.com"
+                  placeholder={t('customers.emailPlaceholder')}
                 />
               </div>
               {fieldErrors.email && (
@@ -335,7 +337,7 @@ export default function AddCustomer() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Emergency Contact</label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">{t('customers.emergencyContact')}</label>
             <div className="relative">
               <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
@@ -344,7 +346,7 @@ export default function AddCustomer() {
                 value={formData.emergency_contact}
                 onChange={handleChange}
                 className="input-field pl-10"
-                placeholder="Name and phone number"
+                placeholder={t('customers.emergencyPlaceholder')}
               />
             </div>
           </div>
@@ -353,17 +355,21 @@ export default function AddCustomer() {
         {/* Membership & Payment - Only show for new customers */}
         {!isEditing && (
           <div className="card p-6 space-y-4">
-            <h2 className="text-lg font-semibold text-white">Membership & Payment</h2>
+            <h2 className="text-lg font-semibold text-white">{t('customers.membershipPayment')}</h2>
 
             {/* Walk-in banner */}
             {isDaily && (
               <div className="flex items-start gap-3 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
                 <Zap className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-amber-400 font-semibold">Walk-in / Daily Pass</p>
+                  <p className="text-amber-400 font-semibold">{t('customers.walkInTitle')}</p>
                   <p className="text-sm text-gray-400 mt-0.5">
-                    This customer pays per visit. Their pass is valid <span className="text-white font-medium">today only</span>.
-                    When they return, use <span className="text-white font-medium">Extend Membership</span> on their profile to record a new daily payment.
+                    {t('customers.walkInExplain')
+                      .split('{today}')[0]}
+                    <span className="text-white font-medium">{t('customers.todayOnly')}</span>
+                    {t('customers.walkInExplain').split('{today}')[1].split('{extend}')[0]}
+                    <span className="text-white font-medium">{t('customers.extendMembership')}</span>
+                    {t('customers.walkInExplain').split('{extend}')[1]}
                   </p>
                 </div>
               </div>
@@ -371,7 +377,7 @@ export default function AddCustomer() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Membership Type</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">{t('customers.membershipType')}</label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <select
@@ -392,7 +398,7 @@ export default function AddCustomer() {
                 {is3DaysWeek && (
                   <div className="mt-3">
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Duration <span className="text-red-400">*</span>
+                      {t('customers.duration')} <span className="text-red-400">*</span>
                     </label>
                     <div className="grid grid-cols-1 gap-2">
                       {THREE_DAYS_DURATIONS.map(opt => (
@@ -414,7 +420,7 @@ export default function AddCustomer() {
                             className="accent-gym-500"
                           />
                           <span className="text-sm font-medium">{opt.label}</span>
-                          <span className="ml-auto text-xs font-semibold text-gym-400">{opt.sessions} sessions</span>
+                          <span className="ml-auto text-xs font-semibold text-gym-400">{opt.sessions} {t('customers.sessionsLabel')}</span>
                         </label>
                       ))}
                     </div>
@@ -424,7 +430,7 @@ export default function AddCustomer() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Amount Paid (ETB) <span className="text-red-400">*</span>
+                  {t('customers.amountPaidEtb')} <span className="text-red-400">*</span>
                 </label>
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -434,7 +440,7 @@ export default function AddCustomer() {
                     value={formData.amount}
                     onChange={handleChange}
                     className={clsx('input-field pl-10', fieldErrors.amount && 'border-red-500 focus:ring-red-500')}
-                    placeholder="Enter amount paid"
+                    placeholder={t('customers.enterAmountPaid')}
                     min="1"
                   />
                 </div>
@@ -452,19 +458,19 @@ export default function AddCustomer() {
               <div className="p-4 bg-dark-200 rounded-lg border border-amber-500/30">
                 <div className="grid grid-cols-2 gap-4 text-center">
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Valid On</p>
+                    <p className="text-xs text-gray-500 mb-1">{t('customers.validOn')}</p>
                     <p className="text-lg font-bold text-amber-400">{startDate.toLocaleDateString()}</p>
-                    <p className="text-xs text-gray-500">Today only</p>
+                    <p className="text-xs text-gray-500">{t('customers.todayOnlyLabel')}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Sessions</p>
+                    <p className="text-xs text-gray-500 mb-1">{t('customers.sessionsLabel')}</p>
                     <p className="text-lg font-bold text-white">1</p>
-                    <p className="text-xs text-gray-500">daily pass</p>
+                    <p className="text-xs text-gray-500">{t('customers.dailyPassLabel')}</p>
                   </div>
                 </div>
                 {formData.amount && (
                   <div className="mt-4 pt-4 border-t border-gray-700 text-center">
-                    <p className="text-sm text-gray-400">Amount paid:</p>
+                    <p className="text-sm text-gray-400">{t('customers.amountPaid')}</p>
                     <p className="text-2xl font-bold text-green-400">ETB {parseFloat(formData.amount || 0).toLocaleString()}</p>
                   </div>
                 )}
@@ -473,20 +479,20 @@ export default function AddCustomer() {
               <div className="p-4 bg-dark-200 rounded-lg border border-gym-500/30">
                 <div className="grid grid-cols-2 gap-4 text-center">
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Total Sessions</p>
+                    <p className="text-xs text-gray-500 mb-1">{t('customers.totalSessions')}</p>
                     <p className="text-2xl font-bold text-gym-400">
                       {THREE_DAYS_DURATIONS.find(d => d.value === formData.membership_duration)?.sessions || 12}
                     </p>
-                    <p className="text-xs text-gray-500">check-ins included</p>
+                    <p className="text-xs text-gray-500">{t('customers.checkInsIncluded')}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Max per Week</p>
+                    <p className="text-xs text-gray-500 mb-1">{t('customers.maxPerWeek')}</p>
                     <p className="text-2xl font-bold text-white">3</p>
-                    <p className="text-xs text-gray-500">days / week</p>
+                    <p className="text-xs text-gray-500">{t('customers.daysPerWeek')}</p>
                   </div>
                 </div>
                 <p className="text-xs text-center text-gray-500 mt-3 border-t border-gray-700 pt-3">
-                  Expires when all sessions are used — not by calendar date
+                  {t('customers.expiresWhenUsed')}
                 </p>
                 {formData.amount && (
                   <div className="mt-3 text-center">
@@ -498,21 +504,21 @@ export default function AddCustomer() {
               <div className="p-4 bg-dark-200 rounded-lg border border-gray-700">
                 <div className="flex items-center justify-center gap-2 mb-3">
                   <span className="text-2xl font-bold text-white">{membershipDays}</span>
-                  <span className="text-gray-400 text-sm">days duration</span>
+                  <span className="text-gray-400 text-sm">{t('customers.daysDuration')}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-center">
                   <div className="bg-dark-300/50 rounded-lg p-2">
-                    <p className="text-xs text-gray-500 mb-1">Start Date</p>
+                    <p className="text-xs text-gray-500 mb-1">{t('customers.startDate')}</p>
                     <p className="text-sm font-bold text-white">{startDate.toLocaleDateString()}</p>
                   </div>
                   <div className="bg-dark-300/50 rounded-lg p-2">
-                    <p className="text-xs text-gray-500 mb-1">End Date</p>
+                    <p className="text-xs text-gray-500 mb-1">{t('customers.endDate')}</p>
                     <p className="text-sm font-bold text-green-400">{endDate.toLocaleDateString()}</p>
                   </div>
                 </div>
                 {formData.amount && (
                   <div className="mt-4 pt-4 border-t border-gray-700 text-center">
-                    <p className="text-sm text-gray-400">Amount paid: </p>
+                    <p className="text-sm text-gray-400">{t('customers.amountPaid')} </p>
                     <p className="text-2xl font-bold text-green-400">ETB {parseFloat(formData.amount || 0).toLocaleString()}</p>
                   </div>
                 )}
@@ -527,8 +533,8 @@ export default function AddCustomer() {
             <div className="flex items-start gap-3 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
               <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-blue-400 font-medium">To extend membership, go to customer detail and click Extend</p>
-                <p className="text-sm text-gray-400 mt-1">Membership dates and payment cannot be modified here.</p>
+                <p className="text-blue-400 font-medium">{t('customers.editTip')}</p>
+                <p className="text-sm text-gray-400 mt-1">{t('customers.editTipSub')}</p>
               </div>
             </div>
           </div>
@@ -536,10 +542,10 @@ export default function AddCustomer() {
 
         {/* Notes */}
         <div className="card p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-white">Additional Information</h2>
+          <h2 className="text-lg font-semibold text-white">{t('customers.additionalInfo')}</h2>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Notes</label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">{t('customers.notes')}</label>
             <div className="relative">
               <FileText className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
               <textarea
@@ -547,7 +553,7 @@ export default function AddCustomer() {
                 value={formData.notes}
                 onChange={handleChange}
                 className="input-field pl-10 h-32 resize-none"
-                placeholder="Any special requirements, medical conditions, preferences..."
+                placeholder={t('customers.notesPlaceholder')}
               />
             </div>
           </div>
@@ -559,7 +565,7 @@ export default function AddCustomer() {
             to={isEditing ? `/customers/${id}` : '/customers'}
             className="btn-secondary flex-1 justify-center"
           >
-            Cancel
+            {t('common.cancel')}
           </Link>
           <button
             type="submit"
@@ -572,10 +578,10 @@ export default function AddCustomer() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                {isEditing ? 'Updating...' : 'Adding...'}
+                {isEditing ? t('customers.updating') : t('customers.adding')}
               </span>
             ) : (
-              isEditing ? 'Save Changes' : isDaily ? 'Register Walk-in & Record Payment' : 'Add Customer & Record Payment'
+              isEditing ? t('customers.saveChanges') : isDaily ? t('customers.registerWalkIn') : t('customers.addCustomerPay')
             )}
           </button>
         </div>

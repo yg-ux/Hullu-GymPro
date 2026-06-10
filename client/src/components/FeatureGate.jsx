@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { 
-  Lock, 
+import { useLanguage } from '../context/LanguageContext';
+import {
+  Lock,
   Crown,
   ArrowUpRight,
   X,
@@ -10,41 +11,22 @@ import {
 import clsx from 'clsx';
 
 const FEATURE_REQUIREMENTS = {
-  staff_management: {
-    requiredPlan: 'pro',
-    label: 'Staff Management',
-    description: 'Add and manage staff members with role-based access control',
-    icon: '👥',
-  },
-  advanced_analytics: {
-    requiredPlan: 'pro',
-    label: 'Advanced Analytics',
-    description: 'Detailed insights and reports on gym performance',
-    icon: '📊',
-  },
-  multi_branch: {
-    requiredPlan: 'enterprise',
-    label: 'Multi-Branch',
-    description: 'Manage multiple gym locations from one dashboard',
-    icon: '🏢',
-  },
-  api_access: {
-    requiredPlan: 'enterprise',
-    label: 'API Access',
-    description: 'Integrate with third-party applications via API',
-    icon: '🔌',
-  },
+  staff_management:    { requiredPlan: 'pro',        icon: '👥' },
+  advanced_analytics:  { requiredPlan: 'pro',        icon: '📊' },
+  multi_branch:        { requiredPlan: 'enterprise', icon: '🏢' },
+  api_access:          { requiredPlan: 'enterprise', icon: '🔌' },
 };
 
 const PLAN_ORDER = ['starter', 'pro', 'enterprise'];
 
-export default function FeatureGate({ 
-  feature, 
-  children, 
+export default function FeatureGate({
+  feature,
+  children,
   fallback: FallbackComponent,
-  showUpgradePrompt = true 
+  showUpgradePrompt = true
 }) {
   const { subscription, gym } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   const featureConfig = FEATURE_REQUIREMENTS[feature];
@@ -84,13 +66,13 @@ export default function FeatureGate({
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
-                <h3 className="text-lg font-bold text-white">{featureConfig.label}</h3>
+                <h3 className="text-lg font-bold text-white">{t(`feature.${feature}.label`)}</h3>
                 <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs font-medium rounded-full">
                   <Lock className="w-3 h-3" />
-                  Locked
+                  {t('feature.locked')}
                 </span>
               </div>
-              <p className="text-gray-400 text-sm">{featureConfig.description}</p>
+              <p className="text-gray-400 text-sm">{t(`feature.${feature}.description`)}</p>
             </div>
           </div>
         </div>
@@ -98,7 +80,7 @@ export default function FeatureGate({
         {/* Plan Comparison */}
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-sm text-gray-400">Your current plan:</span>
+            <span className="text-sm text-gray-400">{t('feature.yourCurrentPlan')}</span>
             <span className={clsx(
               "px-3 py-1 rounded-lg text-sm font-medium capitalize",
               currentPlan === 'starter' && "bg-gray-500/20 text-gray-400",
@@ -110,57 +92,57 @@ export default function FeatureGate({
           </div>
 
           <div className="bg-dark-200 rounded-lg p-4 mb-6">
-            <p className="text-sm text-gray-300 mb-3">Upgrade to Pro+ to unlock:</p>
+            <p className="text-sm text-gray-300 mb-3">{t('feature.upgradeToUnlock')}</p>
             <ul className="space-y-2">
-              {featureConfig.label === 'Staff Management' && (
+              {feature === 'staff_management' && (
                 <>
                   <li className="flex items-center gap-2 text-sm text-gray-300">
                     <Check className="w-4 h-4 text-green-400" />
-                    Add multiple staff members
+                    {t('feature.staff_management.item1')}
                   </li>
                   <li className="flex items-center gap-2 text-sm text-gray-300">
                     <Check className="w-4 h-4 text-green-400" />
-                    Role-based access control
+                    {t('feature.staff_management.item2')}
                   </li>
                   <li className="flex items-center gap-2 text-sm text-gray-300">
                     <Check className="w-4 h-4 text-green-400" />
-                    Track staff activity
+                    {t('feature.staff_management.item3')}
                   </li>
                   <li className="flex items-center gap-2 text-sm text-gray-300">
                     <Check className="w-4 h-4 text-green-400" />
-                    Manage permissions by role
+                    {t('feature.staff_management.item4')}
                   </li>
                 </>
               )}
-              {featureConfig.label === 'Advanced Analytics' && (
+              {feature === 'advanced_analytics' && (
                 <>
                   <li className="flex items-center gap-2 text-sm text-gray-300">
                     <Check className="w-4 h-4 text-green-400" />
-                    Revenue reports
+                    {t('feature.advanced_analytics.item1')}
                   </li>
                   <li className="flex items-center gap-2 text-sm text-gray-300">
                     <Check className="w-4 h-4 text-green-400" />
-                    Customer trends
+                    {t('feature.advanced_analytics.item2')}
                   </li>
                   <li className="flex items-center gap-2 text-sm text-gray-300">
                     <Check className="w-4 h-4 text-green-400" />
-                    Attendance analytics
+                    {t('feature.advanced_analytics.item3')}
                   </li>
                 </>
               )}
-              {featureConfig.label === 'Multi-Branch' && (
+              {feature === 'multi_branch' && (
                 <>
                   <li className="flex items-center gap-2 text-sm text-gray-300">
                     <Check className="w-4 h-4 text-green-400" />
-                    Manage multiple locations
+                    {t('feature.multi_branch.item1')}
                   </li>
                   <li className="flex items-center gap-2 text-sm text-gray-300">
                     <Check className="w-4 h-4 text-green-400" />
-                    Consolidated reports
+                    {t('feature.multi_branch.item2')}
                   </li>
                   <li className="flex items-center gap-2 text-sm text-gray-300">
                     <Check className="w-4 h-4 text-green-400" />
-                    Cross-branch customer view
+                    {t('feature.multi_branch.item3')}
                   </li>
                 </>
               )}
@@ -173,12 +155,12 @@ export default function FeatureGate({
             className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-gym-600 to-purple-600 hover:from-gym-700 hover:to-purple-700 text-white rounded-lg font-medium transition-all shadow-lg shadow-gym-600/20"
           >
             <Crown className="w-5 h-5" />
-            Upgrade to Pro
+            {t('feature.upgradeToPro')}
             <ArrowUpRight className="w-4 h-4" />
           </button>
 
           <p className="text-center text-xs text-gray-500 mt-3">
-            Starting at ETB 3,000/month
+            {t('feature.startingAt')}
           </p>
         </div>
       </div>

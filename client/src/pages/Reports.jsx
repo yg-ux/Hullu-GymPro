@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, formatDate, formatCurrency, getMembershipLabel, getPaymentMethodLabel } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import {
   FileText,
   Download,
@@ -37,6 +38,7 @@ export default function Reports() {
 function ReportsContent() {
   const navigate = useNavigate();
   const { gym } = useAuth();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [reportData, setReportData] = useState(null);
   const [dateRange, setDateRange] = useState('this_month');
@@ -113,7 +115,7 @@ function ReportsContent() {
         <!DOCTYPE html>
         <html>
         <head>
-          <title>Hullu Gym Report</title>
+          <title>${t('reports.pdfTitle')}</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
             .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #6366f1; padding-bottom: 20px; }
@@ -135,48 +137,48 @@ function ReportsContent() {
         </head>
         <body>
           <div class="header">
-            <h1>Hullu Gym Report</h1>
-            <p>Generated on ${formatDate(new Date())}</p>
-            <p>Gym: ${gym?.name || 'N/A'}</p>
+            <h1>${t('reports.pdfTitle')}</h1>
+            <p>${t('reports.generatedOn')} ${formatDate(new Date())}</p>
+            <p>${t('reports.gymLabel')} ${gym?.name || t('reports.na')}</p>
           </div>
-          
+
           <div class="section">
-            <h2>Summary</h2>
+            <h2>${t('reports.summary')}</h2>
             <div class="stats-grid">
               <div class="stat-card">
-                <div class="stat-label">Total Revenue</div>
+                <div class="stat-label">${t('reports.totalRevenue')}</div>
                 <div class="stat-value">${formatCurrency(data.summary.total_revenue)}</div>
               </div>
               <div class="stat-card">
-                <div class="stat-label">Total Customers</div>
+                <div class="stat-label">${t('reports.totalCustomers')}</div>
                 <div class="stat-value">${data.summary.total_customers}</div>
               </div>
               <div class="stat-card">
-                <div class="stat-label">Total Payments</div>
+                <div class="stat-label">${t('reports.totalPayments')}</div>
                 <div class="stat-value">${data.summary.total_payments}</div>
               </div>
               <div class="stat-card">
-                <div class="stat-label">Active Customers</div>
+                <div class="stat-label">${t('reports.activeCustomers')}</div>
                 <div class="stat-value">${data.customers.filter(c => new Date(c.membership_end) >= new Date()).length}</div>
               </div>
             </div>
           </div>
-          
+
           <div class="section">
-            <h2>Recent Payments (Top 10)</h2>
+            <h2>${t('reports.recentPaymentsTop10')}</h2>
             <table>
               <thead>
                 <tr>
-                  <th>Customer</th>
-                  <th>Amount</th>
-                  <th>Method</th>
-                  <th>Date</th>
+                  <th>${t('reports.colCustomer')}</th>
+                  <th>${t('common.amount')}</th>
+                  <th>${t('reports.colMethod')}</th>
+                  <th>${t('common.date')}</th>
                 </tr>
               </thead>
               <tbody>
                 ${data.payments.slice(0, 10).map(p => `
                   <tr>
-                    <td>${p.customer_name || 'N/A'}</td>
+                    <td>${p.customer_name || t('reports.na')}</td>
                     <td>${formatCurrency(p.amount)}</td>
                     <td>${getPaymentMethodLabel(p.payment_method)}</td>
                     <td>${formatDate(p.payment_date)}</td>
@@ -185,23 +187,23 @@ function ReportsContent() {
               </tbody>
             </table>
           </div>
-          
+
           <div class="section">
-            <h2>Customer List</h2>
+            <h2>${t('reports.customerList')}</h2>
             <table>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Phone</th>
-                  <th>Membership</th>
-                  <th>Expires</th>
+                  <th>${t('common.name')}</th>
+                  <th>${t('common.phone')}</th>
+                  <th>${t('membership.type')}</th>
+                  <th>${t('reports.colExpires')}</th>
                 </tr>
               </thead>
               <tbody>
                 ${data.customers.slice(0, 20).map(c => `
                   <tr>
                     <td>${c.name}</td>
-                    <td>${c.phone || 'N/A'}</td>
+                    <td>${c.phone || t('reports.na')}</td>
                     <td>${getMembershipLabel(c.membership_type)}</td>
                     <td>${formatDate(c.membership_end)}</td>
                   </tr>
@@ -209,9 +211,9 @@ function ReportsContent() {
               </tbody>
             </table>
           </div>
-          
+
           <div class="footer">
-            <p>Hullu Gym Management System • Report generated on ${new Date().toLocaleString()}</p>
+            <p>${t('reports.pdfFooter')} • ${t('reports.generatedOn')} ${new Date().toLocaleString()}</p>
           </div>
         </body>
         </html>
@@ -244,9 +246,9 @@ function ReportsContent() {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gym-500 to-purple-600 flex items-center justify-center">
               <BarChart3 className="w-6 h-6 text-white" />
             </div>
-            Reports & Analytics
+            {t('reports.title')}
           </h1>
-          <p className="text-gray-400 mt-1">View detailed reports and export your data</p>
+          <p className="text-gray-400 mt-1">{t('reports.subtitle')}</p>
         </div>
         
         <div className="flex items-center gap-3">
@@ -256,7 +258,7 @@ function ReportsContent() {
             disabled={loading}
           >
             <RefreshCw className={clsx("w-4 h-4", loading && "animate-spin")} />
-            Refresh
+            {t('reports.refresh')}
           </button>
         </div>
       </div>
@@ -272,13 +274,13 @@ function ReportsContent() {
               onChange={(e) => setDateRange(e.target.value)}
               className="pl-10 pr-10 py-2.5 bg-dark-200 border border-gray-700 rounded-lg text-white appearance-none cursor-pointer focus:outline-none focus:border-gym-500"
             >
-              <option value="this_week">This Week</option>
-              <option value="this_month">This Month</option>
-              <option value="last_month">Last Month</option>
-              <option value="last_3_months">Last 3 Months</option>
-              <option value="last_6_months">Last 6 Months</option>
-              <option value="this_year">This Year</option>
-              <option value="all_time">All Time</option>
+              <option value="this_week">{t('reports.thisWeek')}</option>
+              <option value="this_month">{t('reports.thisMonth')}</option>
+              <option value="last_month">{t('reports.lastMonth')}</option>
+              <option value="last_3_months">{t('reports.last3Months')}</option>
+              <option value="last_6_months">{t('reports.last6Months')}</option>
+              <option value="this_year">{t('reports.thisYear')}</option>
+              <option value="all_time">{t('reports.allTime')}</option>
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           </div>
@@ -295,7 +297,7 @@ function ReportsContent() {
                     : "text-gray-400 hover:text-white hover:bg-dark-300"
                 )}
               >
-                {type}
+                {t(`reports.${type}`)}
               </button>
             ))}
           </div>
@@ -309,7 +311,7 @@ function ReportsContent() {
             className="btn-secondary inline-flex items-center gap-2"
           >
             <FileSpreadsheet className="w-4 h-4" />
-            Export CSV
+            {t('reports.exportCSV')}
           </button>
           <button
             onClick={handleExportPDF}
@@ -317,7 +319,7 @@ function ReportsContent() {
             className="btn-primary inline-flex items-center gap-2 shadow-lg shadow-gym-500/30"
           >
             <Printer className="w-4 h-4" />
-            Print Report
+            {t('reports.printReport')}
           </button>
         </div>
       </div>
@@ -325,28 +327,28 @@ function ReportsContent() {
       {/* Stats Overview */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <ReportStatCard
-          title="Total Revenue"
+          title={t('reports.totalRevenue')}
           value={reportData?.revenue?.total || 0}
           icon={DollarSign}
           trend={reportData?.revenue?.trend}
           color="green"
         />
         <ReportStatCard
-          title="Total Payments"
+          title={t('reports.totalPayments')}
           value={reportData?.payments?.count || 0}
           icon={CreditCard}
           trend={reportData?.payments?.trend}
           color="blue"
         />
         <ReportStatCard
-          title="Active Members"
+          title={t('reports.activeMembers')}
           value={reportData?.members?.active || 0}
           icon={Users}
           trend={reportData?.members?.trend}
           color="purple"
         />
         <ReportStatCard
-          title="Avg. Transaction"
+          title={t('reports.avgTransaction')}
           value={reportData?.revenue?.average || 0}
           icon={Activity}
           trend={reportData?.revenue?.avgTrend}
@@ -362,7 +364,7 @@ function ReportsContent() {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
               <Calendar className="w-5 h-5 text-gym-400" />
-              Monthly Summary
+              {t('reports.monthlySummary')}
             </h2>
           </div>
           
@@ -389,7 +391,7 @@ function ReportsContent() {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
               <PieChart className="w-5 h-5 text-gray-400" />
-              Revenue by Payment Method
+              {t('reports.revenueByMethod')}
             </h2>
           </div>
           
@@ -424,22 +426,22 @@ function ReportsContent() {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
               <Users className="w-5 h-5 text-blue-400" />
-              Member Statistics
+              {t('reports.memberStatistics')}
             </h2>
           </div>
           
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="bg-dark-200 rounded-xl p-4 border border-gray-800">
-              <p className="text-xs text-gray-400 mb-1">New Members</p>
+              <p className="text-xs text-gray-400 mb-1">{t('reports.newMembers')}</p>
               <p className="text-2xl font-bold text-white">+{reportData?.members?.new || 0}</p>
               <p className="text-xs text-green-400 mt-1">
-                {reportData?.members?.newTrend > 0 ? '+' : ''}{reportData?.members?.newTrend || 0}% vs last period
+                {t('reports.vsLastPeriod', { sign: reportData?.members?.newTrend > 0 ? '+' : '', value: reportData?.members?.newTrend || 0 })}
               </p>
             </div>
             <div className="bg-dark-200 rounded-xl p-4 border border-gray-800">
-              <p className="text-xs text-gray-400 mb-1">Renewals</p>
+              <p className="text-xs text-gray-400 mb-1">{t('reports.renewals')}</p>
               <p className="text-2xl font-bold text-white">{reportData?.members?.renewals || 0}</p>
-              <p className="text-xs text-blue-400 mt-1">Active renewals</p>
+              <p className="text-xs text-blue-400 mt-1">{t('reports.activeRenewals')}</p>
             </div>
           </div>
 
@@ -457,7 +459,7 @@ function ReportsContent() {
                   </div>
                   <span className="text-sm text-gray-300">{getMembershipLabel(item.type)}</span>
                 </div>
-                <span className="text-sm font-medium text-white">{item.count} members</span>
+                <span className="text-sm font-medium text-white">{t('reports.membersUnit', { count: item.count })}</span>
               </div>
             ))}
           </div>
@@ -468,13 +470,13 @@ function ReportsContent() {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
               <Activity className="w-5 h-5 text-green-400" />
-              Attendance Trends
+              {t('reports.attendanceTrends')}
             </h2>
           </div>
           
           <div className="mb-6">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-400">Check-ins</span>
+              <span className="text-sm text-gray-400">{t('reports.checkInsLabel')}</span>
               <span className="text-lg font-bold text-green-400">{reportData?.attendance?.total || 0}</span>
             </div>
             <div className="h-32 flex items-end gap-1">
@@ -489,29 +491,29 @@ function ReportsContent() {
                     style={{ height: `${Math.max(height, 5)}%`, minHeight: '4px' }}
                   >
                     <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-dark-100 text-xs text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                      {day.count || 0} check-ins
+                      {t('reports.checkInsCount', { count: day.count || 0 })}
                     </div>
                   </div>
                 );
               })}
             </div>
             <div className="flex justify-between mt-2">
-              <span className="text-xs text-gray-500">14 days ago</span>
-              <span className="text-xs text-gray-500">Today</span>
+              <span className="text-xs text-gray-500">{t('reports.daysAgo14')}</span>
+              <span className="text-xs text-gray-500">{t('reports.todayLabel')}</span>
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-dark-200 rounded-xl p-3 text-center">
-              <p className="text-xs text-gray-400">Avg Daily</p>
+              <p className="text-xs text-gray-400">{t('reports.avgDaily')}</p>
               <p className="text-lg font-bold text-white">{reportData?.attendance?.avg_daily || 0}</p>
             </div>
             <div className="bg-dark-200 rounded-xl p-3 text-center">
-              <p className="text-xs text-gray-400">Peak Day</p>
+              <p className="text-xs text-gray-400">{t('reports.peakDay')}</p>
               <p className="text-lg font-bold text-white">{reportData?.attendance?.peak_day || 'N/A'}</p>
             </div>
             <div className="bg-dark-200 rounded-xl p-3 text-center">
-              <p className="text-xs text-gray-400">Busiest Hour</p>
+              <p className="text-xs text-gray-400">{t('reports.busiestHour')}</p>
               <p className="text-lg font-bold text-white">{reportData?.attendance?.busiest_hour || 'N/A'}</p>
             </div>
           </div>
@@ -523,14 +525,14 @@ function ReportsContent() {
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-white flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-amber-400" />
-            Top Paying Customers
+            {t('reports.topCustomers')}
           </h2>
           <button
             onClick={() => handleExportCSV('customers')}
             className="text-sm text-gym-400 hover:text-gym-300 flex items-center gap-1"
           >
             <Download className="w-4 h-4" />
-            Export List
+            {t('reports.exportList')}
           </button>
         </div>
         
@@ -538,12 +540,12 @@ function ReportsContent() {
           <table className="w-full">
             <thead>
               <tr className="text-left text-sm text-gray-400 border-b border-gray-800">
-                <th className="pb-3 font-medium">#</th>
-                <th className="pb-3 font-medium">Customer</th>
-                <th className="pb-3 font-medium">Total Paid</th>
-                <th className="pb-3 font-medium">Payments</th>
-                <th className="pb-3 font-medium">Last Payment</th>
-                <th className="pb-3 font-medium">Membership</th>
+                <th className="pb-3 font-medium">{t('reports.colNum')}</th>
+                <th className="pb-3 font-medium">{t('reports.colCustomer')}</th>
+                <th className="pb-3 font-medium">{t('reports.colTotalPaid')}</th>
+                <th className="pb-3 font-medium">{t('reports.colPayments')}</th>
+                <th className="pb-3 font-medium">{t('reports.colLastPayment')}</th>
+                <th className="pb-3 font-medium">{t('reports.colMembership')}</th>
               </tr>
             </thead>
             <tbody>
@@ -557,7 +559,7 @@ function ReportsContent() {
                       </div>
                       <div>
                         <p className="font-medium text-white">{customer.name}</p>
-                        <p className="text-xs text-gray-500">{customer.phone || 'No phone'}</p>
+                        <p className="text-xs text-gray-500">{customer.phone || t('reports.noPhone')}</p>
                       </div>
                     </div>
                   </td>
@@ -585,7 +587,7 @@ function ReportsContent() {
       <div className="glass-card p-6">
         <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
           <Download className="w-5 h-5 text-gray-400" />
-          Quick Export
+          {t('reports.quickExport')}
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <button
@@ -597,8 +599,8 @@ function ReportsContent() {
               <Users className="w-6 h-6 text-blue-400" />
             </div>
             <div className="text-left">
-              <p className="font-medium text-white">Customer List</p>
-              <p className="text-sm text-gray-500">CSV format</p>
+              <p className="font-medium text-white">{t('reports.customerList')}</p>
+              <p className="text-sm text-gray-500">{t('reports.csvFormat')}</p>
             </div>
           </button>
           
@@ -611,8 +613,8 @@ function ReportsContent() {
               <CreditCard className="w-6 h-6 text-green-400" />
             </div>
             <div className="text-left">
-              <p className="font-medium text-white">Payment History</p>
-              <p className="text-sm text-gray-500">CSV format</p>
+              <p className="font-medium text-white">{t('reports.paymentHistory')}</p>
+              <p className="text-sm text-gray-500">{t('reports.csvFormat')}</p>
             </div>
           </button>
           
@@ -625,8 +627,8 @@ function ReportsContent() {
               <FileText className="w-6 h-6 text-purple-400" />
             </div>
             <div className="text-left">
-              <p className="font-medium text-white">Full Report</p>
-              <p className="text-sm text-gray-500">Printable PDF</p>
+              <p className="font-medium text-white">{t('reports.fullReport')}</p>
+              <p className="text-sm text-gray-500">{t('reports.printablePDF')}</p>
             </div>
           </button>
         </div>

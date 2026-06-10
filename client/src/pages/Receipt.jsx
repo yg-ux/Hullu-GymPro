@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api, formatCurrency, formatDate, getMembershipLabel, getPaymentMethodLabel } from '../utils/api';
+import { useLanguage } from '../context/LanguageContext';
 import { Printer, ArrowLeft, CheckCircle } from 'lucide-react';
 
 export default function Receipt() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [payment, setPayment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -13,7 +15,7 @@ export default function Receipt() {
   useEffect(() => {
     api.get(`/payments/${id}`)
       .then(setPayment)
-      .catch(e => setError(e.message || 'Payment not found'))
+      .catch(e => setError(e.message || t('receipt.notFound')))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -28,9 +30,9 @@ export default function Receipt() {
   if (error || !payment) {
     return (
       <div className="min-h-screen bg-dark-200 flex flex-col items-center justify-center gap-4">
-        <p className="text-red-400 text-lg">{error || 'Payment not found'}</p>
+        <p className="text-red-400 text-lg">{error || t('receipt.notFound')}</p>
         <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gym-400 hover:text-gym-300">
-          <ArrowLeft className="w-4 h-4" /> Go back
+          <ArrowLeft className="w-4 h-4" /> {t('receipt.goBack')}
         </button>
       </div>
     );
@@ -66,14 +68,14 @@ export default function Receipt() {
             className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
-            Back
+            {t('receipt.back')}
           </button>
           <button
             onClick={() => window.print()}
             className="flex items-center gap-2 px-5 py-2.5 bg-gym-500/20 border border-gym-500/40 text-gym-400 rounded-xl hover:bg-gym-500/30 transition-all"
           >
             <Printer className="w-5 h-5" />
-            Print Receipt
+            {t('receipt.print')}
           </button>
         </div>
 
@@ -98,7 +100,7 @@ export default function Receipt() {
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Receipt</p>
+                <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">{t('receipt.label')}</p>
                 <p className="text-lg font-bold text-white font-mono">#{receiptNumber}</p>
                 <p className="text-sm text-gray-400 mt-1">{formatDate(payment.payment_date)}</p>
               </div>
@@ -109,7 +111,7 @@ export default function Receipt() {
           <div className="p-8 text-center border-b border-gray-800">
             <div className="flex items-center justify-center gap-3 mb-2">
               <CheckCircle className="w-7 h-7 text-emerald-400" />
-              <p className="text-sm font-medium text-emerald-400 uppercase tracking-wide">Payment Received</p>
+              <p className="text-sm font-medium text-emerald-400 uppercase tracking-wide">{t('receipt.paymentReceived')}</p>
             </div>
             <p className="receipt-amount text-5xl font-bold text-white mt-2">
               {formatCurrency(payment.amount)}
@@ -121,11 +123,11 @@ export default function Receipt() {
           <div className="p-8 space-y-6">
             {/* Member info */}
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Member</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t('receipt.member')}</p>
               <div className="grid grid-cols-2 gap-4">
-                <ReceiptRow label="Name" value={payment.customer_name} />
-                {payment.customer_phone && <ReceiptRow label="Phone" value={payment.customer_phone} />}
-                {payment.customer_email && <ReceiptRow label="Email" value={payment.customer_email} />}
+                <ReceiptRow label={t('receipt.name')} value={payment.customer_name} />
+                {payment.customer_phone && <ReceiptRow label={t('receipt.phone')} value={payment.customer_phone} />}
+                {payment.customer_email && <ReceiptRow label={t('receipt.email')} value={payment.customer_email} />}
               </div>
             </div>
 
@@ -133,13 +135,13 @@ export default function Receipt() {
 
             {/* Membership info */}
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Membership</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t('receipt.membership')}</p>
               <div className="grid grid-cols-2 gap-4">
-                <ReceiptRow label="Type" value={getMembershipLabel(payment.membership_type)} />
-                <ReceiptRow label="Payment Method" value={getPaymentMethodLabel(payment.payment_method)} />
-                {payment.start_date && <ReceiptRow label="Start Date" value={formatDate(payment.start_date)} />}
+                <ReceiptRow label={t('receipt.type')} value={getMembershipLabel(payment.membership_type)} />
+                <ReceiptRow label={t('receipt.paymentMethod')} value={getPaymentMethodLabel(payment.payment_method)} />
+                {payment.start_date && <ReceiptRow label={t('receipt.startDate')} value={formatDate(payment.start_date)} />}
                 {payment.end_date && payment.membership_type !== 'daily' && (
-                  <ReceiptRow label="Valid Until" value={formatDate(payment.end_date)} />
+                  <ReceiptRow label={t('receipt.validUntil')} value={formatDate(payment.end_date)} />
                 )}
               </div>
             </div>
@@ -148,7 +150,7 @@ export default function Receipt() {
               <>
                 <div className="border-t border-gray-800" />
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Notes</p>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('receipt.notes')}</p>
                   <p className="text-gray-300 text-sm">{payment.notes}</p>
                 </div>
               </>
@@ -157,9 +159,9 @@ export default function Receipt() {
 
           {/* Footer */}
           <div className="px-8 py-6 bg-dark-200/50 border-t border-gray-800 text-center">
-            <p className="text-gray-300 font-medium mb-1">Thank you for your payment!</p>
+            <p className="text-gray-300 font-medium mb-1">{t('receipt.thankYou')}</p>
             <p className="text-gray-500 text-sm">{payment.gym_name} — {payment.gym_phone || payment.gym_email || ''}</p>
-            <p className="text-gray-600 text-xs mt-3">Receipt ID: {payment.id}</p>
+            <p className="text-gray-600 text-xs mt-3">{t('receipt.receiptId', { id: payment.id })}</p>
           </div>
         </div>
       </div>

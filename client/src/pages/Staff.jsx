@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import { api } from '../utils/api';
 import {
   Search,
@@ -22,25 +23,25 @@ import clsx from 'clsx';
 // Role configuration
 const ROLES = {
   admin: {
-    label: 'Admin',
+    labelKey: 'staff.roleAdmin',
     color: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
     icon: Shield,
     permissions: ['full']
   },
   manager: {
-    label: 'Manager',
+    labelKey: 'staff.roleManager',
     color: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
     icon: Building,
     permissions: ['customers', 'staff', 'reports', 'settings']
   },
   trainer: {
-    label: 'Trainer',
+    labelKey: 'staff.roleTrainer',
     color: 'bg-green-500/20 text-green-400 border-green-500/30',
     icon: UserCheck,
     permissions: ['customers']
   },
   receptionist: {
-    label: 'Receptionist',
+    labelKey: 'staff.roleReceptionist',
     color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
     icon: User,
     permissions: ['checkin']
@@ -101,27 +102,27 @@ const mockStaff = [
   }
 ];
 
-function formatLastLogin(dateString) {
-  if (!dateString) return 'Never';
+function formatLastLogin(dateString, t) {
+  if (!dateString) return t('staff.lastLoginNever');
   const date = new Date(dateString);
-  if (isNaN(date)) return 'Never';
+  if (isNaN(date)) return t('staff.lastLoginNever');
   const now = new Date();
   const diffMs = now - date;
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffMins < 60) return t('staff.lastLoginMinutes').replace('{n}', diffMins);
+  if (diffHours < 24) return t('staff.lastLoginHours').replace('{n}', diffHours);
+  if (diffDays < 7) return t('staff.lastLoginDays').replace('{n}', diffDays);
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 // Normalise API response — server stores username, client expects name/email
-function normaliseStaff(member) {
+function normaliseStaff(member, fallbackName) {
   return {
     ...member,
-    name: member.name || member.username || 'Staff',
+    name: member.name || member.username || fallbackName,
     email: member.email || member.username || '',
     status: member.status || 'active',
   };
@@ -131,6 +132,7 @@ export default function Staff() {
   const { subscription } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
+  const { t } = useLanguage();
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -147,7 +149,7 @@ export default function Staff() {
   const loadStaff = async () => {
     try {
       const data = await api.get('/staff');
-      setStaff((data.staff || []).map(normaliseStaff));
+      setStaff((data.staff || []).map(m => normaliseStaff(m, t('staff.staffFallbackName'))));
       setLoading(false);
     } catch (error) {
       console.error('Failed to load staff:', error);
@@ -172,9 +174,9 @@ export default function Staff() {
       await api.delete(`/staff/${staffMember.id}`);
       setStaff(prev => prev.filter(s => s.id !== staffMember.id));
       setDeleteModal({ open: false, staff: null });
-      toast.success(`${staffMember.name} has been removed`);
+      toast.success(t('staff.toastRemoved').replace('{name}', staffMember.name));
     } catch (error) {
-      toast.error(error.message || 'Failed to delete staff member');
+      toast.error(error.message || t('staff.toastDeleteFailed'));
     } finally {
       setDeleteLoading(false);
     }
@@ -213,19 +215,19 @@ export default function Staff() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-white">
-              Staff
+              {t('staff.title')}
               <span className="ml-2 text-lg font-normal text-gray-400">({filteredStaff.length})</span>
             </h1>
             <p className="text-gray-400 mt-1">
-              Manage your team members and role-based access
+              {t('staff.subtitle')}
             </p>
           </div>
-          <Link 
-            to="/staff/new" 
+          <Link
+            to="/staff/new"
             className="btn-primary inline-flex items-center gap-2 shadow-lg shadow-gym-500/30"
           >
             <Plus className="w-5 h-5" />
-            Add Staff Member
+            {t('staff.addStaffMember')}
           </Link>
         </div>
 
@@ -238,7 +240,7 @@ export default function Staff() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search staff by name or email..."
+                placeholder={t('staff.searchPlaceholder')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="input-field pl-12 pr-10"
@@ -261,9 +263,9 @@ export default function Staff() {
               onChange={(e) => setRoleFilter(e.target.value)}
               className="input-field pr-8 appearance-none cursor-pointer min-w-[140px]"
             >
-              <option value="all">All Roles</option>
+              <option value="all">{t('staff.allRoles')}</option>
               {Object.entries(ROLES).map(([key, role]) => (
-                <option key={key} value={key}>{role.label}</option>
+                <option key={key} value={key}>{t(role.labelKey)}</option>
               ))}
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
@@ -276,9 +278,9 @@ export default function Staff() {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="input-field pr-8 appearance-none cursor-pointer min-w-[140px]"
             >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="all">{t('staff.allStatus')}</option>
+              <option value="active">{t('staff.statusActive')}</option>
+              <option value="inactive">{t('staff.statusInactive')}</option>
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           </div>
@@ -287,10 +289,10 @@ export default function Staff() {
         {/* Stats Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { key: 'all', label: 'Total', icon: User, color: 'from-gym-500 to-purple-500' },
-            { key: 'admin', label: 'Admins', icon: Shield, color: 'from-purple-500 to-pink-500' },
-            { key: 'trainer', label: 'Trainers', icon: UserCheck, color: 'from-green-500 to-emerald-500' },
-            { key: 'receptionist', label: 'Reception', icon: Building, color: 'from-yellow-500 to-orange-500' }
+            { key: 'all', label: t('staff.statTotal'), icon: User, color: 'from-gym-500 to-purple-500' },
+            { key: 'admin', label: t('staff.statAdmins'), icon: Shield, color: 'from-purple-500 to-pink-500' },
+            { key: 'trainer', label: t('staff.statTrainers'), icon: UserCheck, color: 'from-green-500 to-emerald-500' },
+            { key: 'receptionist', label: t('staff.statReception'), icon: Building, color: 'from-yellow-500 to-orange-500' }
           ].map(stat => {
             const count = stat.key === 'all' 
               ? staff.length 
@@ -330,14 +332,14 @@ export default function Staff() {
               <div className="w-10 h-10 rounded-xl bg-gym-500/20 flex items-center justify-center">
                 <User className="w-5 h-5 text-gym-400" />
               </div>
-              <span className="text-white font-medium">{selectedStaff.length} selected</span>
+              <span className="text-white font-medium">{selectedStaff.length} {t('staff.selected')}</span>
             </div>
             <div className="flex items-center gap-2">
               <button className="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-medium hover:shadow-lg transition-all">
-                Change Role
+                {t('staff.changeRole')}
               </button>
               <button className="px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-black rounded-lg font-medium hover:shadow-lg transition-all">
-                Deactivate
+                {t('staff.deactivate')}
               </button>
               <button 
                 onClick={() => setSelectedStaff([])}
@@ -355,16 +357,16 @@ export default function Staff() {
             <div className="w-20 h-20 rounded-2xl bg-dark-200 flex items-center justify-center mx-auto mb-4">
               <User className="w-10 h-10 text-gray-600" />
             </div>
-            <h3 className="text-lg font-medium text-white mb-2">No staff found</h3>
+            <h3 className="text-lg font-medium text-white mb-2">{t('staff.noStaffFound')}</h3>
             <p className="text-gray-400 mb-6">
               {search || roleFilter !== 'all' || statusFilter !== 'all'
-                ? 'Try adjusting your filters'
-                : 'Start by adding your first staff member'}
+                ? t('staff.tryAdjustingFilters')
+                : t('staff.startByAdding')}
             </p>
             {!search && roleFilter === 'all' && statusFilter === 'all' && (
               <Link to="/staff/new" className="btn-primary inline-flex items-center gap-2 shadow-lg">
                 <Plus className="w-5 h-5" />
-                Add Staff Member
+                {t('staff.addStaffMember')}
               </Link>
             )}
           </div>
@@ -379,7 +381,8 @@ export default function Staff() {
                 onSelect={() => toggleSelect(member.id)}
                 onEdit={() => navigate(`/staff/${member.id}/edit`)}
                 onDelete={() => setDeleteModal({ open: true, staff: member })}
-                formatLastLogin={formatLastLogin}
+                formatLastLogin={(d) => formatLastLogin(d, t)}
+                t={t}
               />
             ))}
           </div>
@@ -396,13 +399,12 @@ export default function Staff() {
                     <Trash2 className="w-6 h-6 text-red-400" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-white">Delete Staff Member</h3>
-                    <p className="text-sm text-gray-400">This action cannot be undone</p>
+                    <h3 className="text-lg font-semibold text-white">{t('staff.deleteStaffMember')}</h3>
+                    <p className="text-sm text-gray-400">{t('staff.deleteCannotUndo')}</p>
                   </div>
                 </div>
                 <p className="text-gray-300 mb-6">
-                  Are you sure you want to delete <span className="font-semibold text-white">{deleteModal.staff?.name}</span>? 
-                  They will lose access to the system immediately.
+                  {t('staff.deleteConfirmStart')} <span className="font-semibold text-white">{deleteModal.staff?.name}</span>{t('staff.deleteConfirmEnd')}
                 </p>
                 <div className="flex gap-3">
                   <button
@@ -410,7 +412,7 @@ export default function Staff() {
                     disabled={deleteLoading}
                     className="flex-1 px-4 py-2.5 bg-dark-200 text-white rounded-lg font-medium hover:bg-dark-300 transition-all disabled:opacity-50"
                   >
-                    Cancel
+                    {t('staff.cancel')}
                   </button>
                   <button
                     onClick={() => handleDelete(deleteModal.staff)}
@@ -423,9 +425,9 @@ export default function Staff() {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                         </svg>
-                        Deleting...
+                        {t('staff.deleting')}
                       </>
-                    ) : 'Delete'}
+                    ) : t('staff.delete')}
                   </button>
                 </div>
               </div>
@@ -436,7 +438,7 @@ export default function Staff() {
   );
 }
 
-function StaffCard({ member, roles, selected, onSelect, onEdit, onDelete, formatLastLogin }) {
+function StaffCard({ member, roles, selected, onSelect, onEdit, onDelete, formatLastLogin, t }) {
   const [isHovered, setIsHovered] = useState(false);
   const roleConfig = roles[member.role] || roles.admin;
   const RoleIcon = roleConfig.icon;
@@ -515,7 +517,7 @@ function StaffCard({ member, roles, selected, onSelect, onEdit, onDelete, format
             roleConfig.color
           )}>
             <RoleIcon className="w-4 h-4" />
-            {roleConfig.label}
+            {t(roleConfig.labelKey)}
           </span>
         </div>
 
@@ -523,7 +525,7 @@ function StaffCard({ member, roles, selected, onSelect, onEdit, onDelete, format
         <div className="w-full pt-3 border-t border-gray-800/50">
           <div className="flex items-center justify-center gap-2 text-sm">
             <Clock className="w-4 h-4 text-gray-500" />
-            <span className="text-gray-400">Last seen: </span>
+            <span className="text-gray-400">{t('staff.lastSeen')} </span>
             <span className="text-gray-300">{formatLastLogin(member.last_login)}</span>
           </div>
         </div>
@@ -538,14 +540,14 @@ function StaffCard({ member, roles, selected, onSelect, onEdit, onDelete, format
             className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-xs font-medium rounded-lg hover:shadow-lg hover:shadow-blue-500/30 transition-all hover:scale-105"
           >
             <Edit className="w-3 h-3" />
-            Edit
+            {t('staff.edit')}
           </button>
-          <button 
+          <button
             onClick={onDelete}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-200 text-gray-300 text-xs font-medium rounded-lg hover:bg-red-500/10 hover:text-red-400 transition-all hover:scale-105"
           >
             <Trash2 className="w-3 h-3" />
-            Delete
+            {t('staff.delete')}
           </button>
         </div>
       </div>

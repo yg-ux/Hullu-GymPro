@@ -59,6 +59,7 @@ const ROLE_CONFIG = {
 
 export default function Layout() {
   const { user, gym, subscription, logout } = useAuth();
+  const { t } = useLanguage();
   const userRole = user?.role || 'owner';
   const roleConfig = ROLE_CONFIG[userRole] || ROLE_CONFIG.owner;
   const location = useLocation();
@@ -119,10 +120,10 @@ export default function Layout() {
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
       const today     = new Date().toISOString().split('T')[0];
       const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-      if (dateStr === today)     return 'Today';
-      if (dateStr === yesterday) return 'Yesterday';
+      if (dateStr === today)     return t('layout.todayWord');
+      if (dateStr === yesterday) return t('layout.yesterday');
       const diffDays = Math.floor((Date.now() - new Date(dateStr + 'T00:00:00Z')) / 86400000);
-      return `${diffDays}d ago`;
+      return t('layout.dAgo', { n: diffDays });
     }
     // Full timestamp — normalise to ISO UTC so all browsers parse it correctly
     // Replace PostgreSQL space separator with T, then add Z if no timezone present
@@ -132,10 +133,10 @@ export default function Layout() {
     const m = Math.floor(diff / 60000);
     const h = Math.floor(diff / 3600000);
     const d = Math.floor(diff / 86400000);
-    if (m < 1)  return 'Just now';
-    if (m < 60) return `${m}m ago`;
-    if (h < 24) return `${h}h ago`;
-    return `${d}d ago`;
+    if (m < 1)  return t('layout.justNow');
+    if (m < 60) return t('layout.mAgo', { n: m });
+    if (h < 24) return t('layout.hAgo', { n: h });
+    return t('layout.dAgo', { n: d });
   };
 
   const fetchNotifications = useCallback(async () => {
@@ -159,7 +160,8 @@ export default function Layout() {
           icon: DollarSign,
           iconColor: 'text-emerald-400',
           iconBg: 'bg-emerald-500/15',
-          message: `${p.customer_name} paid ${formatCurrency(p.amount)}`,
+          msgKey: 'layout.paymentMsg',
+          msgVars: { name: p.customer_name, amount: formatCurrency(p.amount) },
           time: p.created_at || p.payment_date,
         });
       });
@@ -177,7 +179,8 @@ export default function Layout() {
             icon: UserPlus,
             iconColor: 'text-gym-400',
             iconBg: 'bg-gym-500/15',
-            message: `${a.customer_name} checked in`,
+            msgKey: 'layout.checkInMsg',
+            msgVars: { name: a.customer_name },
             time: a.check_in,
           });
         });
@@ -194,7 +197,8 @@ export default function Layout() {
           icon: Clock,
           iconColor: 'text-amber-400',
           iconBg: 'bg-amber-500/15',
-          message: `${expiring} membership${expiring > 1 ? 's' : ''} expiring within 7 days`,
+          msgKey: expiring > 1 ? 'layout.expiryMsgPlural' : 'layout.expiryMsg',
+          msgVars: { count: expiring },
           time: null,
         });
       }
@@ -253,16 +257,16 @@ export default function Layout() {
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 text-blue-300 text-sm">
               <Zap className="w-4 h-4 text-blue-400 flex-shrink-0" />
-              <span>
-                You're on the <span className="font-semibold text-white">Free Plan</span>
-                {' '}— up to <span className="font-semibold text-white">10 members</span>. Upgrade for SMS, unlimited members &amp; more.
-              </span>
+              <span dangerouslySetInnerHTML={{ __html: t('layout.freePlanBanner', {
+                plan: `<span class="font-semibold text-white">${t('layout.freePlan')}</span>`,
+                limit: `<span class="font-semibold text-white">${t('layout.tenMembers')}</span>`,
+              }) }} />
             </div>
             <button
               onClick={() => navigate('/subscription')}
               className="flex-shrink-0 px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-semibold rounded-lg hover:from-blue-400 hover:to-indigo-400 transition-all shadow-md"
             >
-              Upgrade Plan
+              {t('layout.upgradePlan')}
             </button>
           </div>
         </div>
@@ -276,15 +280,15 @@ export default function Layout() {
               <AlertTriangle className="w-4 h-4 animate-pulse" />
               <span>
                 {subscription.status === 'trial_expired'
-                  ? 'Your free trial has ended. Subscribe to continue.'
-                  : 'Your subscription has expired. Please renew.'}
+                  ? t('layout.trialEnded')
+                  : t('layout.subExpired')}
               </span>
             </div>
             <button
               onClick={() => navigate('/subscription')}
               className="px-4 py-1 bg-gradient-to-r from-yellow-500 to-orange-500 text-black text-sm font-medium rounded-lg hover:from-yellow-400 hover:to-orange-400 transition-all shadow-lg shadow-yellow-500/20"
             >
-              Subscribe Now
+              {t('layout.subscribeNow')}
             </button>
           </div>
         </div>
@@ -310,7 +314,7 @@ export default function Layout() {
               </div>
               <div>
                 <h1 className="text-lg font-bold gradient-text">{gym?.name || 'Hullu Gyms'}</h1>
-                <p className="text-xs text-gray-400 truncate max-w-[140px]">by Hullu Gyms</p>
+                <p className="text-xs text-gray-400 truncate max-w-[140px]">{t('layout.byHullu')}</p>
               </div>
             </div>
             <button 
@@ -346,7 +350,7 @@ export default function Layout() {
               <button
                 onClick={() => setDarkMode(!darkMode)}
                 className="p-2.5 text-gray-400 hover:text-white rounded-xl hover:bg-dark-100 transition-all duration-300"
-                title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+                title={darkMode ? t('layout.switchLight') : t('layout.switchDark')}
               >
                 {darkMode ? (
                   <Sun className="w-5 h-5" />
@@ -388,10 +392,10 @@ export default function Layout() {
                     />
                     <div className="fixed sm:absolute left-2 right-2 sm:left-auto sm:right-0 top-[60px] sm:top-auto sm:mt-2 sm:w-80 glass-card shadow-xl z-20 overflow-hidden animate-slide-down">
                       <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
-                        <h3 className="font-semibold text-white">Notifications</h3>
+                        <h3 className="font-semibold text-white">{t('layout.notifications')}</h3>
                         {!notifLoading && (
                           <span className="text-xs text-gray-400 bg-dark-300 px-2 py-1 rounded-full">
-                            {notifications.length} recent
+                            {t('layout.recent', { count: notifications.length })}
                           </span>
                         )}
                       </div>
@@ -410,7 +414,7 @@ export default function Layout() {
                           </div>
                         ) : notifications.length === 0 ? (
                           <div className="py-10 text-center text-sm text-gray-500">
-                            No recent activity
+                            {t('layout.noRecentActivity')}
                           </div>
                         ) : (
                           notifications.map(notif => (
@@ -422,9 +426,9 @@ export default function Layout() {
                                 <notif.icon className={`w-4 h-4 ${notif.iconColor}`} />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm text-white leading-snug">{notif.message}</p>
+                                <p className="text-sm text-white leading-snug">{t(notif.msgKey, notif.msgVars)}</p>
                                 <p className="text-xs text-gray-500 mt-0.5">
-                                  {notif.time ? getTimeAgo(notif.time) : 'Today'}
+                                  {notif.time ? getTimeAgo(notif.time) : t('layout.todayWord')}
                                 </p>
                               </div>
                             </div>
@@ -436,7 +440,7 @@ export default function Layout() {
                           onClick={() => { fetchNotifications(); setNotifOpen(false); notifOpenRef.current = false; }}
                           className="w-full text-xs text-gym-400 hover:text-gym-300 transition-colors"
                         >
-                          Refresh
+                          {t('layout.refresh')}
                         </button>
                       </div>
                     </div>
@@ -460,11 +464,11 @@ export default function Layout() {
                   <AlertTriangle className="w-4 h-4" />
                 )}
                 <span className="hidden sm:inline">
-                  {subscription?.status === 'trial' ? 'Free Trial' : gym?.subscription_plan || 'Starter'}
+                  {subscription?.status === 'trial' ? t('layout.freeTrial') : gym?.subscription_plan || t('layout.starter')}
                 </span>
                 {subscription?.daysLeft > 0 && (
                   <span className="hidden sm:inline text-xs opacity-70">
-                    ({subscription.daysLeft}d)
+                    ({t('layout.daysShort', { n: subscription.daysLeft })})
                   </span>
                 )}
               </button>
@@ -509,7 +513,7 @@ export default function Layout() {
                             <p className="text-sm font-semibold text-white">{gym?.name}</p>
                             <p className="text-xs text-gray-400">{user?.username}</p>
                             <span className={clsx('inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium', roleConfig.color)}>
-                              {roleConfig.label}
+                              {t(`role.${userRole}`)}
                             </span>
                           </div>
                         </div>
@@ -522,7 +526,7 @@ export default function Layout() {
                             className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-dark-200 hover:text-white transition-colors"
                           >
                             <CreditCard className="w-4 h-4" />
-                            Subscription
+                            {t('layout.subscription')}
                           </button>
                         )}
                         <button
@@ -530,7 +534,7 @@ export default function Layout() {
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
                         >
                           <LogOut className="w-4 h-4" />
-                          Sign out
+                          {t('layout.signOut')}
                         </button>
                       </div>
                     </div>
@@ -572,7 +576,7 @@ function SidebarContent({ onNavigate, recentActivity = [], getTimeAgo }) {
   const getPlanBadge = (requiredPlan) => {
     if (!requiredPlan) return null;
     if (hasPlanAccess(requiredPlan)) return null; // no badge if they have access
-    return <span className="ml-auto text-xs px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full">Locked</span>;
+    return <span className="ml-auto text-xs px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full">{t('layout.locked')}</span>;
   };
 
   return (
@@ -599,7 +603,7 @@ function SidebarContent({ onNavigate, recentActivity = [], getTimeAgo }) {
         )}
         <div>
           <h1 className="text-lg font-bold text-white">Hullu Gyms</h1>
-          <p className="text-xs truncate max-w-[150px]" style={{ color: 'rgb(var(--gym-400-rgb))' }}>{gym?.name || 'Your Gym'}</p>
+          <p className="text-xs truncate max-w-[150px]" style={{ color: 'rgb(var(--gym-400-rgb))' }}>{gym?.name || t('layout.yourGym')}</p>
         </div>
       </div>
 
@@ -650,10 +654,10 @@ function SidebarContent({ onNavigate, recentActivity = [], getTimeAgo }) {
         <div className="glass-card p-4">
           <div className="flex items-center gap-2 mb-3">
             <Activity className="w-4 h-4 text-gym-400" />
-            <span className="text-xs font-medium text-gray-400">Recent Activity</span>
+            <span className="text-xs font-medium text-gray-400">{t('layout.recentActivity')}</span>
           </div>
           {recentActivity.length === 0 ? (
-            <p className="text-xs text-gray-600 text-center py-2">No recent activity</p>
+            <p className="text-xs text-gray-600 text-center py-2">{t('layout.noRecentActivity')}</p>
           ) : (
             <div className="space-y-3">
               {recentActivity.map((activity, i) => (
@@ -662,9 +666,9 @@ function SidebarContent({ onNavigate, recentActivity = [], getTimeAgo }) {
                     <activity.icon className={`w-4 h-4 ${activity.iconColor}`} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-300 truncate">{activity.message}</p>
+                    <p className="text-xs text-gray-300 truncate">{t(activity.msgKey, activity.msgVars)}</p>
                     <p className="text-xs text-gray-500">
-                      {activity.time ? getTimeAgo(activity.time) : 'Today'}
+                      {activity.time ? getTimeAgo(activity.time) : t('layout.todayWord')}
                     </p>
                   </div>
                 </div>
@@ -677,9 +681,9 @@ function SidebarContent({ onNavigate, recentActivity = [], getTimeAgo }) {
       {/* Footer */}
       <div className="p-4 border-t border-gray-800/50">
         <div className="text-xs text-gray-500 text-center">
-          <span className="gradient-text font-semibold">{gym?.name || 'Your Gym'}</span> by <span className="gradient-text font-semibold">Hullu Gyms</span>
+          <span className="gradient-text font-semibold">{gym?.name || t('layout.yourGym')}</span> {t('layout.byHullu')}
           <br />
-          © 2025 All rights reserved
+          {t('layout.allRightsReserved')}
         </div>
       </div>
     </div>

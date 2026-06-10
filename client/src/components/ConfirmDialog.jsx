@@ -1,7 +1,12 @@
 import { AlertTriangle, Trash2, X } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
-export default function ConfirmDialog({ isOpen, title, message, confirmText = 'Confirm', cancelText = 'Cancel', onConfirm, onCancel, variant = 'danger', loading = false }) {
+export default function ConfirmDialog({ isOpen, title, message, confirmText, cancelText, onConfirm, onCancel, variant = 'danger', loading = false }) {
+  const { t } = useLanguage();
   if (!isOpen) return null;
+
+  const resolvedConfirmText = confirmText ?? t('common.confirm');
+  const resolvedCancelText  = cancelText  ?? t('common.cancel');
 
   const variantStyles = {
     danger: {
@@ -43,7 +48,7 @@ export default function ConfirmDialog({ isOpen, title, message, confirmText = 'C
             disabled={loading}
             className="px-4 py-2 rounded-lg text-sm font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 transition-colors"
           >
-            {cancelText}
+            {resolvedCancelText}
           </button>
           <button
             onClick={onConfirm}
@@ -56,7 +61,7 @@ export default function ConfirmDialog({ isOpen, title, message, confirmText = 'C
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
             )}
-            {confirmText}
+            {resolvedConfirmText}
           </button>
         </div>
       </div>

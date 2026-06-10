@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api, formatDateTime } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { 
   Users, 
   LogOut, 
@@ -18,6 +19,7 @@ import clsx from 'clsx';
 
 export default function CheckOut() {
   const { subscription } = useAuth();
+  const { t } = useLanguage();
   const [checkedInCustomers, setCheckedInCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
@@ -38,7 +40,7 @@ export default function CheckOut() {
       setCheckedInCustomers(data.currently_present || []);
     } catch (err) {
       console.error('Failed to load checked-in customers:', err);
-      setError('Failed to load current attendance');
+      setError(t('checkOut.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -52,7 +54,7 @@ export default function CheckOut() {
     try {
       await api.post(`/customers/${customerId}/check-out`);
       const customerName = checkedInCustomers.find(c => c.customer_id === customerId)?.customer?.name || 'Customer';
-      setSuccess(`${customerName} checked out successfully!`);
+      setSuccess(t('checkOut.checkedOutSuccess').replace('{name}', customerName));
       loadCheckedInCustomers();
       
       setTimeout(() => setSuccess(''), 3000);
@@ -66,7 +68,7 @@ export default function CheckOut() {
   const handleCheckOutAll = async () => {
     if (checkedInCustomers.length === 0) return;
     
-    if (!confirm(`Check out all ${checkedInCustomers.length} customers?`)) {
+    if (!confirm(t('checkOut.confirmAll').replace('{n}', checkedInCustomers.length))) {
       return;
     }
 
@@ -75,7 +77,7 @@ export default function CheckOut() {
       for (const customer of checkedInCustomers) {
         await api.post(`/customers/${customer.customer_id}/check-out`);
       }
-      setSuccess(`All ${checkedInCustomers.length} customers checked out!`);
+      setSuccess(t('checkOut.allCheckedOut').replace('{n}', checkedInCustomers.length));
       loadCheckedInCustomers();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -97,18 +99,18 @@ export default function CheckOut() {
   const groupByTime = () => {
     const now = new Date();
     const groups = {
-      'Currently in gym': [],
-      'Checked in earlier': [],
+      [t('checkOut.currentlyInGym')]: [],
+      [t('checkOut.checkedInEarlier')]: [],
     };
 
     filteredCustomers.forEach(log => {
       const checkInTime = new Date(log.check_in);
       const hoursDiff = (now - checkInTime) / (1000 * 60 * 60);
-      
+
       if (hoursDiff < 1) {
-        groups['Currently in gym'].push(log);
+        groups[t('checkOut.currentlyInGym')].push(log);
       } else {
-        groups['Checked in earlier'].push(log);
+        groups[t('checkOut.checkedInEarlier')].push(log);
       }
     });
 
@@ -130,11 +132,11 @@ export default function CheckOut() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Check Out</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">{t('checkOut.title')}</h1>
           <p className="text-gray-400">
-            {checkedInCustomers.length > 0 
-              ? `${checkedInCustomers.length} customer${checkedInCustomers.length === 1 ? '' : 's'} currently in gym`
-              : 'No customers currently checked in'
+            {checkedInCustomers.length > 0
+              ? t('checkOut.subtitleCount').replace('{n}', checkedInCustomers.length).replace('{s}', checkedInCustomers.length === 1 ? '' : 's')
+              : t('checkOut.subtitleEmpty')
             }
           </p>
         </div>
@@ -146,7 +148,7 @@ export default function CheckOut() {
             className="btn-secondary inline-flex items-center gap-2"
           >
             <RefreshCw className={clsx("w-5 h-5", loading && "animate-spin")} />
-            Check Out All
+            {t('checkOut.checkOutAll')}
           </button>
         )}
       </div>
@@ -174,7 +176,7 @@ export default function CheckOut() {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by name or phone..."
+            placeholder={t('checkOut.searchPlaceholder')}
             className="w-full pl-12 pr-4 py-3 bg-dark-200 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:border-gym-500 focus:outline-none transition-colors"
           />
         </div>
@@ -209,25 +211,25 @@ export default function CheckOut() {
 
                       {/* Info */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-white font-semibold truncate">{log.customer_name || log.customer?.name || 'Unknown'}</p>
+                        <p className="text-white font-semibold truncate">{log.customer_name || log.customer?.name || t('checkOut.unknown')}</p>
                         <div className="flex items-center gap-3 text-sm text-gray-400">
                           <span className="flex items-center gap-1">
                             <Phone className="w-4 h-4" />
-                            {log.customer_phone || log.customer?.phone || 'No phone'}
+                            {log.customer_phone || log.customer?.phone || t('checkOut.noPhone')}
                           </span>
                           <span className="flex items-center gap-1">
                             <Clock className="w-4 h-4" />
-                            Checked in {new Date(log.check_in).toLocaleTimeString('en-US', {
+                            {t('checkOut.checkedInAt').replace('{time}', new Date(log.check_in).toLocaleTimeString('en-US', {
                               hour: '2-digit',
                               minute: '2-digit'
-                            })}
+                            }))}
                           </span>
                         </div>
                       </div>
 
                       {/* Duration */}
                       <div className="text-right px-4">
-                        <p className="text-xs text-gray-500">Duration</p>
+                        <p className="text-xs text-gray-500">{t('checkOut.duration')}</p>
                         <p className="text-lg font-bold text-white">
                           {formatDuration(new Date(log.check_in))}
                         </p>
@@ -249,7 +251,7 @@ export default function CheckOut() {
                         ) : (
                           <>
                             <LogOut className="w-5 h-5" />
-                            Check Out
+                            {t('checkOut.checkOut')}
                           </>
                         )}
                       </button>
@@ -263,22 +265,22 @@ export default function CheckOut() {
       ) : checkedInCustomers.length > 0 ? (
         <div className="card p-12 text-center">
           <Search className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-          <p className="text-gray-300 font-medium">No matches found</p>
-          <p className="text-gray-500 text-sm mt-1">Try a different search term</p>
+          <p className="text-gray-300 font-medium">{t('checkOut.noMatches')}</p>
+          <p className="text-gray-500 text-sm mt-1">{t('checkOut.tryDifferent')}</p>
         </div>
       ) : (
         <div className="card p-12 text-center">
           <div className="w-20 h-20 rounded-full bg-dark-300 flex items-center justify-center mx-auto mb-4">
             <Users className="w-10 h-10 text-gray-500" />
           </div>
-          <p className="text-gray-300 font-medium text-lg">No one is currently checked in</p>
-          <p className="text-gray-500 text-sm mt-2">All customers have checked out or haven't arrived yet</p>
-          
-          <Link 
+          <p className="text-gray-300 font-medium text-lg">{t('checkOut.noneCheckedIn')}</p>
+          <p className="text-gray-500 text-sm mt-2">{t('checkOut.allCheckedOutMsg')}</p>
+
+          <Link
             to="/check-in"
             className="btn-primary inline-flex items-center gap-2 mt-6"
           >
-            Go to Check In
+            {t('checkOut.goToCheckIn')}
           </Link>
         </div>
       )}
