@@ -661,6 +661,44 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
+// ── Per-gym key-value settings ────────────────────────────────────────────
+// GET  /api/auth/gym-settings  → { revenue_goal: '50000', ... }
+router.get('/gym-settings', authenticateToken, async (req, res) => {
+  try {
+    const gymId = req.user.gym_id;
+    const rows = await getAll('SELECT key, value FROM settings WHERE gym_id = ?', [gymId]);
+    const settings = {};
+    for (const row of rows) settings[row.key] = row.value;
+    res.json(settings);
+  } catch (error) {
+    console.error('Get gym settings error:', error);
+    res.status(500).json({ error: 'Failed to load gym settings' });
+  }
+});
+
+// PUT  /api/auth/gym-settings  body: { revenue_goal: 50000 }
+router.put('/gym-settings', authenticateToken, async (req, res) => {
+  try {
+    const gymId = req.user.gym_id;
+    const ALLOWED_KEYS = new Set(['revenue_goal']);
+    for (const [key, value] of Object.entries(req.body)) {
+      if (!ALLOWED_KEYS.has(key)) continue;
+      await runQuery(
+        `INSERT INTO settings (gym_id, key, value) VALUES (?, ?, ?)
+         ON CONFLICT (gym_id, key) DO UPDATE SET value = EXCLUDED.value`,
+        [gymId, key, String(value)]
+      );
+    }
+    const rows = await getAll('SELECT key, value FROM settings WHERE gym_id = ?', [gymId]);
+    const settings = {};
+    for (const row of rows) settings[row.key] = row.value;
+    res.json(settings);
+  } catch (error) {
+    console.error('Put gym settings error:', error);
+    res.status(500).json({ error: 'Failed to save gym settings' });
+  }
+});
+
 // Change password
 router.post('/change-password', authenticateToken, validateChangePassword, async (req, res) => {
   try {

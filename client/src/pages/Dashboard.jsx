@@ -414,6 +414,9 @@ export default function Dashboard() {
         />
       </div>
 
+      {/* Expiring Members Widget */}
+      <ExpiringMembersWidget />
+
       {/* Revenue Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Revenue Card */}
@@ -851,6 +854,98 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Expiring Members Widget ───────────────────────────────────────────────
+function ExpiringMembersWidget() {
+  const { t } = useLanguage();
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/customers?status=expiring&limit=10&sortBy=membership_end').then(data => {
+      const list = data?.customers || data?.data || (Array.isArray(data) ? data : []);
+      setMembers(list);
+    }).catch(() => setMembers([])).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return null; // silent load — only show when data arrives
+  if (members.length === 0) return null; // nothing to show — all good!
+
+  const getDaysLeft = (end) => {
+    if (!end) return null;
+    const diff = Math.ceil((new Date(end) - Date.now()) / 86400000);
+    return diff;
+  };
+
+  return (
+    <div className="glass-card p-5 border border-amber-500/25">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+            <AlertTriangle className="w-4 h-4 text-amber-400" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-white">{t('dashboard.expiringWidget')}</h3>
+            <p className="text-xs text-gray-500">{t('dashboard.expiringWidgetSub')}</p>
+          </div>
+        </div>
+        <Link
+          to="/customers?status=expiring"
+          className="text-xs text-amber-400 hover:text-amber-300 transition-colors flex items-center gap-1"
+        >
+          {t('dashboard.expiringViewAll')}
+        </Link>
+      </div>
+
+      <div className="space-y-2">
+        {members.slice(0, 6).map(m => {
+          const days = getDaysLeft(m.membership_end);
+          const isToday = days === 0;
+          const isUrgent = days !== null && days <= 1;
+          return (
+            <Link
+              key={m.id}
+              to={`/customers/${m.id}`}
+              className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-dark-200/60 transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                {m.photo ? (
+                  <img src={m.photo} alt={m.name} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+                ) : (
+                  <div className="w-8 h-8 rounded-lg bg-dark-300 flex items-center justify-center flex-shrink-0 text-sm font-bold text-gray-400">
+                    {m.name?.charAt(0) || '?'}
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-medium text-white group-hover:text-gym-300 transition-colors">{m.name}</p>
+                  <p className="text-xs text-gray-500">{m.phone || ''}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-semibold px-2 py-1 rounded-lg ${
+                  isToday ? 'bg-red-500/20 text-red-400' :
+                  isUrgent ? 'bg-orange-500/20 text-orange-400' :
+                  'bg-amber-500/15 text-amber-400'
+                }`}>
+                  {isToday ? t('dashboard.expiringToday')
+                    : days === 1 ? t('dashboard.expiringDayLeft')
+                    : t('dashboard.expiringDaysLeft', { n: days })}
+                </span>
+                <Link
+                  to={`/customers/${m.id}`}
+                  onClick={e => e.stopPropagation()}
+                  className="text-xs text-gym-400 hover:text-gym-300 px-2 py-1 rounded-lg hover:bg-gym-500/10 transition-colors font-medium"
+                >
+                  {t('dashboard.expiringRenew')}
+                </Link>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }

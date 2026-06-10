@@ -620,6 +620,115 @@ function EmptyState({ icon: Icon, title, description }) {
   );
 }
 
+// ── Revenue Goal Widget ───────────────────────────────────────────────────
+function RevenueGoalWidget({ thisMonth }) {
+  const { t } = useLanguage();
+  const [goal, setGoal]           = useState(null);   // number | null
+  const [editing, setEditing]     = useState(false);
+  const [input, setInput]         = useState('');
+  const [saving, setSaving]       = useState(false);
+
+  useEffect(() => {
+    api.get('/auth/gym-settings').then(data => {
+      const v = parseFloat(data?.revenue_goal);
+      if (!isNaN(v) && v > 0) setGoal(v);
+    }).catch(() => {});
+  }, []);
+
+  const saveGoal = async () => {
+    const v = parseFloat(input);
+    if (isNaN(v) || v <= 0) return;
+    setSaving(true);
+    try {
+      await api.put('/auth/gym-settings', { revenue_goal: v });
+      setGoal(v);
+      setEditing(false);
+    } catch { /* noop */ } finally {
+      setSaving(false);
+    }
+  };
+
+  const pct = goal ? Math.min(Math.round((thisMonth / goal) * 100), 100) : 0;
+  const achieved = goal && thisMonth >= goal;
+  const barColor = achieved
+    ? 'from-emerald-400 to-emerald-500'
+    : pct >= 60
+      ? 'from-gym-400 to-gym-500'
+      : pct >= 30
+        ? 'from-amber-400 to-amber-500'
+        : 'from-red-400 to-red-500';
+
+  return (
+    <div className="glass-card p-5 border border-gray-800/60">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gym-500 to-gym-700 flex items-center justify-center shadow-md shadow-gym-500/30">
+            <Target className="w-4 h-4 text-white" />
+          </div>
+          <span className="font-semibold text-white text-sm">{t('revenue.goalTitle')}</span>
+        </div>
+        {!editing && (
+          <button
+            onClick={() => { setInput(goal ? String(goal) : ''); setEditing(true); }}
+            className="text-xs text-gym-400 hover:text-gym-300 transition-colors px-2 py-1 rounded-lg hover:bg-gym-500/10"
+          >
+            {goal ? t('revenue.goalEdit') : t('revenue.goalSet')}
+          </button>
+        )}
+      </div>
+
+      {editing ? (
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            placeholder={t('revenue.goalPlaceholder')}
+            className="flex-1 bg-dark-300 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gym-500/60"
+            autoFocus
+          />
+          <button
+            onClick={() => setEditing(false)}
+            className="px-3 py-2 text-xs text-gray-400 hover:text-white rounded-lg hover:bg-dark-300 transition-colors"
+          >
+            {t('revenue.goalCancel')}
+          </button>
+          <button
+            onClick={saveGoal}
+            disabled={saving}
+            className="px-3 py-2 text-xs font-medium bg-gym-500 hover:bg-gym-400 text-white rounded-xl transition-colors disabled:opacity-60"
+          >
+            {saving ? '...' : t('revenue.goalSave')}
+          </button>
+        </div>
+      ) : goal ? (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-300">{formatCurrency(thisMonth)}</span>
+            <span className={achieved ? 'text-emerald-400 font-semibold' : 'text-gray-400'}>
+              {achieved ? t('revenue.goalAchieved') : t('revenue.goalProgress', { pct })}
+            </span>
+            <span className="text-gray-400">{formatCurrency(goal)}</span>
+          </div>
+          <div className="h-3 bg-dark-300 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full bg-gradient-to-r transition-all duration-1000 ease-out ${barColor}`}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <p className="text-xs text-gray-500 text-right">
+            {t('revenue.goalAmt', { current: formatCurrency(thisMonth), goal: formatCurrency(goal) })}
+          </p>
+        </div>
+      ) : (
+        <p className="text-sm text-gray-500 italic">
+          {t('revenue.goalPlaceholder')}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function Revenue() {
   const { t } = useLanguage();
   const [stats, setStats] = useState(null);
@@ -726,6 +835,9 @@ export default function Revenue() {
           {t('revenue.refreshData')}
         </button>
       </div>
+
+      {/* Revenue Goal */}
+      <RevenueGoalWidget thisMonth={stats?.this_month || 0} />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">

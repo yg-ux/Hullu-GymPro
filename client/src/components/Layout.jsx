@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect, useCallback, useRef } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import QuickActionFAB from './QuickActionFAB';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { api, formatCurrency } from '../utils/api';
@@ -569,6 +570,9 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Floating Quick-Action Button */}
+      <QuickActionFAB />
     </div>
   );
 }

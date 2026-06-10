@@ -81,6 +81,34 @@ export const dashboard = {
     'dashboard.more':            'More',
     'dashboard.checkInsTooltip': '{day} {hour}:00 — {count} check-ins',
 
+    // Expiring members widget
+    'dashboard.expiringWidget':     'Expiring This Week',
+    'dashboard.expiringWidgetSub':  'Members whose memberships expire within 7 days',
+    'dashboard.expiringEmpty':      'No memberships expiring this week 🎉',
+    'dashboard.expiringDayLeft':    '1 day left',
+    'dashboard.expiringDaysLeft':   '{n} days left',
+    'dashboard.expiringToday':      'Expires today!',
+    'dashboard.expiringRenew':      'Renew',
+    'dashboard.expiringViewAll':    'View all expiring →',
+
+    // Revenue goal (also used in Revenue page)
+    'revenue.goalTitle':            'Monthly Revenue Goal',
+    'revenue.goalProgress':         '{pct}% of goal reached',
+    'revenue.goalAmt':              '{current} of {goal}',
+    'revenue.goalSet':              'Set Goal',
+    'revenue.goalEdit':             'Edit Goal',
+    'revenue.goalSave':             'Save',
+    'revenue.goalCancel':           'Cancel',
+    'revenue.goalPlaceholder':      'Enter monthly goal (ETB)',
+    'revenue.goalAchieved':         '🎉 Goal achieved!',
+    'revenue.goalOnTrack':          'On track',
+    'revenue.goalBehind':           'Behind target',
+
+    // FAB
+    'fab.addMember':                'Add Member',
+    'fab.checkIn':                  'Check In',
+    'fab.recordPayment':            'Record Payment',
+
     // Reports
     'reports.title':                  'Reports & Analytics',
     'reports.subtitle':               'View detailed reports and export your data',
@@ -366,6 +394,34 @@ export const dashboard = {
     'dashboard.less':            'ያነሰ',
     'dashboard.more':            'የበለጠ',
     'dashboard.checkInsTooltip': '{day} {hour}:00 — {count} ቼክ-ኢኖች',
+
+    // Expiring members widget
+    'dashboard.expiringWidget':     'በዚህ ሳምንት የሚያበቁ',
+    'dashboard.expiringWidgetSub':  'አባልነት በ7 ቀናት ውስጥ የሚያበቃቸው አባላት',
+    'dashboard.expiringEmpty':      'በዚህ ሳምንት የሚያበቅ አባልነት የለም 🎉',
+    'dashboard.expiringDayLeft':    '1 ቀን ይቀራል',
+    'dashboard.expiringDaysLeft':   '{n} ቀናት ይቀራሉ',
+    'dashboard.expiringToday':      'ዛሬ ያበቃል!',
+    'dashboard.expiringRenew':      'አድስ',
+    'dashboard.expiringViewAll':    'ሁሉንም ይመልከቱ →',
+
+    // Revenue goal
+    'revenue.goalTitle':            'ወርሃዊ የገቢ ዒላማ',
+    'revenue.goalProgress':         'ከዒላማ {pct}% ተሳክቷል',
+    'revenue.goalAmt':              '{current} ከ{goal}',
+    'revenue.goalSet':              'ዒላማ አስቀምጥ',
+    'revenue.goalEdit':             'ዒላማ ቀይር',
+    'revenue.goalSave':             'አስቀምጥ',
+    'revenue.goalCancel':           'ሰርዝ',
+    'revenue.goalPlaceholder':      'ወርሃዊ ዒላማ ያስገቡ (ብር)',
+    'revenue.goalAchieved':         '🎉 ዒላማ ተሳካ!',
+    'revenue.goalOnTrack':          'በትክክለኛ መንገድ ላይ',
+    'revenue.goalBehind':           'ከዒላማ ኋላ',
+
+    // FAB
+    'fab.addMember':                'አባል ጨምር',
+    'fab.checkIn':                  'ቼክ-ኢን',
+    'fab.recordPayment':            'ክፍያ ያስገቡ',
 
     // Reports
     'reports.title':                  'ሪፖርቶች እና ትንታኔ',

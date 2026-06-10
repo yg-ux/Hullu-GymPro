@@ -47,6 +47,11 @@ export default function CustomerDetail() {
   // Delete form state
   const [deleteCode, setDeleteCode] = useState('');
   
+  // Notes inline edit state
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesValue, setNotesValue] = useState('');
+  const [notesSaving, setNotesSaving] = useState(false);
+
   // Freeze form state
   const [showFreezeModal, setShowFreezeModal] = useState(false);
   const [freezeDays, setFreezeDays] = useState('');
@@ -127,12 +132,27 @@ export default function CustomerDetail() {
     try {
       const data = await api.get(`/customers/${id}`);
       setCustomer(data);
+      setNotesValue(data.notes || '');
       setExtendMembershipType(data.membership_type);
     } catch (error) {
       console.error('Failed to load customer:', error);
       navigate('/customers');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveNotes = async () => {
+    setNotesSaving(true);
+    try {
+      await api.put(`/customers/${id}`, { notes: notesValue });
+      setCustomer(prev => ({ ...prev, notes: notesValue }));
+      setEditingNotes(false);
+      toast.success(t('customers.notesSaved'));
+    } catch {
+      toast.error(t('customers.notesSaveFailed'));
+    } finally {
+      setNotesSaving(false);
     }
   };
 
@@ -300,15 +320,55 @@ export default function CustomerDetail() {
               </div>
             </div>
 
-            {customer.notes && (
-              <div className="mt-6 pt-6 border-t border-gray-800">
-                <div className="flex items-center gap-2 mb-2">
+            {/* Notes — always visible with inline edit */}
+            <div className="mt-6 pt-6 border-t border-gray-800">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-gray-400" />
                   <span className="text-sm font-medium text-gray-400">{t('customers.notes')}</span>
                 </div>
-                <p className="text-gray-300">{customer.notes}</p>
+                {!editingNotes && (
+                  <button
+                    onClick={() => { setNotesValue(customer.notes || ''); setEditingNotes(true); }}
+                    className="flex items-center gap-1.5 text-xs text-gym-400 hover:text-gym-300 transition-colors px-2 py-1 rounded-lg hover:bg-gym-500/10"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                    {customer.notes ? t('customers.notesEdit') : t('customers.notesAdd')}
+                  </button>
+                )}
               </div>
-            )}
+              {editingNotes ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={notesValue}
+                    onChange={e => setNotesValue(e.target.value)}
+                    rows={4}
+                    placeholder={t('customers.notesPlaceholder')}
+                    className="w-full bg-dark-300 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 resize-none focus:outline-none focus:border-gym-500/60 transition-colors"
+                    autoFocus
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => setEditingNotes(false)}
+                      className="px-3 py-1.5 text-xs text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-dark-300"
+                    >
+                      {t('customers.notesCancel') || 'Cancel'}
+                    </button>
+                    <button
+                      onClick={handleSaveNotes}
+                      disabled={notesSaving}
+                      className="px-3 py-1.5 text-xs font-medium bg-gym-500 hover:bg-gym-400 text-white rounded-lg transition-colors disabled:opacity-60"
+                    >
+                      {notesSaving ? '...' : t('revenue.goalSave')}
+                    </button>
+                  </div>
+                </div>
+              ) : customer.notes ? (
+                <p className="text-gray-300 text-sm whitespace-pre-wrap">{customer.notes}</p>
+              ) : (
+                <p className="text-gray-500 text-sm italic">{t('customers.notesPlaceholder')}</p>
+              )}
+            </div>
           </div>
 
           {/* Membership Progress */}
