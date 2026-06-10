@@ -106,8 +106,9 @@ export default function Layout() {
   };
 
   const isFreePlan = !gym?.subscription_plan || gym?.subscription_plan === 'free';
+  const showGraceBanner      = subscription?.status === 'grace';
   const showSubscriptionAlert = subscription && !subscription.valid && !isFreePlan;
-  const showFreePlanBanner = isFreePlan;
+  const showFreePlanBanner = isFreePlan && !showGraceBanner && !showSubscriptionAlert;
 
   // ── Real-time notifications ──────────────────────────────────────────────────
   const [notifications, setNotifications] = useState([]);
@@ -267,6 +268,24 @@ export default function Layout() {
               className="flex-shrink-0 px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-semibold rounded-lg hover:from-blue-400 hover:to-indigo-400 transition-all shadow-md"
             >
               {t('layout.upgradePlan')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Grace Period Banner — subscription expired but within 5-day grace window */}
+      {showGraceBanner && (
+        <div className="bg-gradient-to-r from-orange-500/10 to-red-500/10 border-b border-orange-500/40 px-4 py-2">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-2 text-orange-400 text-sm">
+              <AlertTriangle className="w-4 h-4 animate-pulse flex-shrink-0" />
+              <span>{t('layout.graceWarning', { n: subscription.graceDaysLeft })}</span>
+            </div>
+            <button
+              onClick={() => navigate('/subscription')}
+              className="px-4 py-1 bg-gradient-to-r from-orange-500 to-red-500 text-white text-sm font-medium rounded-lg hover:from-orange-400 hover:to-red-400 transition-all shadow-lg shadow-orange-500/20 flex-shrink-0"
+            >
+              {t('layout.renewNow')}
             </button>
           </div>
         </div>

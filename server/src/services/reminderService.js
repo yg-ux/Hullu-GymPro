@@ -80,34 +80,44 @@ class ReminderService {
   async checkSubscriptionRenewals() {
     console.log('📅 Checking subscription renewals...');
     try {
-      const expiringGyms = await getAll(`
-        SELECT *
-        FROM gyms
-        WHERE subscription_status = 'active'
-          AND subscription_end IS NOT NULL
-          AND subscription_end::date = CURRENT_DATE + INTERVAL '7 days'
-          AND sms_enabled = 1
-      `);
+      // Two reminders only: 7 days before AND 1 day before
+      const reminderWindows = [
+        { interval: '7 days', messageType: 'subscription_renewal_7d', daysLeft: 7 },
+        { interval: '1 day',  messageType: 'subscription_renewal_1d', daysLeft: 1 },
+      ];
 
-      console.log(`Found ${expiringGyms.length} gyms with expiring subscriptions`);
+      for (const window of reminderWindows) {
+        const expiringGyms = await getAll(`
+          SELECT *
+          FROM gyms
+          WHERE subscription_status = 'active'
+            AND subscription_end IS NOT NULL
+            AND subscription_end::date = CURRENT_DATE + INTERVAL '${window.interval}'
+            AND sms_enabled = 1
+        `);
 
-      for (const gym of expiringGyms) {
-        if (!gym.phone) continue;
+        console.log(`Found ${expiringGyms.length} gyms expiring in ${window.daysLeft} day(s)`);
 
-        const messageType = 'subscription_renewal_7d';
-        if (await this._alreadySentToday(null, messageType + '_' + gym.id)) {
-          console.log(`Skipping duplicate subscription reminder for ${gym.name}`);
-          continue;
-        }
+        for (const gym of expiringGyms) {
+          if (!gym.phone) continue;
 
-        try {
-          const result = await smsService.sendSubscriptionRenewalReminder(gym, 7);
-          const status = result?.success ? 'sent' : 'failed';
-          this._logSms(gym.id, null, gym.phone, messageType, 'Subscription renewal reminder', status);
-          console.log(`Sent subscription reminder to ${gym.name} — ${status}`);
-        } catch (error) {
-          console.error(`Failed to send subscription reminder to ${gym.phone}:`, error);
-          this._logSms(gym.id, null, gym.phone, messageType, 'Subscription renewal reminder', 'failed');
+          const dedupKey = `${window.messageType}_${gym.id}`;
+          if (await this._alreadySentToday(null, dedupKey)) {
+            console.log(`Skipping duplicate subscription reminder for ${gym.name} (${window.messageType})`);
+            continue;
+          }
+
+          try {
+            const result = await smsService.sendSubscriptionRenewalReminder(gym, window.daysLeft);
+            const status = result?.success ? 'sent' : 'failed';
+            this._logSms(gym.id, null, gym.phone, dedupKey,
+              `Subscription renewal reminder (${window.daysLeft}d)`, status);
+            console.log(`Sent subscription renewal reminder to ${gym.name} (${window.daysLeft}d) — ${status}`);
+          } catch (error) {
+            console.error(`Failed to send subscription reminder to ${gym.phone}:`, error);
+            this._logSms(gym.id, null, gym.phone, dedupKey,
+              `Subscription renewal reminder (${window.daysLeft}d)`, 'failed');
+          }
         }
       }
     } catch (error) {

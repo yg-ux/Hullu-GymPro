@@ -106,9 +106,23 @@ export default function SubscriptionPage() {
   const [transactionId, setTransactionId] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Renewal mode: user had a plan that expired or is in grace period
+  const isRenewal = subscription?.status === 'expired'
+    || subscription?.status === 'grace'
+    || subscription?.status === 'trial_expired';
+  const previousPlan = gym?.subscription_plan;
+
   useEffect(() => {
     loadData();
   }, []);
+
+  // Auto-select previous plan and jump straight to payment on renewal
+  useEffect(() => {
+    if (isRenewal && previousPlan && previousPlan !== 'free' && !selectedPlan) {
+      setSelectedPlan(previousPlan);
+      setStep('payment');
+    }
+  }, [isRenewal, previousPlan]);
 
   const loadData = async () => {
     try {
@@ -179,8 +193,11 @@ export default function SubscriptionPage() {
 
   const isCurrentPlan = (planId) => {
     if (planId === 'free') return !gym?.subscription_plan || gym?.subscription_plan === 'free';
+    // In renewal mode, don't mark the plan as "current" so the "Choose" button shows
+    if (isRenewal) return false;
     return gym?.subscription_plan === planId && subscription?.valid;
   };
+  const isPreviousPlan = (planId) => isRenewal && gym?.subscription_plan === planId;
   const pendingRequest = existingRequest?.status === 'pending' ? existingRequest : null;
   const declinedRequest = existingRequest?.status === 'declined' ? existingRequest : null;
 
@@ -192,10 +209,24 @@ export default function SubscriptionPage() {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-white">{t('subscription.title')}</h1>
-          <p className="text-gray-400">{t('subscription.subtitle')}</p>
+          <h1 className="text-2xl font-bold text-white">
+            {isRenewal ? t('subscription.renewTitle') : t('subscription.title')}
+          </h1>
+          <p className="text-gray-400">
+            {isRenewal ? t('subscription.renewSubtitle') : t('subscription.subtitle')}
+          </p>
         </div>
       </div>
+
+      {/* Grace Period Notice */}
+      {subscription?.status === 'grace' && (
+        <div className="flex items-start gap-3 px-5 py-4 bg-orange-500/10 border border-orange-500/30 rounded-2xl">
+          <AlertTriangle className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5 animate-pulse" />
+          <p className="text-orange-300 text-sm">
+            {t('subscription.graceNotice', { n: subscription.graceDaysLeft })}
+          </p>
+        </div>
+      )}
 
       {/* Current Plan Banner */}
       <div className="card p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -216,9 +247,11 @@ export default function SubscriptionPage() {
             'px-3 py-1 rounded-full text-sm font-medium',
             subscription?.valid ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
           )}>
-            {subscription?.valid
-              ? t('subscription.daysLeft', { n: subscription.daysLeft })
-              : t('subscription.expired')}
+            {subscription?.status === 'grace'
+              ? t('subscription.graceDaysLeft', { n: subscription.graceDaysLeft })
+              : subscription?.valid && subscription.daysLeft > 0
+                ? t('subscription.daysLeft', { n: subscription.daysLeft })
+                : t('subscription.expired')}
           </span>
         </div>
       </div>
@@ -281,19 +314,28 @@ export default function SubscriptionPage() {
             {PLANS.map((plan) => {
               const Icon = plan.icon;
               const isCurrent = isCurrentPlan(plan.id);
-              const hasBadge = isCurrent || plan.popular;
+              const isPrevious = isPreviousPlan(plan.id);
+              const hasBadge = isCurrent || isPrevious || plan.popular;
               const planName = t(plan.nameKey);
               return (
                 <div key={plan.id} className={clsx(
                   'card p-6 flex flex-col relative transition-all overflow-visible',
                   hasBadge && 'mt-4',
                   isCurrent ? 'border-green-500/40 bg-green-500/5' : 'hover:border-gym-500/40',
-                  plan.popular && !isCurrent && 'border-purple-500/40'
+                  isPrevious && 'border-orange-500/40 bg-orange-500/5',
+                  plan.popular && !isCurrent && !isPrevious && 'border-purple-500/40'
                 )}>
-                  {plan.popular && !isCurrent && (
+                  {plan.popular && !isCurrent && !isPrevious && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap">
                       <span className="px-3 py-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-bold rounded-full shadow-lg">
                         {t('subscription.mostPopular')}
+                      </span>
+                    </div>
+                  )}
+                  {isPrevious && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                      <span className="px-3 py-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs font-bold rounded-full shadow-lg">
+                        ↻ {t('subscription.renewal')}
                       </span>
                     </div>
                   )}
@@ -359,14 +401,18 @@ export default function SubscriptionPage() {
                         ? 'bg-green-500/20 text-green-400 cursor-not-allowed'
                         : plan.price === 0
                           ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
-                          : `bg-gradient-to-r ${plan.color} text-white hover:opacity-90 hover:shadow-lg`
+                          : isPrevious
+                            ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:opacity-90 hover:shadow-lg'
+                            : `bg-gradient-to-r ${plan.color} text-white hover:opacity-90 hover:shadow-lg`
                     )}
                   >
                     {isCurrent
                       ? t('subscription.activePlan')
                       : plan.price === 0
                         ? t('subscription.defaultPlan')
-                        : t('subscription.choosePlan', { name: planName })}
+                        : isPrevious
+                          ? `↻ ${t('layout.renewNow')}`
+                          : t('subscription.choosePlan', { name: planName })}
                   </button>
                 </div>
               );

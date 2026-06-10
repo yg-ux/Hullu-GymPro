@@ -52,9 +52,14 @@ export const pages = {
     // ─── SubscriptionPage ─────────────────────────────────────────────────────
     'subscription.title':                  'Subscription',
     'subscription.subtitle':               'Upgrade your Hullu Gyms plan',
+    'subscription.renewTitle':             'Renew Your Subscription',
+    'subscription.renewSubtitle':          'Your previous plan is pre-selected — choose a duration to continue.',
+    'subscription.graceNotice':            'You have {n} grace day(s) remaining. Renew now to avoid interruption.',
     'subscription.currentPlan':            'Current Plan',
     'subscription.daysLeft':               '{n} days left',
+    'subscription.graceDaysLeft':          '{n} grace days left',
     'subscription.expired':                'Expired',
+    'subscription.renewal':                'Renewal',
 
     // Pending / declined banners
     'subscription.pendingTitle':           'Subscription Request Under Review',
@@ -207,9 +212,14 @@ export const pages = {
     // ─── SubscriptionPage ─────────────────────────────────────────────────────
     'subscription.title':                  'የደንበኝነት ምዝገባ',
     'subscription.subtitle':               'የHullu Gyms ፕላንዎን ያሻሽሉ',
+    'subscription.renewTitle':             'ምዝገባዎን ያድሱ',
+    'subscription.renewSubtitle':          'ቀዳሚ ፕላንዎ አስቀድሞ ተመርጧል — ለመቀጠል ቆይታ ይምረጡ።',
+    'subscription.graceNotice':            '{n} የምህረት ቀናት ይቀራሉ። ምዝገባ እንዳይቋረጥ አሁን ያድሱ።',
     'subscription.currentPlan':            'አሁን ያለ ፕላን',
     'subscription.daysLeft':               '{n} ቀናት ይቀራሉ',
+    'subscription.graceDaysLeft':          '{n} የምህረት ቀናት',
     'subscription.expired':                'ጊዜው አልፏል',
+    'subscription.renewal':                'ማደስ',
 
     // Pending / declined banners
     'subscription.pendingTitle':           'የደንበኝነት ምዝገባ ጥያቄ በግምገማ ላይ ነው',

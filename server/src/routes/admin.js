@@ -247,7 +247,13 @@ router.post('/approve-request/:id', authenticateToken, async (req, res) => {
 
     const today = new Date();
     const months = parseInt(request.duration_months) || 1;
-    const endDate = new Date(today);
+
+    // If the gym still has days left on current subscription, extend from that
+    // end date (don't waste remaining time). Otherwise extend from today.
+    const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [request.gym_id]);
+    const existingEnd = gym?.subscription_end ? new Date(gym.subscription_end) : null;
+    const startFrom = (existingEnd && existingEnd > today) ? existingEnd : today;
+    const endDate = new Date(startFrom);
     endDate.setMonth(endDate.getMonth() + months);
 
     const planLimits = {

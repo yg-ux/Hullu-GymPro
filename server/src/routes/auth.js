@@ -15,6 +15,7 @@ if (!JWT_SECRET) {
   process.exit(1);
 }
 const TRIAL_DAYS = 14;
+const GRACE_PERIOD_DAYS = 5; // days after expiry before full lock-out
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -37,11 +38,11 @@ function authenticateToken(req, res, next) {
 function checkSubscription(gym) {
   // Free plan is always valid — just member-count limited, never "expired"
   if (!gym.subscription_plan || gym.subscription_plan === 'free') {
-    return { valid: true, status: 'free', daysLeft: -1, maxMembers: gym.max_members || 10 };
+    return { valid: true, status: 'free', daysLeft: -1, plan: 'free', maxMembers: gym.max_members || 10 };
   }
 
   if (!gym.subscription_status) {
-    return { valid: false, status: 'inactive', daysLeft: 0 };
+    return { valid: false, status: 'inactive', daysLeft: 0, plan: gym.subscription_plan };
   }
 
   if (gym.subscription_status === 'active') {
@@ -49,10 +50,24 @@ function checkSubscription(gym) {
     const today = new Date();
     const daysLeft = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
 
-    if (daysLeft <= 0) {
-      return { valid: false, status: 'expired', daysLeft: 0 };
+    if (daysLeft > 0) {
+      return { valid: true, status: 'active', daysLeft, plan: gym.subscription_plan };
     }
-    return { valid: true, status: 'active', daysLeft };
+
+    // Expired — check if still within grace period
+    const graceDaysLeft = GRACE_PERIOD_DAYS + daysLeft; // daysLeft is ≤ 0 here
+    if (graceDaysLeft > 0) {
+      return {
+        valid: true,
+        status: 'grace',
+        daysLeft: 0,
+        graceDaysLeft,
+        plan: gym.subscription_plan,
+      };
+    }
+
+    // Past grace period — full lock-out (reads still work via route design)
+    return { valid: false, status: 'expired', daysLeft: 0, plan: gym.subscription_plan };
   }
 
   if (gym.subscription_status === 'trial') {
@@ -63,12 +78,12 @@ function checkSubscription(gym) {
     const daysLeft = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
 
     if (daysLeft <= 0) {
-      return { valid: false, status: 'trial_expired', daysLeft: 0 };
+      return { valid: false, status: 'trial_expired', daysLeft: 0, plan: 'free' };
     }
-    return { valid: true, status: 'trial', daysLeft };
+    return { valid: true, status: 'trial', daysLeft, plan: gym.subscription_plan };
   }
 
-  return { valid: false, status: gym.subscription_status, daysLeft: 0 };
+  return { valid: false, status: gym.subscription_status, daysLeft: 0, plan: gym.subscription_plan };
 }
 
 // Middleware to check subscription validity for write operations
