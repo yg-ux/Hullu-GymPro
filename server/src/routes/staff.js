@@ -26,6 +26,10 @@ router.get('/', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Gym not found' });
     }
 
+    if (gym.subscription_plan === 'free') {
+      return res.status(403).json({ error: 'Staff management requires Starter plan or higher', requires_plan: 'starter' });
+    }
+
     const staff = await getAll(`
       SELECT id, gym_id, username, name, email, role, created_at, updated_at
       FROM gym_users

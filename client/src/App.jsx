@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import Landing from './pages/Landing';
@@ -49,6 +49,24 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
+const PLAN_ORDER = ['free', 'starter', 'pro', 'enterprise'];
+const PLAN_REQUIRED = {
+  '/staff':   'starter',
+  '/reports': 'pro',
+  '/revenue': 'pro',
+};
+
+function PlanRoute({ path, children }) {
+  const { gym } = useAuth();
+  const required = PLAN_REQUIRED[path];
+  if (!required) return children;
+  const current = gym?.subscription_plan || 'free';
+  if (PLAN_ORDER.indexOf(current) < PLAN_ORDER.indexOf(required)) {
+    return <Navigate to="/subscription" replace />;
+  }
+  return children;
+}
+
 function RoleRoute({ path, children }) {
   const { user } = useAuth();
   const role = user?.role || 'owner';
@@ -96,12 +114,12 @@ function App() {
         <Route path="customers/new"       element={<RoleRoute path="/customers">   <AddCustomer />    </RoleRoute>} />
         <Route path="customers/:id"       element={<RoleRoute path="/customers">   <CustomerDetail /> </RoleRoute>} />
         <Route path="customers/:id/edit"  element={<RoleRoute path="/customers">   <AddCustomer />    </RoleRoute>} />
-        <Route path="staff"               element={<RoleRoute path="/staff">       <Staff />          </RoleRoute>} />
-        <Route path="staff/new"           element={<RoleRoute path="/staff">       <AddStaff />       </RoleRoute>} />
-        <Route path="staff/:id/edit"      element={<RoleRoute path="/staff">       <AddStaff />       </RoleRoute>} />
+        <Route path="staff"               element={<RoleRoute path="/staff">       <PlanRoute path="/staff">   <Staff />    </PlanRoute></RoleRoute>} />
+        <Route path="staff/new"           element={<RoleRoute path="/staff">       <PlanRoute path="/staff">   <AddStaff /> </PlanRoute></RoleRoute>} />
+        <Route path="staff/:id/edit"      element={<RoleRoute path="/staff">       <PlanRoute path="/staff">   <AddStaff /> </PlanRoute></RoleRoute>} />
         <Route path="subscription"        element={<RoleRoute path="/subscription"><SubscriptionPage /></RoleRoute>} />
-        <Route path="reports"             element={<RoleRoute path="/reports">     <Reports />        </RoleRoute>} />
-        <Route path="revenue"             element={<RoleRoute path="/revenue">     <Revenue />        </RoleRoute>} />
+        <Route path="reports"             element={<RoleRoute path="/reports">     <PlanRoute path="/reports"> <Reports />  </PlanRoute></RoleRoute>} />
+        <Route path="revenue"             element={<RoleRoute path="/revenue">     <PlanRoute path="/revenue"> <Revenue />  </PlanRoute></RoleRoute>} />
         <Route path="settings"            element={<RoleRoute path="/settings">    <Settings />       </RoleRoute>} />
       </Route>
     </Routes>

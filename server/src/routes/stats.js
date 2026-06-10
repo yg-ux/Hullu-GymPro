@@ -4,6 +4,10 @@ import { authenticateToken } from './auth.js';
 
 const router = express.Router();
 
+function checkPremiumFeature(gym) {
+  return gym.subscription_plan === 'pro' || gym.subscription_plan === 'enterprise';
+}
+
 // Get dashboard stats for this gym
 router.get('/dashboard', authenticateToken, async (req, res) => {
   try {
@@ -139,6 +143,11 @@ router.get('/export', authenticateToken, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
 
+    const gym = await getOne('SELECT subscription_plan FROM gyms WHERE id = ?', [gymId]);
+    if (!gym || !checkPremiumFeature(gym)) {
+      return res.status(403).json({ error: 'Data export requires Pro plan', requires_plan: 'pro' });
+    }
+
     const customers = await getAll('SELECT * FROM customers WHERE gym_id = ? ORDER BY name', [gymId]);
     const payments = await getAll(`
       SELECT p.*, c.name as customer_name
@@ -172,6 +181,12 @@ router.get('/export', authenticateToken, async (req, res) => {
 router.get('/reports', authenticateToken, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
+
+    const gym = await getOne('SELECT subscription_plan FROM gyms WHERE id = ?', [gymId]);
+    if (!gym || !checkPremiumFeature(gym)) {
+      return res.status(403).json({ error: 'Reports require Pro plan', requires_plan: 'pro' });
+    }
+
     const range = req.query.range || 'this_month';
 
     let dateFilter = '';
@@ -381,6 +396,11 @@ router.get('/reports', authenticateToken, async (req, res) => {
 router.get('/revenue', authenticateToken, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
+
+    const gym = await getOne('SELECT subscription_plan FROM gyms WHERE id = ?', [gymId]);
+    if (!gym || !checkPremiumFeature(gym)) {
+      return res.status(403).json({ error: 'Revenue analytics require Pro plan', requires_plan: 'pro' });
+    }
 
     const totalResult = await getOne(`
       SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE gym_id = ?
