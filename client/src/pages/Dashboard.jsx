@@ -660,22 +660,29 @@ export default function Dashboard() {
               <Activity className="w-5 h-5 text-gray-400" />
               {t('dashboard.heatmap')}
             </h2>
-            {/* Month selector dropdown */}
-            {heatmap.availableMonths?.length > 0 && (
-              <select
-                value={heatmapMonth}
-                onChange={e => handleHeatmapMonthChange(e.target.value)}
-                disabled={heatmapLoading}
-                className="bg-dark-200 border border-gray-700 text-white text-sm rounded-lg px-3 py-1.5 focus:border-gym-500 focus:outline-none disabled:opacity-50 cursor-pointer"
-              >
-                {heatmap.availableMonths.map(m => {
-                  const [year, mon] = m.split('-');
-                  const label = new Date(parseInt(year), parseInt(mon) - 1, 1)
-                    .toLocaleDateString(lang === 'am' ? 'am-ET' : 'en-US', { month: 'long', year: 'numeric' });
-                  return <option key={m} value={m}>{label}</option>;
-                })}
-              </select>
-            )}
+            {/* Month selector dropdown — always visible once heatmap loads */}
+            {heatmapMonth && (() => {
+              // Use server-returned list; fall back to just the current month
+              const months = heatmap.availableMonths?.length > 0
+                ? heatmap.availableMonths
+                : [heatmapMonth];
+              const locale = lang === 'am' ? 'am-ET' : 'en-US';
+              return (
+                <select
+                  value={heatmapMonth}
+                  onChange={e => handleHeatmapMonthChange(e.target.value)}
+                  disabled={heatmapLoading}
+                  className="bg-dark-200 border border-gray-700 text-white text-sm rounded-lg px-3 py-1.5 focus:border-gym-500 focus:outline-none disabled:opacity-50 cursor-pointer min-w-[160px]"
+                >
+                  {months.map(m => {
+                    const [year, mon] = m.split('-');
+                    const label = new Date(parseInt(year), parseInt(mon) - 1, 1)
+                      .toLocaleDateString(locale, { month: 'long', year: 'numeric' });
+                    return <option key={m} value={m}>{label}</option>;
+                  })}
+                </select>
+              );
+            })()}
           </div>
 
           {heatmapLoading ? (
