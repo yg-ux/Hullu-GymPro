@@ -91,7 +91,7 @@ function useAnimatedCounter(endValue, duration = 1000, delay = 0) {
 
 export default function Dashboard() {
   const { gym } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [animated, setAnimated] = useState(false);
@@ -99,23 +99,35 @@ export default function Dashboard() {
   const [activitiesLoading, setActivitiesLoading] = useState(true);
   const [liveAttendance, setLiveAttendance] = useState(null);
   const [heatmap, setHeatmap] = useState(null);
+  const [heatmapMonth, setHeatmapMonth] = useState(''); // YYYY-MM, empty = current month
+  const [heatmapLoading, setHeatmapLoading] = useState(false);
 
   useEffect(() => {
     loadStats();
     loadActivities();
     loadLiveAttendance();
-    loadHeatmap();
+    loadHeatmap('');
     const interval = setInterval(loadLiveAttendance, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  const loadHeatmap = async () => {
+  const loadHeatmap = async (month) => {
+    setHeatmapLoading(true);
     try {
-      const data = await api.get('/attendance/heatmap?days=30');
+      const query = month ? `?month=${month}` : '';
+      const data = await api.get(`/attendance/heatmap${query}`);
       setHeatmap(data);
+      if (!month) setHeatmapMonth(data.month); // seed state with server's current month
     } catch (e) {
       console.warn('Failed to load heatmap:', e);
+    } finally {
+      setHeatmapLoading(false);
     }
+  };
+
+  const handleHeatmapMonthChange = (month) => {
+    setHeatmapMonth(month);
+    loadHeatmap(month);
   };
 
   const loadLiveAttendance = async () => {
@@ -641,16 +653,43 @@ export default function Dashboard() {
       </div>
 
       {/* Attendance Heatmap */}
-      {heatmap && heatmap.max > 0 && (
+      {heatmap && (
         <div className="glass-card p-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
               <Activity className="w-5 h-5 text-gray-400" />
               {t('dashboard.heatmap')}
             </h2>
-            <span className="text-xs text-gray-500">{t('dashboard.last30Days', { days: heatmap.days })}</span>
+            {/* Month selector dropdown */}
+            {heatmap.availableMonths?.length > 0 && (
+              <select
+                value={heatmapMonth}
+                onChange={e => handleHeatmapMonthChange(e.target.value)}
+                disabled={heatmapLoading}
+                className="bg-dark-200 border border-gray-700 text-white text-sm rounded-lg px-3 py-1.5 focus:border-gym-500 focus:outline-none disabled:opacity-50 cursor-pointer"
+              >
+                {heatmap.availableMonths.map(m => {
+                  const [year, mon] = m.split('-');
+                  const label = new Date(parseInt(year), parseInt(mon) - 1, 1)
+                    .toLocaleDateString(lang === 'am' ? 'am-ET' : 'en-US', { month: 'long', year: 'numeric' });
+                  return <option key={m} value={m}>{label}</option>;
+                })}
+              </select>
+            )}
           </div>
-          <AttendanceHeatmap matrix={heatmap.matrix} max={heatmap.max} />
+
+          {heatmapLoading ? (
+            <div className="flex items-center justify-center h-32">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gym-500" />
+            </div>
+          ) : heatmap.max === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-gray-500">
+              <Calendar className="w-10 h-10 mb-3 opacity-40" />
+              <p className="text-sm">{t('dashboard.noHeatmapData')}</p>
+            </div>
+          ) : (
+            <AttendanceHeatmap matrix={heatmap.matrix} max={heatmap.max} />
+          )}
         </div>
       )}
 
@@ -809,17 +848,41 @@ export default function Dashboard() {
   );
 }
 
+// Green → Yellow → Orange → Red scale based on intensity quartile
+function heatmapColor(v, max) {
+  if (v === 0 || max === 0) return 'rgba(255,255,255,0.06)';
+  const intensity = Math.min(v / max, 1);
+  // Quartile thresholds
+  if (intensity <= 0.25) {
+    // Green: dim → bright
+    const a = 0.35 + intensity * 2.2;
+    return `rgba(34,197,94,${Math.min(a,1)})`;   // #22c55e
+  }
+  if (intensity <= 0.50) {
+    const a = 0.45 + (intensity - 0.25) * 2.0;
+    return `rgba(234,179,8,${Math.min(a,1)})`;    // #eab308 yellow
+  }
+  if (intensity <= 0.75) {
+    const a = 0.55 + (intensity - 0.50) * 1.6;
+    return `rgba(249,115,22,${Math.min(a,1)})`;   // #f97316 orange
+  }
+  const a = 0.65 + (intensity - 0.75) * 1.4;
+  return `rgba(239,68,68,${Math.min(a,1)})`;      // #ef4444 red
+}
+
 function AttendanceHeatmap({ matrix, max }) {
   const { t } = useLanguage();
   const dayLabels = [t('day.sun'), t('day.mon'), t('day.tue'), t('day.wed'), t('day.thu'), t('day.fri'), t('day.sat')];
   const hourLabels = [0, 3, 6, 9, 12, 15, 18, 21];
 
-  const cellColor = (v) => {
-    if (v === 0) return 'rgba(255,255,255,0.04)';
-    const intensity = Math.min(v / max, 1);
-    const alpha = 0.15 + intensity * 0.75;
-    return `rgba(var(--gym-500-rgb), ${alpha})`;
-  };
+  // Legend steps: empty + 4 color bands
+  const legendSteps = [
+    { color: 'rgba(255,255,255,0.06)', label: '0' },
+    { color: 'rgba(34,197,94,0.7)',   label: '1–25%'  },
+    { color: 'rgba(234,179,8,0.75)',  label: '26–50%' },
+    { color: 'rgba(249,115,22,0.8)',  label: '51–75%' },
+    { color: 'rgba(239,68,68,0.85)',  label: '76–100%'},
+  ];
 
   return (
     <div className="overflow-x-auto">
@@ -835,24 +898,27 @@ function AttendanceHeatmap({ matrix, max }) {
         {/* Grid rows */}
         {matrix.map((row, d) => (
           <div key={d} className="flex items-center mb-1">
-            <div className="w-10 text-xs text-gray-400 font-medium pr-2">{dayLabels[d]}</div>
+            <div className="w-10 text-xs text-gray-400 font-medium pr-2 shrink-0">{dayLabels[d]}</div>
             {row.map((v, h) => (
               <div
                 key={h}
-                title={t('dashboard.checkInsTooltip', { day: dayLabels[d], hour: h, count: v })}
+                title={v > 0 ? t('dashboard.checkInsTooltip', { day: dayLabels[d], hour: h, count: v }) : undefined}
                 className="flex-1 min-w-[18px] aspect-square mx-[1px] rounded-[3px] transition-transform hover:scale-125 cursor-pointer"
-                style={{ background: cellColor(v) }}
+                style={{ background: heatmapColor(v, max) }}
               />
             ))}
           </div>
         ))}
-        {/* Legend */}
-        <div className="flex items-center justify-end gap-2 mt-3 text-[10px] text-gray-500">
-          <span>{t('dashboard.less')}</span>
-          {[0.04, 0.2, 0.4, 0.6, 0.9].map((a, i) => (
-            <div key={i} className="w-3 h-3 rounded-[3px]" style={{ background: a === 0.04 ? 'rgba(255,255,255,0.04)' : `rgba(var(--gym-500-rgb), ${a})` }} />
+        {/* Color legend */}
+        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 mt-3">
+          <span className="text-[10px] text-gray-500">{t('dashboard.heatmapLow')}</span>
+          {legendSteps.map((s, i) => (
+            <div key={i} className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded-[3px] shrink-0" style={{ background: s.color }} />
+              <span className="text-[9px] text-gray-600">{s.label}</span>
+            </div>
           ))}
-          <span>{t('dashboard.more')}</span>
+          <span className="text-[10px] text-gray-500">{t('dashboard.heatmapHigh')}</span>
         </div>
       </div>
     </div>

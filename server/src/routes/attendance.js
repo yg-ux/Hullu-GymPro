@@ -413,38 +413,61 @@ router.get('/stats', authenticateToken, async (req, res) => {
   }
 });
 
-// Attendance heatmap — day-of-week (0=Sun..6=Sat) x hour-of-day (0..23) matrix for last 30 days
+// Attendance heatmap — day-of-week (0=Sun..6=Sat) x hour-of-day (0..23) matrix
+// Supports ?month=YYYY-MM to view any past month. Defaults to current local month.
+// Times are converted to local gym timezone (GYM_TIMEZONE env, default Africa/Addis_Ababa).
 router.get('/heatmap', authenticateToken, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
-    const days = Math.min(parseInt(req.query.days) || 30, 90);
+    const tz = process.env.GYM_TIMEZONE || 'Africa/Addis_Ababa';
 
+    // Determine target month (YYYY-MM). Default = current local month.
+    let targetMonth = req.query.month;
+    if (!targetMonth || !/^\d{4}-\d{2}$/.test(targetMonth)) {
+      // Get current month in local timezone from DB
+      const row = await getOne(
+        `SELECT TO_CHAR(NOW() AT TIME ZONE $1, 'YYYY-MM') AS month`,
+        [tz]
+      );
+      targetMonth = row.month;
+    }
+
+    // Build the 7×24 matrix for the requested month
     const rows = await getAll(`
       SELECT
-        EXTRACT(DOW FROM check_in) AS dow,
-        EXTRACT(HOUR FROM check_in) AS hour,
-        COUNT(*) AS count
+        EXTRACT(DOW  FROM check_in AT TIME ZONE $1)::int AS dow,
+        EXTRACT(HOUR FROM check_in AT TIME ZONE $1)::int AS hour,
+        COUNT(*)::int AS count
       FROM attendance
-      WHERE gym_id = ?
-        AND check_in >= NOW() - (? || ' days')::interval
+      WHERE gym_id = $2
+        AND TO_CHAR(check_in AT TIME ZONE $1, 'YYYY-MM') = $3
       GROUP BY dow, hour
       ORDER BY dow, hour
-    `, [gymId, days]);
+    `, [tz, gymId, targetMonth]);
 
-    // Build 7x24 zero-filled matrix
     const matrix = Array.from({ length: 7 }, () => Array(24).fill(0));
     let max = 0;
     for (const r of rows) {
-      const d = parseInt(r.dow);
-      const h = parseInt(r.hour);
-      const c = parseInt(r.count);
+      const d = r.dow;
+      const h = r.hour;
+      const c = r.count;
       if (d >= 0 && d < 7 && h >= 0 && h < 24) {
         matrix[d][h] = c;
         if (c > max) max = c;
       }
     }
 
-    res.json({ days, matrix, max });
+    // Available months that have any check-in data (for dropdown), newest first
+    const monthRows = await getAll(`
+      SELECT DISTINCT TO_CHAR(check_in AT TIME ZONE $1, 'YYYY-MM') AS month
+      FROM attendance
+      WHERE gym_id = $2
+      ORDER BY month DESC
+      LIMIT 36
+    `, [tz, gymId]);
+    const availableMonths = monthRows.map(r => r.month);
+
+    res.json({ month: targetMonth, matrix, max, availableMonths });
   } catch (error) {
     console.error('Get heatmap error:', error);
     res.status(500).json({ error: 'Failed to get attendance heatmap' });
