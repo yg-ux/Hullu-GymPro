@@ -27,8 +27,6 @@ export default function AttendanceAnalytics() {
     }
   };
 
-  const dayNames = [t('day.sun'), t('day.mon'), t('day.tue'), t('day.wed'), t('day.thu'), t('day.fri'), t('day.sat')];
-
   if (loading) {
     return (
       <div className="space-y-6 animate-fade-in">
@@ -81,7 +79,7 @@ export default function AttendanceAnalytics() {
         />
         <StatCard
           title={t('analytics.peakHour')}
-          value={peakHoursData[0]?.hour?.replace(':00', '') || '—'}
+          value={peakHoursData[0]?.hour || '—'}
           icon={Clock}
           color="amber"
           sub={peakHoursData[0] ? t('analytics.peakVisits', { n: peakHoursData[0].visits }) : t('analytics.noData')}
@@ -262,13 +260,14 @@ function DailyChart({ data, t }) {
           const barY = chartH - barH;
           const cx = i * 60 + 30;
           const barW = 32;
-          const isToday = day.date === new Date().toISOString().split('T')[0];
+          const dateStr = typeof day.date === 'string' ? day.date.slice(0, 10) : new Date(day.date).toISOString().slice(0, 10);
+          const isToday = dateStr === new Date().toISOString().split('T')[0];
           return (
-            <g key={day.date}>
+            <g key={dateStr}>
               <rect x={cx - barW/2} y={barY} width={barW} height={barH}
                 rx={4} fill={isToday ? 'rgb(var(--gym-400-rgb))' : 'rgb(var(--gym-500-rgb) / 0.5)'} />
               <text x={cx} y={chartH + 16} textAnchor="middle" fill="#6b7280" fontSize="10">
-                {new Date(day.date + 'T12:00:00Z').toLocaleDateString('en', { weekday: 'short' })}
+                {new Date(dateStr + 'T00:00:00').toLocaleDateString('en', { weekday: 'short' })}
               </text>
               {visits > 0 && (
                 <text x={cx} y={barY - 4} textAnchor="middle" fill="#9ca3af" fontSize="9">

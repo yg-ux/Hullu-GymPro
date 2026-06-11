@@ -366,13 +366,18 @@ router.get('/stats', authenticateToken, async (req, res) => {
 
     const dailyBreakdown = await getAll(`
       SELECT
-        check_in::date as date,
-        COUNT(*) as visits,
-        COUNT(DISTINCT customer_id) as unique_visitors
-      FROM attendance
-      WHERE gym_id = ? AND check_in::date >= CURRENT_DATE - INTERVAL '7 days'
-      GROUP BY check_in::date
-      ORDER BY date DESC
+        gs.day::date AS date,
+        COALESCE(COUNT(a.id), 0) AS visits,
+        COALESCE(COUNT(DISTINCT a.customer_id), 0) AS unique_visitors
+      FROM generate_series(
+        CURRENT_DATE - INTERVAL '6 days',
+        CURRENT_DATE,
+        '1 day'::interval
+      ) AS gs(day)
+      LEFT JOIN attendance a
+        ON a.check_in::date = gs.day AND a.gym_id = ?
+      GROUP BY gs.day
+      ORDER BY gs.day ASC
     `, [gymId]);
 
     const peakHours = await getAll(`
@@ -402,10 +407,11 @@ router.get('/stats', authenticateToken, async (req, res) => {
         unique_visitors: monthlyStats?.unique_visitors || 0
       },
       daily_breakdown: dailyBreakdown,
-      peak_hours: peakHours.map(p => ({
-        hour: `${p.hour}:00`,
-        visits: p.visits
-      }))
+      peak_hours: peakHours.map(p => {
+        const h = parseInt(p.hour, 10);
+        const label = h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`;
+        return { hour: label, visits: parseInt(p.visits, 10) };
+      })
     });
   } catch (error) {
     console.error('Get attendance stats error:', error);
