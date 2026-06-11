@@ -175,7 +175,7 @@ function parseLabel(str, period, locale = 'default') {
 }
 
 // Revenue Chart Component
-function RevenueChart({ data, period, onPeriodChange, animated }) {
+function RevenueChart({ data, period, onPeriodChange, animated, stats }) {
   const { t, lang } = useLanguage();
   const locale = lang === 'am' ? 'am-ET' : 'en-US';
   const [hoveredIdx, setHoveredIdx] = useState(null);
@@ -187,8 +187,8 @@ function RevenueChart({ data, period, onPeriodChange, animated }) {
     { key: 'yearly', label: t('revenue.yearly') },
   ];
 
-  const VW = 900, VH = 260;
-  const pad = { top: 52, right: 20, bottom: 52, left: 64 };
+  const VW = 900, VH = 280;
+  const pad = { top: 20, right: 20, bottom: 52, left: 64 };
   const innerW = VW - pad.left - pad.right;
   const innerH = VH - pad.top - pad.bottom;
   const GRID = 4;
@@ -226,20 +226,42 @@ function RevenueChart({ data, period, onPeriodChange, animated }) {
           {t('revenue.revenueOverTime')}
         </h2>
         <div className="flex items-center bg-dark-300/60 rounded-xl p-1 gap-0.5">
-          {periods.map((p) => (
-            <button
-              key={p.key}
-              onClick={() => onPeriodChange(p.key)}
-              className={clsx(
-                "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200",
-                period === p.key
-                  ? "bg-emerald-500/20 text-emerald-400 shadow-sm"
-                  : "text-gray-500 hover:text-gray-300"
-              )}
-            >
-              {p.label}
-            </button>
-          ))}
+          {periods.map((p) => {
+            const periodDataMap = {
+              daily: stats?.daily_trend,
+              weekly: stats?.weekly_trend,
+              monthly: stats?.monthly_trend,
+              yearly: stats?.yearly_trend,
+            };
+            const count = periodDataMap[p.key]?.length ?? null;
+            const hasData = count !== null && count > 0;
+            return (
+              <button
+                key={p.key}
+                onClick={() => onPeriodChange(p.key)}
+                className={clsx(
+                  "flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200",
+                  period === p.key
+                    ? "bg-emerald-500/20 text-emerald-400 shadow-sm"
+                    : "text-gray-500 hover:text-gray-300"
+                )}
+              >
+                {p.label}
+                {count !== null && (
+                  <span className={clsx(
+                    "text-[10px] px-1 rounded-full font-medium",
+                    period === p.key
+                      ? "bg-emerald-500/30 text-emerald-300"
+                      : hasData
+                        ? "bg-gray-700 text-gray-400"
+                        : "bg-gray-800 text-gray-600"
+                  )}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -292,11 +314,11 @@ function RevenueChart({ data, period, onPeriodChange, animated }) {
             const isHov = hoveredIdx === i;
             const { short, long } = parseLabel(item.label, period, locale);
 
-            // Tooltip
-            const TW = 112, TH = 34;
+            // Tooltip — always render above the bar with enough room
+            const TW = 130, TH = 46;
             const tipX = Math.min(Math.max(cx - TW / 2, pad.left), VW - pad.right - TW);
-            const tipY = Math.max(barY - TH - 10, 2);
-            const caretX = Math.min(Math.max(cx, tipX + 12), tipX + TW - 12);
+            const tipY = Math.max(barY - TH - 14, pad.top);
+            const caretX = Math.min(Math.max(cx, tipX + 14), tipX + TW - 14);
 
             return (
               <g key={item.label || i}
@@ -337,15 +359,6 @@ function RevenueChart({ data, period, onPeriodChange, animated }) {
                   />
                 )}
 
-                {/* Value label above bar on hover */}
-                {isHov && barH > 10 && (
-                  <text x={cx} y={barY - 6} textAnchor="middle"
-                    fill="#34d399" fontSize="10" fontWeight="700"
-                    fontFamily="ui-sans-serif, system-ui, sans-serif">
-                    {fmtY(item.total)}
-                  </text>
-                )}
-
                 {/* X-axis label */}
                 <text x={cx} y={baseY + 18} textAnchor="middle"
                   fill={isHov ? '#9ca3af' : '#4b5563'}
@@ -358,20 +371,26 @@ function RevenueChart({ data, period, onPeriodChange, animated }) {
                 {/* Tooltip */}
                 {isHov && (
                   <g>
-                    <rect x={tipX + 2} y={tipY + 2} width={TW} height={TH} rx={8} fill="rgba(0,0,0,0.35)" />
-                    <rect x={tipX} y={tipY} width={TW} height={TH} rx={8}
-                      fill="#0f172a" stroke="#34d399" strokeWidth="1" strokeOpacity="0.4" />
-                    <circle cx={tipX + 12} cy={tipY + TH / 2} r={3.5} fill="#34d399" />
-                    <text x={tipX + 22} y={tipY + 13} fill="#6ee7b7" fontSize="8" fontWeight="500"
+                    {/* Shadow */}
+                    <rect x={tipX + 3} y={tipY + 3} width={TW} height={TH} rx={9} fill="rgba(0,0,0,0.4)" />
+                    {/* Box */}
+                    <rect x={tipX} y={tipY} width={TW} height={TH} rx={9}
+                      fill="#0f172a" stroke="#34d399" strokeWidth="1.2" strokeOpacity="0.5" />
+                    {/* Dot */}
+                    <circle cx={tipX + 14} cy={tipY + 16} r={4} fill="#34d399" />
+                    {/* Period label */}
+                    <text x={tipX + 25} y={tipY + 20} fill="#6ee7b7" fontSize="9" fontWeight="500"
                       fontFamily="ui-sans-serif, system-ui, sans-serif">
                       {long}
                     </text>
-                    <text x={tipX + 22} y={tipY + 26} fill="white" fontSize="10" fontWeight="700"
+                    {/* Amount — larger, white */}
+                    <text x={tipX + 14} y={tipY + 37} fill="white" fontSize="12" fontWeight="800"
                       fontFamily="ui-sans-serif, system-ui, sans-serif">
                       ETB {item.total.toLocaleString()}
                     </text>
-                    <path d={`M${caretX - 5},${tipY + TH} L${caretX},${tipY + TH + 6} L${caretX + 5},${tipY + TH}`}
-                      fill="#0f172a" stroke="#34d399" strokeOpacity="0.4" strokeWidth="1" strokeLinejoin="round" />
+                    {/* Caret */}
+                    <path d={`M${caretX - 6},${tipY + TH} L${caretX},${tipY + TH + 7} L${caretX + 6},${tipY + TH}`}
+                      fill="#0f172a" stroke="#34d399" strokeOpacity="0.5" strokeWidth="1" strokeLinejoin="round" />
                   </g>
                 )}
               </g>
@@ -382,7 +401,13 @@ function RevenueChart({ data, period, onPeriodChange, animated }) {
         <div className="h-52 flex items-center justify-center text-gray-500">
           <div className="text-center">
             <BarChart3 className="w-10 h-10 mx-auto mb-3 text-gray-700" />
-            <p className="text-sm">{t('revenue.noRevenueData')}</p>
+            <p className="text-sm font-medium text-gray-400">{t('revenue.noDataForPeriod')}</p>
+            <p className="text-xs text-gray-600 mt-1">
+              {period === 'daily' && t('revenue.noDataDaily')}
+              {period === 'weekly' && t('revenue.noDataWeekly')}
+              {period === 'monthly' && t('revenue.noDataMonthly')}
+              {period === 'yearly' && t('revenue.noDataYearly')}
+            </p>
           </div>
         </div>
       )}
@@ -892,6 +917,7 @@ export default function Revenue() {
         period={chartPeriod}
         onPeriodChange={setChartPeriod}
         animated={animated}
+        stats={stats}
       />
 
       {/* Payment Methods & Top Customers */}
