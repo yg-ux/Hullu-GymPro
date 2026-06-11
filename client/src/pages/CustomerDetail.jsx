@@ -352,7 +352,7 @@ export default function CustomerDetail() {
                       onClick={() => setEditingNotes(false)}
                       className="px-3 py-1.5 text-xs text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-dark-300"
                     >
-                      {t('customers.notesCancel') || 'Cancel'}
+                      {t('customers.notesCancel')}
                     </button>
                     <button
                       onClick={handleSaveNotes}
