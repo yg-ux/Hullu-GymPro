@@ -440,7 +440,7 @@ router.post('/create-test-gym', authenticateToken, async (req, res) => {
          subscription_start, subscription_end,
          max_members, color_theme)
       VALUES
-        (?, 'Test Gym (expires soon)', ?, ?, '0900000000',
+        (?, 'Test Gym Pro', ?, ?, '0900000000',
          'active', 'pro',
          NOW()::date, NOW() + (? || ' minutes')::interval,
          9999, 'default')
