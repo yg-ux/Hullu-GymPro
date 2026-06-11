@@ -416,13 +416,12 @@ router.post('/enable-sms', async (req, res) => {
 });
 
 // Create a test gym with a pro subscription that expires in N minutes (default 5)
-// Protected by ADMIN_SECRET so it never needs a login token
-router.post('/create-test-gym', async (req, res) => {
-  const { secret, expires_in_minutes = 5 } = req.body;
-
-  if (!process.env.ADMIN_SECRET || secret !== process.env.ADMIN_SECRET) {
-    return res.status(401).json({ error: 'Unauthorized' });
+// Accepts either ADMIN_SECRET body field OR a valid admin JWT (Authorization: Bearer ...)
+router.post('/create-test-gym', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
   }
+  const { expires_in_minutes = 5 } = req.body;
 
   try {
     const gymId   = uuidv4();
