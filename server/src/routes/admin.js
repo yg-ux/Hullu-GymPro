@@ -415,4 +415,53 @@ router.post('/enable-sms', async (req, res) => {
   }
 });
 
+// Create a test gym with a pro subscription that expires in N minutes (default 5)
+// Protected by ADMIN_SECRET so it never needs a login token
+router.post('/create-test-gym', async (req, res) => {
+  const { secret, expires_in_minutes = 5 } = req.body;
+
+  if (!process.env.ADMIN_SECRET || secret !== process.env.ADMIN_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const gymId   = uuidv4();
+    const userId  = uuidv4();
+    const slug    = `test-gym-${Date.now()}`;
+    const email   = `test-${Date.now()}@hullutest.com`;
+    const password = 'Test1234!';
+    const hash    = bcrypt.hashSync(password, 10);
+    const mins    = Math.max(1, parseInt(expires_in_minutes) || 5);
+
+    // subscription_end = now + N minutes (PostgreSQL interval)
+    await runQuery(`
+      INSERT INTO gyms
+        (id, name, slug, email, phone,
+         subscription_status, subscription_plan,
+         subscription_start, subscription_end,
+         max_members, color_theme)
+      VALUES
+        (?, 'Test Gym (expires soon)', ?, ?, '0900000000',
+         'active', 'pro',
+         NOW()::date, NOW() + (? || ' minutes')::interval,
+         9999, 'default')
+    `, [gymId, slug, email, mins]);
+
+    await runQuery(`
+      INSERT INTO gym_users (id, gym_id, username, password, name, role)
+      VALUES (?, ?, ?, ?, 'Test Owner', 'owner')
+    `, [userId, gymId, email, hash]);
+
+    res.json({
+      message: `Test gym created — subscription expires in ${mins} minute(s)`,
+      credentials: { email, password },
+      gym_id: gymId,
+      expires_at: new Date(Date.now() + mins * 60000).toISOString(),
+    });
+  } catch (error) {
+    console.error('Create test gym error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
