@@ -507,6 +507,15 @@ export default function Landing() {
                 </p>
               </div>
 
+              {/* Privacy commitment */}
+              <div className="flex items-start gap-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                <Shield className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  <span className="text-blue-300 font-semibold">{t('landing.register.privacyTitle')}</span>{' '}
+                  {t('landing.register.privacyBody')}
+                </p>
+              </div>
+
               <button
                 type="submit"
                 disabled={loading}

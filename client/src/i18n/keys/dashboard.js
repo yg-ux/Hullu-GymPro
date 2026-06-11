@@ -286,6 +286,23 @@ export const dashboard = {
     'settings.langChangedEn':      'Language changed to English',
     'settings.langChangedAm':      'ቋንቋ ወደ አማርኛ ተቀይሯል',
 
+    // Data & Privacy (Settings)
+    'settings.privacyTitle':            'Your Data & Privacy',
+    'settings.privacySubtitle':         'What we store, and what we promise',
+    'settings.privacyCommitment':       'Your customer data belongs to you — always. Hullu Gyms staff cannot browse or retrieve your members\' personal information. We store your data solely to run the service you signed up for. We never sell, share, or use your customer data for advertising, research, or any other purpose.',
+    'settings.privacyGuarantee1Title':  'You Own Your Data',
+    'settings.privacyGuarantee1Desc':   'Every record — members, payments, attendance — is exclusively yours. No other gym can see it.',
+    'settings.privacyGuarantee2Title':  'We Cannot Browse It',
+    'settings.privacyGuarantee2Desc':   'Our admin tools only show aggregate numbers (member count, total revenue). Individual customer records are inaccessible to Hullu Gyms staff.',
+    'settings.privacyGuarantee3Title':  'Always Exportable',
+    'settings.privacyGuarantee3Desc':   'You can request a full export of your data at any time by contacting support. No lock-in.',
+    'settings.privacyWhatWeStore':      'What data is stored on our servers',
+    'settings.privacyData1':            'Gym name, email, and contact info',
+    'settings.privacyData2':            'Member names and phone numbers',
+    'settings.privacyData3':            'Payment records and amounts',
+    'settings.privacyData4':            'Attendance check-in and check-out times',
+    'settings.privacyFooter':           'For questions about your data, contact us at support@hullugyms.com',
+
     // Layout
     'layout.freePlan':             'Free Plan',
     'layout.freePlanBanner':       "You're on the {plan} — up to {limit}. Upgrade for SMS, unlimited members & more.",
@@ -616,6 +633,23 @@ export const dashboard = {
     'settings.errNoMatch':         'የይለፍ ቃላት አይዛመዱም',
     'settings.langChangedEn':      'Language changed to English',
     'settings.langChangedAm':      'ቋንቋ ወደ አማርኛ ተቀይሯል',
+
+    // Data & Privacy (Settings)
+    'settings.privacyTitle':            'ውሂብዎ እና ግላዊነት',
+    'settings.privacySubtitle':         'የምናከማቸው እና የምንቃል ቃል',
+    'settings.privacyCommitment':       'የደንበኛ ውሂብዎ ሁልጊዜ የእርስዎ ነው። የሁሉ ጂምስ ሰራተኞች የአባላትዎን ግላዊ መረጃ ማሰስ ወይም ማግኘት አይችሉም። ውሂብዎን ለምዘገቡበት አገልግሎት ብቻ እናከማቻለን። ለማስታወቂያ፣ ለምርምር ወይም ለሌላ ዓላማ ጭራሽ አንሸጥም፣ አናካፍልም ወይም አንጠቀምም።',
+    'settings.privacyGuarantee1Title':  'ውሂቡ የእርስዎ ነው',
+    'settings.privacyGuarantee1Desc':   'እያንዳንዱ መዝገብ — አባላት፣ ክፍያዎች፣ መገኘት — ሙሉ በሙሉ የእርስዎ ነው። ሌላ ጂም ሊያይ አይችልም።',
+    'settings.privacyGuarantee2Title':  'ማሰስ አንችልም',
+    'settings.privacyGuarantee2Desc':   'የአስተዳዳሪ መሳሪያዎቻችን ጠቅላላ ቁጥሮችን ብቻ ያሳያሉ። የደንበኛ ግለሰብ መዝገቦች ለሁሉ ጂምስ ሰራተኞች ተደራሽ አይደሉም።',
+    'settings.privacyGuarantee3Title':  'ሁልጊዜ ወጪ ማድረግ ይቻላል',
+    'settings.privacyGuarantee3Desc':   'ድጋፍን በማነጋገር ሁሉንም ውሂብዎን ማውጣት ይችላሉ። ምንም ቁጥኛ የለም።',
+    'settings.privacyWhatWeStore':      'በሰርቨራችን ላይ የሚቀመጠው ውሂብ',
+    'settings.privacyData1':            'የጂም ስም፣ ኢሜይል፣ እና ዝርዝሮች',
+    'settings.privacyData2':            'የአባል ስሞች እና ስልክ ቁጥሮች',
+    'settings.privacyData3':            'የክፍያ መዝገቦች እና መጠኖች',
+    'settings.privacyData4':            'የቼክ-ኢን እና ቼክ-አውት ጊዜዎች',
+    'settings.privacyFooter':           'ስለ ውሂብዎ ጥያቄ ካለዎት support@hullugyms.com ያነጋግሩን',
 
     // Layout
     'layout.freePlan':             'ነጻ ፕላን',

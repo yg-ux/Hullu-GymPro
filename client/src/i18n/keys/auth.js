@@ -161,6 +161,8 @@ export const auth = {
     'landing.register.submit': 'Start Free Trial',
     'landing.register.haveAccount': 'Already have an account?',
     'landing.register.signIn': 'Sign in',
+    'landing.register.privacyTitle': 'Your data belongs to you.',
+    'landing.register.privacyBody': 'We only use your customer data to run the service. We never sell, share, or access it for our own benefit.',
 
     'landing.theme.default': 'Ocean Blue',
     'landing.theme.emerald': 'Forest Green',
@@ -430,6 +432,8 @@ export const auth = {
     'landing.register.submit': 'ነፃ ሙከራ ጀምር',
     'landing.register.haveAccount': 'መለያ አለዎት?',
     'landing.register.signIn': 'ግባ',
+    'landing.register.privacyTitle': 'ውሂብዎ የእርስዎ ነው።',
+    'landing.register.privacyBody': 'የደንበኛ ውሂብዎን ለአገልግሎቱ ክወና ብቻ እንጠቀማለን። ለራሳችን ጥቅም አንሸጥም፣ አናካፍልም፣ አናገኝም።',
 
     'landing.theme.default': 'ውቅያኖስ ሰማያዊ',
     'landing.theme.emerald': 'የጫካ አረንጓዴ',

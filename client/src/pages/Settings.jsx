@@ -19,7 +19,11 @@ import {
   Camera,
   X,
   Upload,
-  Image
+  Image,
+  Shield,
+  Server,
+  UserCheck,
+  Download
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -478,6 +482,85 @@ export default function Settings() {
           </div>
         );
       })()}
+
+      {/* ── Data & Privacy ── */}
+      <div className="card p-6 space-y-5 border border-blue-500/20 bg-blue-500/5">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-blue-600/20 flex items-center justify-center">
+            <Shield className="w-5 h-5 text-blue-400" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-white">{t('settings.privacyTitle')}</h2>
+            <p className="text-xs text-gray-500 mt-0.5">{t('settings.privacySubtitle')}</p>
+          </div>
+        </div>
+
+        {/* Core commitment */}
+        <div className="p-4 bg-blue-500/10 border border-blue-500/25 rounded-xl">
+          <p className="text-sm text-blue-200 leading-relaxed">
+            {t('settings.privacyCommitment')}
+          </p>
+        </div>
+
+        {/* Three guarantees */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {[
+            {
+              icon: UserCheck,
+              color: 'text-green-400',
+              bg: 'bg-green-500/10',
+              title: t('settings.privacyGuarantee1Title'),
+              desc: t('settings.privacyGuarantee1Desc'),
+            },
+            {
+              icon: Server,
+              color: 'text-blue-400',
+              bg: 'bg-blue-500/10',
+              title: t('settings.privacyGuarantee2Title'),
+              desc: t('settings.privacyGuarantee2Desc'),
+            },
+            {
+              icon: Download,
+              color: 'text-purple-400',
+              bg: 'bg-purple-500/10',
+              title: t('settings.privacyGuarantee3Title'),
+              desc: t('settings.privacyGuarantee3Desc'),
+            },
+          ].map(({ icon: Icon, color, bg, title, desc }) => (
+            <div key={title} className={`p-3 rounded-xl ${bg} flex items-start gap-3`}>
+              <div className={`mt-0.5 flex-shrink-0 ${color}`}>
+                <Icon className="w-4 h-4" />
+              </div>
+              <div>
+                <p className={`text-xs font-semibold ${color}`}>{title}</p>
+                <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* What data we store */}
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('settings.privacyWhatWeStore')}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {[
+              t('settings.privacyData1'),
+              t('settings.privacyData2'),
+              t('settings.privacyData3'),
+              t('settings.privacyData4'),
+            ].map(item => (
+              <div key={item} className="flex items-center gap-2 text-xs text-gray-400">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+                {item}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <p className="text-xs text-gray-600 border-t border-gray-800/50 pt-3">
+          {t('settings.privacyFooter')}
+        </p>
+      </div>
 
       {/* ── Change Password ── */}
       <ChangePasswordForm toast={toast} t={t} />
