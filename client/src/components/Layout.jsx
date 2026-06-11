@@ -474,33 +474,45 @@ export default function Layout() {
                 onClick={() => navigate('/subscription')}
                 className={clsx(
                   "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-300",
-                  subscription?.valid
+                  subscription?.valid && subscription?.status !== 'grace'
                     ? "bg-green-500/10 hover:bg-green-500/20 text-green-400"
-                    : "bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400"
+                    : subscription?.status === 'grace'
+                      ? "bg-orange-500/10 hover:bg-orange-500/20 text-orange-400"
+                      : "bg-red-500/10 hover:bg-red-500/20 text-red-400"
                 )}
               >
-                {subscription?.valid ? (
+                {subscription?.valid && subscription?.status !== 'grace' ? (
                   <Crown className="w-4 h-4" />
                 ) : (
                   <AlertTriangle className="w-4 h-4" />
                 )}
                 <span className="hidden sm:inline">
-                  {subscription?.status === 'trial' ? t('layout.freeTrial') : gym?.subscription_plan || t('layout.starter')}
+                  {!subscription?.valid
+                    ? (subscription?.status === 'trial_expired'
+                        ? t('layout.trialExpiredBadge')
+                        : t('layout.expired'))
+                    : subscription?.status === 'grace'
+                      ? t('layout.graceBadge')
+                      : subscription?.status === 'trial'
+                        ? t('layout.freeTrial')
+                        : gym?.subscription_plan || t('layout.starter')}
                 </span>
-                {subscription?.daysLeft > 0 && (
+                {subscription?.valid && subscription?.status !== 'grace' && subscription?.daysLeft > 0 && (
                   <span className="hidden sm:inline text-xs opacity-70">
                     ({t('layout.daysShort', { n: subscription.daysLeft })})
                   </span>
                 )}
               </button>
 
-              {/* Plan Badge (Tier Colors) */}
-              <span className={clsx(
-                "hidden md:inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium",
-                getPlanBadgeClass(gym?.subscription_plan)
-              )}>
-                {gym?.subscription_plan || 'Starter'}
-              </span>
+              {/* Plan Badge (Tier Colors) — only shown when subscription is valid */}
+              {subscription?.valid && subscription?.status !== 'grace' && (
+                <span className={clsx(
+                  "hidden md:inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium",
+                  getPlanBadgeClass(gym?.subscription_plan)
+                )}>
+                  {gym?.subscription_plan || 'Starter'}
+                </span>
+              )}
 
               {/* User Menu */}
               <div className="relative">
