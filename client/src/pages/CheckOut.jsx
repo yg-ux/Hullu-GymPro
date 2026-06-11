@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api, formatDateTime } from '../utils/api';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, useSubscriptionGate } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { 
   Users, 
@@ -19,6 +19,7 @@ import clsx from 'clsx';
 
 export default function CheckOut() {
   const { subscription } = useAuth();
+  const gate = useSubscriptionGate();
   const { t } = useLanguage();
   const [checkedInCustomers, setCheckedInCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +48,7 @@ export default function CheckOut() {
   };
 
   const handleCheckOut = async (customerId) => {
+    if (!gate()) return;
     setActionLoading(customerId);
     setError('');
     setSuccess('');
@@ -66,6 +68,7 @@ export default function CheckOut() {
   };
 
   const handleCheckOutAll = async () => {
+    if (!gate()) return;
     if (checkedInCustomers.length === 0) return;
     
     if (!confirm(t('checkOut.confirmAll').replace('{n}', checkedInCustomers.length))) {

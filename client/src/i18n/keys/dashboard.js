@@ -109,6 +109,20 @@ export const dashboard = {
     'fab.checkIn':                  'Check In',
     'fab.recordPayment':            'Record Payment',
 
+    // Subscription gate modal
+    'gate.title':                   'Subscription Expired',
+    'gate.subtitle':                'Your {plan} subscription has ended. Renew to keep using all features.',
+    'gate.readOnlyNote':            'You can still view all your existing data — nothing is lost.',
+    'gate.lockedFeatures':          'Actions that require renewal',
+    'gate.featureAddMembers':       'Add Members',
+    'gate.featureCheckIn':          'Check In / Out',
+    'gate.featurePayments':         'Record Payments',
+    'gate.featureStaff':            'Manage Staff',
+    'gate.featureReports':          'Reports & Export',
+    'gate.featureSms':              'SMS Notifications',
+    'gate.renewBtn':                'Renew {plan}',
+    'gate.dismiss':                 'Maybe Later',
+
     // Reports
     'reports.title':                  'Reports & Analytics',
     'reports.subtitle':               'View detailed reports and export your data',
@@ -422,6 +436,20 @@ export const dashboard = {
     'fab.addMember':                'አባል ጨምር',
     'fab.checkIn':                  'ቼክ-ኢን',
     'fab.recordPayment':            'ክፍያ ያስገቡ',
+
+    // Subscription gate modal
+    'gate.title':                   'ምዝገባ ጊዜው አልፏል',
+    'gate.subtitle':                'የ{plan} ምዝገባዎ አብቅቷል። ሁሉንም ባህሪያት ለመቀጠል ያድሱ።',
+    'gate.readOnlyNote':            'ያሉዎት ሁሉም ውሂብ አሁንም ይታያሉ — ምንም አልጠፋም።',
+    'gate.lockedFeatures':          'እድሳት የሚጠይቁ እርምጃዎች',
+    'gate.featureAddMembers':       'አባላት ጨምር',
+    'gate.featureCheckIn':          'ቼክ-ኢን / ቼክ-አውት',
+    'gate.featurePayments':         'ክፍያ ያስገቡ',
+    'gate.featureStaff':            'ሰራተኞች ያስተዳድሩ',
+    'gate.featureReports':          'ሪፖርቶች እና ላክ',
+    'gate.featureSms':              'SMS ማሳወቂያዎች',
+    'gate.renewBtn':                '{plan} ያድሱ',
+    'gate.dismiss':                 'ኋላ ምናልባት',
 
     // Reports
     'reports.title':                  'ሪፖርቶች እና ትንታኔ',

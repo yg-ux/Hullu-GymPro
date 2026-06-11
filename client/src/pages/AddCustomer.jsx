@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, MEMBERSHIP_TYPES, getMembershipDays } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useSubscriptionGate } from '../context/AuthContext';
 import clsx from 'clsx';
 import {
   ArrowLeft,
@@ -24,6 +25,7 @@ export default function AddCustomer() {
   const navigate = useNavigate();
   const toast = useToast();
   const { t } = useLanguage();
+  const gate = useSubscriptionGate();
   const isEditing = Boolean(id);
 
   const [formData, setFormData] = useState({
@@ -138,6 +140,7 @@ export default function AddCustomer() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!gate()) return;
 
     const errors = validate();
     if (Object.keys(errors).length > 0) {

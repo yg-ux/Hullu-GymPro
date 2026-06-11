@@ -46,6 +46,10 @@ async function request(endpoint, options = {}) {
   }
   
   if (!response.ok) {
+    // Fire global gate modal when the server blocks a write due to expired subscription
+    if (response.status === 403 && data?.subscription_valid === false) {
+      window.dispatchEvent(new CustomEvent('subscription-expired'));
+    }
     throw new Error(data?.error || data?.details || data?.message || `Request failed`);
   }
 

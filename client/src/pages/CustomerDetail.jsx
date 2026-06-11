@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, getStatusColor, formatDate, formatDateTime, getMembershipLabel, MEMBERSHIP_TYPES, formatCurrency, getMembershipPrice, getPaymentMethodLabel } from '../utils/api';
 import { useToast } from '../context/ToastContext';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, useSubscriptionGate } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import {
   ArrowLeft,
@@ -35,6 +35,7 @@ export default function CustomerDetail() {
   const navigate = useNavigate();
   const toast = useToast();
   const { user } = useAuth();
+  const gate = useSubscriptionGate();
   const { t } = useLanguage();
   const canDelete = !['receptionist', 'trainer'].includes(user?.role);
   const [customer, setCustomer] = useState(null);
@@ -92,6 +93,7 @@ export default function CustomerDetail() {
 
   const handleFreeze = async (e) => {
     e.preventDefault();
+    if (!gate()) return;
     if (!freezeDays || parseInt(freezeDays) < 1) {
       toast.error(t('customers.toastEnterDay'));
       return;
@@ -116,6 +118,7 @@ export default function CustomerDetail() {
   };
 
   const handleUnfreeze = async () => {
+    if (!gate()) return;
     try {
       setActionLoading(true);
       const res = await api.post(`/customers/${id}/unfreeze`, {});
@@ -157,6 +160,7 @@ export default function CustomerDetail() {
   };
 
   const handleCheckIn = async () => {
+    if (!gate()) return;
     try {
       setActionLoading(true);
       await api.post(`/customers/${id}/check-in`);
@@ -170,6 +174,7 @@ export default function CustomerDetail() {
   };
 
   const handleCheckOut = async () => {
+    if (!gate()) return;
     try {
       setActionLoading(true);
       await api.post(`/customers/${id}/check-out`);
@@ -184,6 +189,7 @@ export default function CustomerDetail() {
 
   const handleExtend = async (e) => {
     e.preventDefault();
+    if (!gate()) return;
     try {
       setActionLoading(true);
       const amount = parseInt(customAmount) || 0;
@@ -211,6 +217,7 @@ export default function CustomerDetail() {
 
   const handleDelete = async (e) => {
     e.preventDefault();
+    if (!gate()) return;
     try {
       setActionLoading(true);
       await api.delete(`/customers/${id}`, { delete_code: deleteCode });

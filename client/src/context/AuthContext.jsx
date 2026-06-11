@@ -122,3 +122,17 @@ export const useAuth = () => {
   }
   return context;
 };
+
+// Returns a gate function: call it before any write action.
+// If subscription is expired, fires the global modal and returns false.
+// If valid, returns true so the action proceeds.
+export const useSubscriptionGate = () => {
+  const { subscription } = useAuth();
+  return () => {
+    if (!subscription?.valid) {
+      window.dispatchEvent(new CustomEvent('subscription-expired'));
+      return false;
+    }
+    return true;
+  };
+};

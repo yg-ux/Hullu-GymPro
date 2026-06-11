@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api, formatDateTime } from '../utils/api';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, useSubscriptionGate } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { 
   Phone, 
@@ -85,6 +85,7 @@ const QRCodeSVG = ({ value, size = 200 }) => {
 
 export default function CheckIn() {
   const { subscription } = useAuth();
+  const gate = useSubscriptionGate();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [phone, setPhone] = useState('');
@@ -137,6 +138,7 @@ export default function CheckIn() {
   };
 
   const handleCheckIn = async (customerId) => {
+    if (!gate()) return;
     setActionLoading(customerId);
     setError('');
     setSuccess(null);

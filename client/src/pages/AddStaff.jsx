@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useSubscriptionGate } from '../context/AuthContext';
 import {
   ArrowLeft,
   User,
@@ -66,6 +67,7 @@ export default function AddStaff() {
   const navigate = useNavigate();
   const toast = useToast();
   const { t } = useLanguage();
+  const gate = useSubscriptionGate();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -124,6 +126,7 @@ export default function AddStaff() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!gate()) return;
 
     if (!validateForm()) {
       toast.error(t('staff.toastFixErrors'));
