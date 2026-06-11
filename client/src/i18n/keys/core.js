@@ -18,6 +18,7 @@ export const core = {
     'nav.profile':       'Profile',
     'nav.upgrade':       'Upgrade',
     'nav.kiosk':         'Kiosk Mode',
+    'nav.analytics':     'Analytics',
 
     // Plan / subscription badges
     'plan.free':        'Free',
@@ -248,6 +249,7 @@ export const core = {
     'nav.profile':       'መገለጫ',
     'nav.upgrade':       'አሻሽል',
     'nav.kiosk':         'ኪዮስክ ሁነታ',
+    'nav.analytics':     'ትንተና',
 
     // Plan / subscription badges
     'plan.free':        'ነጻ',

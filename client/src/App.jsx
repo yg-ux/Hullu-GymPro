@@ -22,12 +22,14 @@ import AdminDashboard from './pages/AdminDashboard';
 import Settings from './pages/Settings';
 import Receipt from './pages/Receipt';
 import Kiosk from './pages/Kiosk';
+import ImportCustomers from './pages/ImportCustomers';
+import AttendanceAnalytics from './pages/AttendanceAnalytics';
 
 // Pages each role can access (must match Layout.jsx nav roles)
 const ROLE_PAGES = {
-  owner:        ['/dashboard', '/check-in', '/check-out', '/customers', '/staff', '/reports', '/revenue', '/settings', '/subscription'],
-  admin:        ['/dashboard', '/check-in', '/check-out', '/customers', '/staff', '/reports', '/revenue', '/settings'],
-  manager:      ['/dashboard', '/check-in', '/check-out', '/customers', '/staff', '/reports', '/revenue'],
+  owner:        ['/dashboard', '/check-in', '/check-out', '/customers', '/staff', '/reports', '/revenue', '/settings', '/subscription', '/attendance-analytics'],
+  admin:        ['/dashboard', '/check-in', '/check-out', '/customers', '/staff', '/reports', '/revenue', '/settings', '/attendance-analytics'],
+  manager:      ['/dashboard', '/check-in', '/check-out', '/customers', '/staff', '/reports', '/revenue', '/attendance-analytics'],
   trainer:      ['/dashboard', '/check-in', '/check-out', '/customers'],
   receptionist: ['/dashboard', '/check-in', '/check-out', '/customers'],
 };
@@ -120,7 +122,9 @@ function App() {
         <Route path="subscription"        element={<RoleRoute path="/subscription"><SubscriptionPage /></RoleRoute>} />
         <Route path="reports"             element={<RoleRoute path="/reports">     <PlanRoute path="/reports"> <Reports />  </PlanRoute></RoleRoute>} />
         <Route path="revenue"             element={<RoleRoute path="/revenue">     <PlanRoute path="/revenue"> <Revenue />  </PlanRoute></RoleRoute>} />
-        <Route path="settings"            element={<RoleRoute path="/settings">    <Settings />       </RoleRoute>} />
+        <Route path="settings"                element={<RoleRoute path="/settings">             <Settings />             </RoleRoute>} />
+        <Route path="customers/import"        element={<RoleRoute path="/customers">            <ImportCustomers />       </RoleRoute>} />
+        <Route path="attendance-analytics"    element={<RoleRoute path="/attendance-analytics"> <AttendanceAnalytics />   </RoleRoute>} />
       </Route>
     </Routes>
     </ToastProvider>

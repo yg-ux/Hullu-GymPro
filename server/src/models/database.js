@@ -254,6 +254,9 @@ export async function initDatabase() {
   await p.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS is_frozen BOOLEAN DEFAULT FALSE');
   await p.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS frozen_until DATE');
 
+  // Debt / partial payment tracking
+  await p.query('ALTER TABLE payments ADD COLUMN IF NOT EXISTS total_due REAL');
+
   // Seed default global settings
   const globalSettings = await getOne("SELECT gym_id FROM settings WHERE gym_id = 'global' AND key = 'delete_code'");
   if (!globalSettings) {

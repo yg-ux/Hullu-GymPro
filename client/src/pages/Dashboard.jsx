@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { api, formatDate, formatCurrency, getMembershipLabel, getPaymentMethodLabel } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
@@ -416,6 +416,9 @@ export default function Dashboard() {
 
       {/* Expiring Members Widget */}
       <ExpiringMembersWidget />
+
+      {/* Inactive Members Alert */}
+      <InactiveMembersWidget />
 
       {/* Revenue Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -946,6 +949,90 @@ function ExpiringMembersWidget() {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ── Inactive Members Widget ──────────────────────────────────────────────────
+function InactiveMembersWidget() {
+  const { t } = useLanguage();
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [days, setDays] = useState(14);
+
+  useEffect(() => {
+    setLoading(true);
+    api.get(`/customers/inactive-alert?days=${days}`)
+      .then(data => setMembers(data.members || []))
+      .catch(() => setMembers([]))
+      .finally(() => setLoading(false));
+  }, [days]);
+
+  if (loading) return null;
+  if (members.length === 0) return null;
+
+  return (
+    <div className="glass-card p-5 border border-blue-500/20">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+            <Activity className="w-4 h-4 text-blue-400" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-white">{t('dashboard.inactiveTitle')}</h3>
+            <p className="text-xs text-gray-500">{t('dashboard.inactiveSub', { n: days })}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <select
+            value={days}
+            onChange={e => setDays(parseInt(e.target.value))}
+            className="text-xs bg-dark-200 border border-gray-700 text-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:border-gym-500"
+          >
+            <option value={7}>{t('dashboard.inactive7')}</option>
+            <option value={14}>{t('dashboard.inactive14')}</option>
+            <option value={30}>{t('dashboard.inactive30')}</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {members.slice(0, 6).map(m => (
+          <Link
+            key={m.id}
+            to={`/customers/${m.id}`}
+            className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-dark-200/60 transition-colors group"
+          >
+            <div className="flex items-center gap-3">
+              {m.photo ? (
+                <img src={m.photo} alt={m.name} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+              ) : (
+                <div className="w-8 h-8 rounded-lg bg-dark-300 flex items-center justify-center flex-shrink-0 text-sm font-bold text-gray-400">
+                  {m.name?.charAt(0) || '?'}
+                </div>
+              )}
+              <div>
+                <p className="text-sm font-medium text-white group-hover:text-gym-300 transition-colors">{m.name}</p>
+                <p className="text-xs text-gray-500">{m.phone || ''}</p>
+              </div>
+            </div>
+            <span className="text-xs px-2 py-1 rounded-lg bg-blue-500/15 text-blue-400 font-semibold">
+              {m.days_since_visit != null
+                ? t('dashboard.inactiveDays', { n: m.days_since_visit })
+                : t('dashboard.inactiveNever')}
+            </span>
+          </Link>
+        ))}
+      </div>
+
+      {members.length > 6 && (
+        <Link
+          to="/customers?status=active"
+          className="block mt-3 text-center text-xs text-blue-400 hover:text-blue-300 transition-colors py-2"
+        >
+          {t('dashboard.inactiveViewAll', { n: members.length })}
+        </Link>
+      )}
     </div>
   );
 }

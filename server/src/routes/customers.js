@@ -550,4 +550,86 @@ router.get('/:id/freezes', authenticateToken, async (req, res) => {
   }
 });
 
+// ── Inactive members: active/expiring members with no check-in in the last N days ──
+router.get('/inactive-alert', authenticateToken, async (req, res) => {
+  try {
+    const gymId = req.user.gym_id;
+    const days = Math.min(90, Math.max(1, parseInt(req.query.days) || 14));
+
+    const members = await getAll(`
+      SELECT c.id, c.name, c.phone, c.photo, c.status, c.membership_end,
+             MAX(a.check_in) as last_check_in,
+             FLOOR(EXTRACT(EPOCH FROM (NOW() - MAX(a.check_in))) / 86400)::integer as days_since_visit
+      FROM customers c
+      LEFT JOIN attendance a ON a.customer_id = c.id AND a.gym_id = c.gym_id
+      WHERE c.gym_id = ?
+        AND c.status IN ('active', 'expiring')
+      GROUP BY c.id, c.name, c.phone, c.photo, c.status, c.membership_end
+      HAVING (MAX(a.check_in) IS NULL OR MAX(a.check_in) < NOW() - INTERVAL '1 day' * ?)
+      ORDER BY last_check_in ASC NULLS FIRST
+      LIMIT 50
+    `, [gymId, days]);
+
+    res.json({ members, days, total: members.length });
+  } catch (error) {
+    console.error('Inactive alert error:', error);
+    res.status(500).json({ error: 'Failed to get inactive members' });
+  }
+});
+
+// ── Bulk CSV Import ──────────────────────────────────────────────────────────
+router.post('/bulk-import', authenticateToken, requireActiveSubscription, async (req, res) => {
+  try {
+    const gymId = req.user.gym_id;
+    const { members } = req.body; // Array of { name, phone, email, membership_type, notes }
+
+    if (!Array.isArray(members) || members.length === 0) {
+      return res.status(400).json({ error: 'No members provided' });
+    }
+    if (members.length > 500) {
+      return res.status(400).json({ error: 'Maximum 500 members per import' });
+    }
+
+    // Check gym member limit
+    const gym = await getOne('SELECT max_members, total_customers FROM gyms WHERE id = ?', [gymId]);
+    const currentCount = await getOne('SELECT COUNT(*) as cnt FROM customers WHERE gym_id = ?', [gymId]);
+    const current = parseInt(currentCount?.cnt || 0);
+    if (gym?.max_members && current + members.length > gym.max_members) {
+      return res.status(400).json({
+        error: `Import would exceed your plan limit of ${gym.max_members} members. You have ${current} and are trying to add ${members.length}.`
+      });
+    }
+
+    const results = { success: 0, failed: 0, errors: [] };
+    const today = new Date().toISOString().split('T')[0];
+
+    for (const m of members) {
+      try {
+        if (!m.name?.trim()) { results.failed++; results.errors.push(`Row skipped: missing name`); continue; }
+        const mType = m.membership_type || '1_month';
+        const dur = membershipDurations[mType] || 30;
+        const start = today;
+        const end = new Date(new Date(today).getTime() + dur * 86400000).toISOString().split('T')[0];
+        const id = uuidv4();
+        await runQuery(`
+          INSERT INTO customers (id, gym_id, name, phone, email, membership_type, membership_start, membership_end, status, notes, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, NOW(), NOW())
+        `, [id, gymId, m.name.trim(), m.phone || null, m.email || null, mType, start, end, m.notes || null]);
+        results.success++;
+      } catch (err) {
+        results.failed++;
+        results.errors.push(`"${m.name}": ${err.message}`);
+      }
+    }
+
+    // Update gym total_customers
+    await runQuery(`UPDATE gyms SET total_customers = (SELECT COUNT(*) FROM customers WHERE gym_id = ?) WHERE id = ?`, [gymId, gymId]);
+
+    res.json({ message: `Import complete: ${results.success} added, ${results.failed} failed`, ...results });
+  } catch (error) {
+    console.error('Bulk import error:', error);
+    res.status(500).json({ error: 'Failed to import members' });
+  }
+});
+
 export default router;

@@ -101,7 +101,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // Record payment
 router.post('/', authenticateToken, requireActiveSubscription, validateCreatePayment, async (req, res) => {
   try {
-    const { customer_id, amount, payment_method = 'cash', membership_type, notes, duration_key } = req.body;
+    const { customer_id, amount, payment_method = 'cash', membership_type, notes, duration_key, total_due } = req.body;
     const gymId = req.user.gym_id;
 
     if (!customer_id || !amount) {
@@ -125,9 +125,9 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreatePay
     if (selectedType === 'daily') {
       // Each payment = 1 daily pass (session)
       await runQuery(`
-        INSERT INTO payments (id, gym_id, customer_id, amount, payment_method, payment_date, membership_type, start_date, end_date, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [paymentId, gymId, customer_id, amount, payment_method, paymentDate, selectedType, paymentDate, paymentDate, notes || null]);
+        INSERT INTO payments (id, gym_id, customer_id, amount, payment_method, payment_date, membership_type, start_date, end_date, notes, total_due)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [paymentId, gymId, customer_id, amount, payment_method, paymentDate, selectedType, paymentDate, paymentDate, notes || null, total_due || null]);
 
       await runQuery(`
         UPDATE customers SET
@@ -163,9 +163,9 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreatePay
         .toISOString().split('T')[0];
 
       await runQuery(`
-        INSERT INTO payments (id, gym_id, customer_id, amount, payment_method, payment_date, membership_type, start_date, end_date, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [paymentId, gymId, customer_id, amount, payment_method, paymentDate, selectedType, paymentDate, newEndDate, notes || null]);
+        INSERT INTO payments (id, gym_id, customer_id, amount, payment_method, payment_date, membership_type, start_date, end_date, notes, total_due)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [paymentId, gymId, customer_id, amount, payment_method, paymentDate, selectedType, paymentDate, newEndDate, notes || null, total_due || null]);
 
       await runQuery(`
         UPDATE customers SET
@@ -215,9 +215,9 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreatePay
     }
 
     await runQuery(`
-      INSERT INTO payments (id, gym_id, customer_id, amount, payment_method, payment_date, membership_type, start_date, end_date, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [paymentId, gymId, customer_id, amount, payment_method, paymentDate, selectedType, newStartDate, newEndDate, notes || null]);
+      INSERT INTO payments (id, gym_id, customer_id, amount, payment_method, payment_date, membership_type, start_date, end_date, notes, total_due)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [paymentId, gymId, customer_id, amount, payment_method, paymentDate, selectedType, newStartDate, newEndDate, notes || null, total_due || null]);
 
     await runQuery(`
       UPDATE customers SET

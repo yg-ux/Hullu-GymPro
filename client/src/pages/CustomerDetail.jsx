@@ -65,6 +65,7 @@ export default function CustomerDetail() {
   const [extendDurationKey, setExtendDurationKey] = useState('1_month'); // for 3_days_week
   const [extendPaymentMethod, setExtendPaymentMethod] = useState('cash');
   const [customAmount, setCustomAmount] = useState('');
+  const [totalDue, setTotalDue] = useState('');
 
   const THREE_DAYS_DURATIONS = [
     { value: '1_month',  label: t('membership.monthly'),    sessions: 12  },
@@ -193,12 +194,14 @@ export default function CustomerDetail() {
     try {
       setActionLoading(true);
       const amount = parseInt(customAmount) || 0;
+      const td = totalDue ? parseFloat(totalDue) : null;
       await api.post('/payments', {
         customer_id: id,
         amount: amount,
         payment_method: extendPaymentMethod,
         membership_type: extendMembershipType,
         ...(extendMembershipType === '3_days_week' ? { duration_key: extendDurationKey } : {}),
+        ...(td && td > amount ? { total_due: td } : {}),
       });
       await loadCustomer();
       setShowExtendModal(false);
@@ -653,6 +656,29 @@ export default function CustomerDetail() {
             )}
           </div>
 
+          {/* Outstanding Debt Banner */}
+          {(() => {
+            const outstanding = (customer.payments || []).reduce((sum, p) => {
+              if (p.total_due && p.total_due > p.amount) return sum + (p.total_due - p.amount);
+              return sum;
+            }, 0);
+            if (outstanding <= 0) return null;
+            return (
+              <div className="card p-4 border border-orange-500/30 bg-orange-500/5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="w-5 h-5 text-orange-400 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-orange-400">{t('customers.outstandingDebt')}</p>
+                      <p className="text-xs text-gray-400">{t('customers.outstandingDebtSub')}</p>
+                    </div>
+                  </div>
+                  <span className="text-xl font-bold text-orange-400">{formatCurrency(outstanding)}</span>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Payments History */}
           {customer.payments && customer.payments.length > 0 && (
             <div className="card p-6">
@@ -668,7 +694,14 @@ export default function CustomerDetail() {
                         <CreditCard className="w-4 h-4 text-emerald-400" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-white">{formatCurrency(payment.amount)}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-white">{formatCurrency(payment.amount)}</p>
+                          {payment.total_due && payment.total_due > payment.amount && (
+                            <span className="text-xs px-1.5 py-0.5 bg-orange-500/15 text-orange-400 rounded-md font-medium">
+                              -{formatCurrency(payment.total_due - payment.amount)} {t('customers.debtLabel')}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-500">{formatDate(payment.payment_date)} · {getPaymentMethodLabel(payment.payment_method)}</p>
                       </div>
                     </div>
@@ -1083,6 +1116,19 @@ export default function CustomerDetail() {
             )}
 
             <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">{t('customers.totalDueEtb')}</label>
+              <input
+                type="number"
+                value={totalDue}
+                onChange={(e) => setTotalDue(e.target.value)}
+                placeholder={t('customers.totalDuePlaceholder')}
+                className="input-field"
+                min="0"
+              />
+              <p className="text-xs text-gray-500 mt-1">{t('customers.totalDueHint')}</p>
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">{t('customers.paymentAmountEtb')}</label>
               <input
                 type="number"
@@ -1092,6 +1138,14 @@ export default function CustomerDetail() {
                 className="input-field"
                 min="0"
               />
+              {/* Debt summary */}
+              {totalDue && customAmount && parseFloat(totalDue) > parseFloat(customAmount) && (
+                <div className="mt-2 flex items-center gap-2 p-2.5 bg-orange-500/10 border border-orange-500/25 rounded-lg">
+                  <span className="text-xs text-orange-400 font-medium">
+                    {t('customers.debtRemaining')}: ETB {(parseFloat(totalDue) - parseFloat(customAmount)).toLocaleString()}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div>

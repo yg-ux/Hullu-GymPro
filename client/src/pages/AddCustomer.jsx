@@ -252,18 +252,34 @@ export default function AddCustomer() {
               )}
             </div>
 
-            <label className="cursor-pointer">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoChange}
-                className="hidden"
-              />
-              <span className="btn-secondary inline-flex items-center gap-2">
-                <Upload className="w-4 h-4" />
-                {photoPreview ? t('customers.changePhoto') : t('customers.uploadPhoto')}
-              </span>
-            </label>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <label className="cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  className="hidden"
+                />
+                <span className="btn-secondary inline-flex items-center gap-2">
+                  <Upload className="w-4 h-4" />
+                  {photoPreview ? t('customers.changePhoto') : t('customers.uploadPhoto')}
+                </span>
+              </label>
+              {/* Take Photo — uses back camera on mobile, file picker on desktop */}
+              <label className="cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handlePhotoChange}
+                  className="hidden"
+                />
+                <span className="btn-secondary inline-flex items-center gap-2 border-gym-500/40 text-gym-400 hover:bg-gym-500/10">
+                  <Camera className="w-4 h-4" />
+                  {t('customers.takePhoto')}
+                </span>
+              </label>
+            </div>
             <p className="text-xs text-gray-500 mt-2">{t('customers.photoFormat')}</p>
           </div>
         </div>

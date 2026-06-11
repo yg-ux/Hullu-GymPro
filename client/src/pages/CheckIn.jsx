@@ -247,12 +247,27 @@ export default function CheckIn() {
             type="tel"
             value={phone}
             onChange={(e) => handleSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && searchResults.length > 0) {
+                const first = searchResults[0];
+                const isActive = first.status === 'active' || first.status === 'expiring';
+                if (isActive && subscription?.valid && !actionLoading) {
+                  handleCheckIn(first.id);
+                }
+              }
+            }}
             placeholder={t('checkIn.placeholder')}
             className="w-full pl-14 pr-4 py-5 bg-dark-200 border-2 border-gray-700 rounded-2xl text-white text-xl placeholder-gray-500 focus:border-gym-500 focus:outline-none transition-colors"
           />
           {loading && (
             <div className="absolute right-4 top-1/2 -translate-y-1/2">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gym-500" />
+            </div>
+          )}
+          {searchResults.length > 0 && (
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-dark-300/80 rounded-lg px-2 py-1 pointer-events-none">
+              <kbd className="text-xs text-gray-400 font-mono bg-dark-200 rounded px-1.5 py-0.5 border border-gray-700">↵</kbd>
+              <span className="text-xs text-gray-500">{t('checkIn.enterHint')}</span>
             </div>
           )}
         </div>

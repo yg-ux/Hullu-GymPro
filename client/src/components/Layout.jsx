@@ -6,11 +6,11 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { api, formatCurrency } from '../utils/api';
 import { 
-  LayoutDashboard, 
-  Users, 
-  Dumbbell, 
-  LogOut, 
-  Menu, 
+  LayoutDashboard,
+  Users,
+  Dumbbell,
+  LogOut,
+  Menu,
   X,
   ChevronDown,
   Crown,
@@ -30,7 +30,8 @@ import {
   BarChart3,
   UserCog,
   TrendingUp,
-  Zap
+  Zap,
+  Search
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -46,8 +47,9 @@ const navigation = [
   { name: 'Check Out',  i18n: 'nav.checkOut',  href: '/check-out',    icon: LogOutIcon,      roles: ALL_ROLES },
   { name: 'Staff',      i18n: 'nav.staff',     href: '/staff',        icon: UserCog,         roles: ['owner','admin','manager'], requiresPlan: 'starter' },
   { name: 'Reports',    i18n: 'nav.reports',   href: '/reports',      icon: BarChart3,       roles: ['owner','admin','manager'], requiresPlan: 'pro' },
-  { name: 'Revenue',    i18n: 'nav.revenue',   href: '/revenue',      icon: TrendingUp,      roles: ['owner','admin','manager'], requiresPlan: 'pro' },
-  { name: 'Settings',   i18n: 'nav.settings',  href: '/settings',     icon: Settings,        roles: ['owner','admin'] },
+  { name: 'Revenue',    i18n: 'nav.revenue',   href: '/revenue',             icon: TrendingUp,      roles: ['owner','admin','manager'], requiresPlan: 'pro' },
+  { name: 'Analytics',  i18n: 'nav.analytics', href: '/attendance-analytics', icon: Activity,        roles: ['owner','admin','manager'] },
+  { name: 'Settings',   i18n: 'nav.settings',  href: '/settings',            icon: Settings,        roles: ['owner','admin'] },
 ];
 
 // Role display config
@@ -70,6 +72,9 @@ export default function Layout() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifUnread, setNotifUnread] = useState(0);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef(null);
   // Track which notification IDs the user has already seen (persisted across reloads)
   const seenIdsRef  = useRef(new Set(JSON.parse(localStorage.getItem('notif_seen') || '[]')));
   const notifOpenRef = useRef(false);
@@ -105,6 +110,37 @@ export default function Layout() {
   const handleLogout = () => {
     logout();
     navigate('/');
+  };
+
+  // Global search keyboard shortcut: Ctrl+K / Cmd+K
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(s => !s);
+      }
+      if (e.key === 'Escape' && searchOpen) {
+        setSearchOpen(false);
+        setSearchQuery('');
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [searchOpen]);
+
+  useEffect(() => {
+    if (searchOpen && searchInputRef.current) {
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+    }
+  }, [searchOpen]);
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    const q = searchQuery.trim();
+    if (!q) return;
+    navigate(`/customers?search=${encodeURIComponent(q)}`);
+    setSearchOpen(false);
+    setSearchQuery('');
   };
 
   const isFreePlan = !gym?.subscription_plan || gym?.subscription_plan === 'free';
@@ -366,7 +402,29 @@ export default function Layout() {
               <Menu className="w-6 h-6" />
             </button>
 
-            <div className="flex items-center gap-3 ml-auto">
+            {/* Global Search — desktop inline, mobile icon only */}
+            <form onSubmit={handleSearchSubmit} className="hidden sm:flex items-center relative">
+              <Search className="absolute left-3 w-4 h-4 text-gray-500 pointer-events-none" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder={t('layout.searchPlaceholder')}
+                className="w-48 lg:w-64 pl-9 pr-14 py-2 bg-dark-100 border border-gray-800 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-gym-500/60 focus:w-72 transition-all duration-300"
+              />
+              <kbd className="absolute right-3 text-[10px] text-gray-600 font-mono bg-dark-300/60 rounded px-1.5 py-0.5 border border-gray-800">⌘K</kbd>
+            </form>
+
+            <div className="flex items-center gap-3 ml-auto sm:ml-3">
+              {/* Mobile Search Toggle */}
+              <button
+                onClick={() => { setSearchOpen(s => !s); }}
+                className="sm:hidden p-2.5 text-gray-400 hover:text-white rounded-xl hover:bg-dark-100 transition-all"
+                title={t('layout.searchPlaceholder')}
+              >
+                <Search className="w-5 h-5" />
+              </button>
               {/* Dark/Light Mode Toggle */}
               <button
                 onClick={() => setDarkMode(!darkMode)}
@@ -577,6 +635,30 @@ export default function Layout() {
             </div>
           </div>
         </div>
+
+        {/* Mobile Search Bar (slides down from top) */}
+        {searchOpen && (
+          <div className="sm:hidden px-4 py-3 bg-dark-100/95 border-b border-gray-800/60 animate-slide-down">
+            <form onSubmit={handleSearchSubmit} className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <input
+                autoFocus
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder={t('layout.searchPlaceholder')}
+                className="w-full pl-9 pr-10 py-2.5 bg-dark-200 border border-gray-700 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gym-500/60"
+              />
+              <button
+                type="button"
+                onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </form>
+          </div>
+        )}
 
         {/* Page content */}
         <main className="p-4 sm:p-6 lg:p-8">

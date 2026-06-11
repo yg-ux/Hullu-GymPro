@@ -234,6 +234,14 @@ export default function Customers() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Link
+            to="/customers/import"
+            className="btn-secondary hidden sm:inline-flex items-center gap-2"
+            title={t('customers.importCsv')}
+          >
+            <Download className="w-4 h-4 rotate-180" />
+            {t('customers.importCsv')}
+          </Link>
           <button
             onClick={handleExport}
             disabled={exporting}
