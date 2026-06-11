@@ -4,7 +4,8 @@ import {
   Building2, Users, DollarSign, TrendingUp, AlertCircle,
   Check, X, Clock, Crown, LogOut, RefreshCw, ChevronRight,
   CheckCircle, XCircle, Phone, Mail, Calendar, Hash,
-  CreditCard, Search, Filter, Eye, Shield, Trash2
+  CreditCard, Search, Filter, Eye, Shield, Trash2,
+  MessageSquare, Play, Bell
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -53,6 +54,28 @@ export default function AdminDashboard() {
     'Duplicate request',
     'Other',
   ];
+
+  // SMS test tool
+  const [smsTest, setSmsTest] = useState({ loading: false, result: null, error: null });
+
+  const handleSmsTest = async () => {
+    setSmsTest({ loading: true, result: null, error: null });
+    try {
+      const cronSecret = prompt('Enter CRON_SECRET (from Render env vars):');
+      if (!cronSecret) { setSmsTest({ loading: false, result: null, error: null }); return; }
+      const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+      const res = await fetch(`${API_BASE}/cron/sms-reminders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secret: cronSecret }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      setSmsTest({ loading: false, result: data, error: null });
+    } catch (err) {
+      setSmsTest({ loading: false, result: null, error: err.message });
+    }
+  };
 
   // Gym detail modal
   const [gymDetail, setGymDetail] = useState(null);
@@ -283,6 +306,76 @@ export default function AdminDashboard() {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Developer Tools */}
+            <div className="card p-6 border border-purple-500/20 bg-purple-500/5">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                  <Shield className="w-4 h-4 text-purple-400" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-white">Developer Tools</h2>
+                  <p className="text-xs text-gray-500">Test backend services manually</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Trigger SMS Reminders */}
+                <div className="p-4 bg-dark-200/60 rounded-xl space-y-3">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-blue-400" />
+                    <span className="text-sm font-medium text-white">SMS Reminders Cron</span>
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    Triggers the daily SMS reminder check — sends expiry warnings to members whose memberships end today or in 3 days.
+                  </p>
+                  <button
+                    onClick={handleSmsTest}
+                    disabled={smsTest.loading}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  >
+                    {smsTest.loading ? (
+                      <><RefreshCw className="w-4 h-4 animate-spin" /> Running…</>
+                    ) : (
+                      <><Play className="w-4 h-4" /> Trigger Now</>
+                    )}
+                  </button>
+                  {smsTest.result && (
+                    <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                      <p className="text-xs text-green-400 font-medium flex items-center gap-1">
+                        <CheckCircle className="w-3.5 h-3.5" /> {smsTest.result.message}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">Check server logs on Render for per-customer details.</p>
+                    </div>
+                  )}
+                  {smsTest.error && (
+                    <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                      <p className="text-xs text-red-400 font-medium flex items-center gap-1">
+                        <XCircle className="w-3.5 h-3.5" /> {smsTest.error}
+                      </p>
+                      {smsTest.error.includes('Unauthorized') && (
+                        <p className="text-xs text-gray-500 mt-1">Wrong CRON_SECRET — check Render env vars.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* How to set up automatic cron */}
+                <div className="p-4 bg-dark-200/60 rounded-xl space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-amber-400" />
+                    <span className="text-sm font-medium text-white">Auto Schedule (cron.job)</span>
+                  </div>
+                  <p className="text-xs text-gray-400">Set this up once so reminders run automatically every day at 8 AM:</p>
+                  <ol className="text-xs text-gray-400 space-y-1 list-decimal list-inside">
+                    <li>Go to <span className="text-white">cron-job.org</span> (free)</li>
+                    <li>Create a new cron job</li>
+                    <li>URL: <code className="text-blue-400 bg-dark-300 px-1 rounded">POST /api/cron/sms-reminders</code></li>
+                    <li>Schedule: <code className="text-blue-400 bg-dark-300 px-1 rounded">0 8 * * *</code></li>
+                    <li>Body: <code className="text-blue-400 bg-dark-300 px-1 rounded">{`{"secret":"YOUR_CRON_SECRET"}`}</code></li>
+                  </ol>
+                </div>
               </div>
             </div>
 
