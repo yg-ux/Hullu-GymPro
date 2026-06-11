@@ -463,4 +463,21 @@ router.post('/create-test-gym', authenticateToken, async (req, res) => {
   }
 });
 
+// Force-expire a gym's subscription (admin utility for testing)
+router.post('/force-expire-gym', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  const { gym_id, days_ago = 6 } = req.body;
+  if (!gym_id) return res.status(400).json({ error: 'gym_id required' });
+  try {
+    await runQuery(
+      `UPDATE gyms SET subscription_end = NOW() - (? || ' days')::interval WHERE id = ?`,
+      [parseInt(days_ago), gym_id]
+    );
+    const gym = await getOne('SELECT id, name, subscription_end, subscription_status, subscription_plan FROM gyms WHERE id = ?', [gym_id]);
+    res.json({ message: `Subscription set to ${days_ago} day(s) ago`, gym });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
