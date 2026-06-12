@@ -141,7 +141,7 @@ export const auth = {
     'landing.footer.copyright': '© 2025 Hullu Gyms. Gym Management Software · Built in Ethiopia',
 
     'landing.register.title': 'Create Your Gym Account',
-    'landing.register.subtitle': '14 days free · No credit card required',
+    'landing.register.subtitle': 'Free plan available · No credit card required',
     'landing.register.logoLabel': 'Gym Logo',
     'landing.register.logoHint': 'Click to upload (JPG/PNG, max 1MB)',
     'landing.register.logoTooBig': 'Logo must be under 1MB',
