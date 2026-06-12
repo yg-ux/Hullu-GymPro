@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useRef } from 'react';
+﻿import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import QuickActionFAB from './QuickActionFAB';
 import SubscriptionExpiredModal from './SubscriptionExpiredModal';
@@ -74,7 +74,13 @@ export default function Layout() {
   const [notifUnread, setNotifUnread] = useState(0);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const searchInputRef = useRef(null);
+  const searchDebounceRef = useRef(null);
+  const searchContainerRef = useRef(null);
   // Track which notification IDs the user has already seen (persisted across reloads)
   const seenIdsRef  = useRef(new Set(JSON.parse(localStorage.getItem('notif_seen') || '[]')));
   const notifOpenRef = useRef(false);
@@ -140,14 +146,67 @@ export default function Layout() {
     }
   }, [searchOpen]);
 
+  // Debounced live search
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q) { setSearchResults([]); setSelectedIndex(-1); return; }
+    clearTimeout(searchDebounceRef.current);
+    setSearchLoading(true);
+    searchDebounceRef.current = setTimeout(async () => {
+      try {
+        const data = await api.get(`/customers?search=${encodeURIComponent(q)}&limit=6`);
+        setSearchResults(data.customers || []);
+        setSelectedIndex(-1);
+      } catch { setSearchResults([]); }
+      finally { setSearchLoading(false); }
+    }, 250);
+    return () => clearTimeout(searchDebounceRef.current);
+  }, [searchQuery]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setSearchFocused(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const closeSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchFocused(false);
+    setSelectedIndex(-1);
+    setSearchOpen(false);
+  };
+
+  const goToCustomer = (id) => {
+    navigate(`/customers/${id}`);
+    closeSearch();
+  };
+
   const handleSearchSubmit = (e) => {
     e.preventDefault();
+    if (selectedIndex >= 0 && searchResults[selectedIndex]) {
+      goToCustomer(searchResults[selectedIndex].id);
+      return;
+    }
     const q = searchQuery.trim();
     if (!q) return;
     navigate(`/customers?search=${encodeURIComponent(q)}`);
-    setSearchOpen(false);
-    setSearchQuery('');
+    closeSearch();
   };
+
+  const handleSearchKeyDown = (e) => {
+    if (!searchResults.length) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIndex(i => Math.min(i + 1, searchResults.length - 1)); }
+    if (e.key === 'ArrowUp')   { e.preventDefault(); setSelectedIndex(i => Math.max(i - 1, -1)); }
+  };
+
+  const showDropdown = searchFocused && searchQuery.trim().length > 0;
+  const statusColor = (s) => s === 'active' ? 'bg-green-500' : s === 'expiring' ? 'bg-yellow-500' : 'bg-red-500';
 
   const isFreePlan = !gym?.subscription_plan || gym?.subscription_plan === 'free';
   const showGraceBanner      = subscription?.status === 'grace';
@@ -443,18 +502,76 @@ export default function Layout() {
             </button>
 
             {/* Global Search — desktop inline, mobile icon only */}
-            <form onSubmit={handleSearchSubmit} className="hidden sm:flex items-center relative">
-              <Search className="absolute left-3 w-4 h-4 text-gray-500 pointer-events-none" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder={t('layout.searchPlaceholder')}
-                className="w-48 lg:w-64 pl-9 pr-14 py-2 bg-dark-100 border border-gray-800 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-gym-500/60 focus:w-72 transition-all duration-300"
-              />
-              <kbd className="absolute right-3 text-[10px] text-gray-600 font-mono bg-dark-300/60 rounded px-1.5 py-0.5 border border-gray-800">⌘K</kbd>
-            </form>
+            <div ref={searchContainerRef} className="hidden sm:block relative">
+              <form onSubmit={handleSearchSubmit} className="flex items-center relative">
+                {searchLoading
+                  ? <div className="absolute left-3 w-4 h-4 border-2 border-gym-500/60 border-t-transparent rounded-full animate-spin" />
+                  : <Search className="absolute left-3 w-4 h-4 text-gray-500 pointer-events-none" />
+                }
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  onFocus={() => setSearchFocused(true)}
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder={t('layout.searchPlaceholder')}
+                  className="w-48 lg:w-64 pl-9 pr-14 py-2 bg-dark-100 border border-gray-800 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-gym-500/60 focus:w-72 transition-all duration-300"
+                />
+                {searchQuery
+                  ? <button type="button" onClick={closeSearch} className="absolute right-3 text-gray-500 hover:text-white transition-colors"><X className="w-3.5 h-3.5" /></button>
+                  : <kbd className="absolute right-3 text-[10px] text-gray-600 font-mono bg-dark-300/60 rounded px-1.5 py-0.5 border border-gray-800">⌘K</kbd>
+                }
+              </form>
+
+              {/* Live results dropdown */}
+              {showDropdown && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-dark-100 border border-gray-800 rounded-xl shadow-2xl z-50 overflow-hidden min-w-[320px]">
+                  {searchResults.length > 0 ? (
+                    <>
+                      <div className="px-3 py-2 border-b border-gray-800/60 text-[10px] text-gray-500 uppercase tracking-wider">
+                        {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}
+                      </div>
+                      {searchResults.map((c, i) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onMouseDown={() => goToCustomer(c.id)}
+                          className={clsx(
+                            'w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors',
+                            i === selectedIndex ? 'bg-gym-500/15' : 'hover:bg-dark-200/60'
+                          )}
+                        >
+                          {/* Avatar */}
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gym-500 to-gym-700 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                            {c.name?.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-white font-medium truncate">{c.name}</p>
+                            <p className="text-xs text-gray-500 truncate">{c.phone || '—'}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <span className={clsx('w-1.5 h-1.5 rounded-full', statusColor(c.status))} />
+                            <span className="text-[11px] text-gray-500 capitalize">{c.status}</span>
+                          </div>
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onMouseDown={handleSearchSubmit}
+                        className="w-full px-3 py-2 text-xs text-gym-400 hover:text-gym-300 hover:bg-dark-200/40 border-t border-gray-800/60 text-center transition-colors"
+                      >
+                        See all results for "{searchQuery}"
+                      </button>
+                    </>
+                  ) : (
+                    <div className="px-4 py-6 text-center text-sm text-gray-500">
+                      {searchLoading ? 'Searching…' : `No customers found for "${searchQuery}"`}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             <div className="flex items-center gap-3 ml-auto sm:ml-3">
               {/* Mobile Search Toggle */}
@@ -678,25 +795,57 @@ export default function Layout() {
 
         {/* Mobile Search Bar (slides down from top) */}
         {searchOpen && (
-          <div className="sm:hidden px-4 py-3 bg-dark-100/95 border-b border-gray-800/60 animate-slide-down">
-            <form onSubmit={handleSearchSubmit} className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-              <input
-                autoFocus
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder={t('layout.searchPlaceholder')}
-                className="w-full pl-9 pr-10 py-2.5 bg-dark-200 border border-gray-700 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gym-500/60"
-              />
-              <button
-                type="button"
-                onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </form>
+          <div className="sm:hidden bg-dark-100/95 border-b border-gray-800/60 animate-slide-down">
+            <div ref={searchContainerRef} className="px-4 py-3">
+              <form onSubmit={handleSearchSubmit} className="relative">
+                {searchLoading
+                  ? <div className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-gym-500/60 border-t-transparent rounded-full animate-spin" />
+                  : <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                }
+                <input
+                  autoFocus
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  onFocus={() => setSearchFocused(true)}
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder={t('layout.searchPlaceholder')}
+                  className="w-full pl-9 pr-10 py-2.5 bg-dark-200 border border-gray-700 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gym-500/60"
+                />
+                <button type="button" onClick={closeSearch} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white">
+                  <X className="w-4 h-4" />
+                </button>
+              </form>
+
+              {/* Mobile live results */}
+              {showDropdown && (
+                <div className="mt-2 bg-dark-200 border border-gray-800 rounded-xl overflow-hidden">
+                  {searchResults.length > 0 ? (
+                    <>
+                      {searchResults.map((c, i) => (
+                        <button key={c.id} type="button" onMouseDown={() => goToCustomer(c.id)}
+                          className={clsx('w-full flex items-center gap-3 px-3 py-2.5 transition-colors',
+                            i === selectedIndex ? 'bg-gym-500/15' : 'hover:bg-dark-300/60'
+                          )}>
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gym-500 to-gym-700 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                            {c.name?.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-white font-medium truncate">{c.name}</p>
+                            <p className="text-xs text-gray-500 truncate">{c.phone || '—'}</p>
+                          </div>
+                          <span className={clsx('w-2 h-2 rounded-full flex-shrink-0', statusColor(c.status))} />
+                        </button>
+                      ))}
+                    </>
+                  ) : (
+                    <p className="px-4 py-4 text-sm text-gray-500 text-center">
+                      {searchLoading ? 'Searching…' : `No results for "${searchQuery}"`}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
