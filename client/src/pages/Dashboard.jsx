@@ -98,37 +98,15 @@ export default function Dashboard() {
   const [activities, setActivities] = useState([]);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
   const [liveAttendance, setLiveAttendance] = useState(null);
-  const [heatmap, setHeatmap] = useState(null);
-  const [heatmapMonth, setHeatmapMonth] = useState(''); // YYYY-MM, empty = current month
-  const [heatmapLoading, setHeatmapLoading] = useState(false);
 
   useEffect(() => {
     loadStats();
     loadActivities();
     loadLiveAttendance();
-    loadHeatmap('');
     const interval = setInterval(loadLiveAttendance, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  const loadHeatmap = async (month) => {
-    setHeatmapLoading(true);
-    try {
-      const query = month ? `?month=${month}` : '';
-      const data = await api.get(`/attendance/heatmap${query}`);
-      setHeatmap(data);
-      if (!month) setHeatmapMonth(data.month); // seed state with server's current month
-    } catch (e) {
-      console.warn('Failed to load heatmap:', e);
-    } finally {
-      setHeatmapLoading(false);
-    }
-  };
-
-  const handleHeatmapMonthChange = (month) => {
-    setHeatmapMonth(month);
-    loadHeatmap(month);
-  };
 
   const loadLiveAttendance = async () => {
     try {
@@ -658,54 +636,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Attendance Heatmap */}
-      {heatmap && (
-        <div className="glass-card p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-              <Activity className="w-5 h-5 text-gray-400" />
-              {t('dashboard.heatmap')}
-            </h2>
-            {/* Month selector dropdown — always visible once heatmap loads */}
-            {heatmapMonth && (() => {
-              // Use server-returned list; fall back to just the current month
-              const months = heatmap.availableMonths?.length > 0
-                ? heatmap.availableMonths
-                : [heatmapMonth];
-              const locale = lang === 'am' ? 'am-ET' : 'en-US';
-              return (
-                <select
-                  value={heatmapMonth}
-                  onChange={e => handleHeatmapMonthChange(e.target.value)}
-                  disabled={heatmapLoading}
-                  className="bg-dark-200 border border-gray-700 text-white text-sm rounded-lg px-3 py-1.5 focus:border-gym-500 focus:outline-none disabled:opacity-50 cursor-pointer min-w-[160px]"
-                >
-                  {months.map(m => {
-                    const [year, mon] = m.split('-');
-                    const label = new Date(parseInt(year), parseInt(mon) - 1, 1)
-                      .toLocaleDateString(locale, { month: 'long', year: 'numeric' });
-                    return <option key={m} value={m}>{label}</option>;
-                  })}
-                </select>
-              );
-            })()}
-          </div>
-
-          {heatmapLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gym-500" />
-            </div>
-          ) : heatmap.max === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-gray-500">
-              <Calendar className="w-10 h-10 mb-3 opacity-40" />
-              <p className="text-sm">{t('dashboard.noHeatmapData')}</p>
-            </div>
-          ) : (
-            <AttendanceHeatmap matrix={heatmap.matrix} max={heatmap.max} />
-          )}
-        </div>
-      )}
-
       {/* Recent Payments with Activity Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Payments */}
@@ -1038,151 +968,6 @@ function InactiveMembersWidget() {
 }
 
 // Smooth HSL gradient: green (120°) → yellow (60°) → orange (30°) → red (0°)
-function heatmapColor(v, max) {
-  if (v === 0 || max === 0) return 'rgba(255,255,255,0.06)';
-  const intensity = Math.min(v / max, 1);
-  const hue = Math.round(120 * (1 - intensity));       // 120 → 0
-  const sat  = Math.round(72 + intensity * 15);         // 72% → 87%
-  const lit  = Math.round(52 - intensity * 10);         // 52% → 42%
-  const alpha = 0.22 + intensity * 0.70;                // 0.22 → 0.92
-  return `hsla(${hue},${sat}%,${lit}%,${alpha})`;
-}
-
-function formatHour(h) {
-  if (h === 0)  return '12am';
-  if (h === 12) return '12pm';
-  return h < 12 ? `${h}am` : `${h - 12}pm`;
-}
-
-function AttendanceHeatmap({ matrix, max }) {
-  const { t } = useLanguage();
-  const [tooltip, setTooltip] = useState(null);
-
-  const dayLabels = [
-    t('day.sun'), t('day.mon'), t('day.tue'), t('day.wed'),
-    t('day.thu'), t('day.fri'), t('day.sat'),
-  ];
-
-  // ── Summary stats ────────────────────────────────────────────────────────
-  const total     = matrix.flat().reduce((s, v) => s + v, 0);
-  const dayTotals = matrix.map(row => row.reduce((s, v) => s + v, 0));
-  const hourTotals= Array.from({ length: 24 }, (_, h) =>
-    matrix.reduce((s, row) => s + row[h], 0));
-  const peakDayIdx  = dayTotals.indexOf(Math.max(...dayTotals));
-  const peakHourIdx = hourTotals.indexOf(Math.max(...hourTotals));
-
-  // ── Tooltip handlers ─────────────────────────────────────────────────────
-  const showTooltip = (e, d, h, v) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    setTooltip({ x: r.left + r.width / 2, y: r.top, d, h, v });
-  };
-  const hideTooltip = () => setTooltip(null);
-
-  // Hours to label (every 3h)
-  const markedHours = [0, 3, 6, 9, 12, 15, 18, 21];
-
-  return (
-    <div>
-      {/* ── Stats row ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-3 mb-5">
-        {[
-          { value: total,                      label: t('dashboard.heatmapTotal'),      sub: t('dashboard.heatmapCheckIns'), color: 'text-gym-400' },
-          { value: total > 0 ? dayLabels[peakDayIdx]  : '—', label: t('dashboard.heatmapBusiestDay'), sub: null, color: 'text-yellow-400' },
-          { value: total > 0 ? formatHour(peakHourIdx): '—', label: t('dashboard.heatmapPeakHour'),   sub: null, color: 'text-orange-400' },
-        ].map(({ value, label, sub, color }) => (
-          <div key={label} className="bg-dark-300/60 border border-gray-800/60 rounded-xl p-3 text-center">
-            <p className={`text-xl font-bold ${color} leading-tight`}>{value}</p>
-            {sub && <p className="text-[10px] text-gray-500">{sub}</p>}
-            <p className="text-[10px] text-gray-500 mt-0.5 uppercase tracking-wide">{label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Grid ──────────────────────────────────────────────────────── */}
-      <div className="overflow-x-auto">
-        <div className="inline-block min-w-full">
-          {/* Hour labels */}
-          <div className="flex pl-10 mb-1">
-            {Array.from({ length: 24 }, (_, h) => (
-              <div key={h} className="flex-1 min-w-[20px] text-center text-[9px] text-gray-500 font-medium">
-                {markedHours.includes(h) ? formatHour(h) : ''}
-              </div>
-            ))}
-          </div>
-
-          {/* Day rows */}
-          {matrix.map((row, d) => {
-            const isPeakDay = total > 0 && d === peakDayIdx;
-            return (
-              <div key={d} className="flex items-center mb-[3px] group">
-                {/* Day label — bold + accent dot if peak */}
-                <div className={`w-10 text-[11px] pr-2 shrink-0 flex items-center gap-1 ${isPeakDay ? 'text-yellow-400 font-semibold' : 'text-gray-500 font-medium'}`}>
-                  {isPeakDay && <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shrink-0" />}
-                  {dayLabels[d]}
-                </div>
-                {row.map((v, h) => {
-                  const isPeakHour = total > 0 && h === peakHourIdx;
-                  return (
-                    <div
-                      key={h}
-                      onMouseEnter={e => showTooltip(e, d, h, v)}
-                      onMouseLeave={hideTooltip}
-                      className={`flex-1 min-w-[20px] aspect-square mx-[1.5px] rounded-[4px] cursor-pointer
-                        transition-all duration-150 hover:scale-125 hover:z-10 hover:ring-1 hover:ring-white/20
-                        ${isPeakHour ? 'ring-1 ring-white/10' : ''}`}
-                      style={{ background: heatmapColor(v, max) }}
-                    />
-                  );
-                })}
-              </div>
-            );
-          })}
-
-          {/* ── Legend ──────────────────────────────────────────────── */}
-          <div className="flex items-center justify-end gap-2 mt-4">
-            <span className="text-[10px] text-gray-500">{t('dashboard.heatmapLow')}</span>
-            <div
-              className="w-28 h-2.5 rounded-full"
-              style={{
-                background: 'linear-gradient(to right, ' + [
-                  'hsla(120,75%,50%,0.25)',
-                  'hsla(105,77%,48%,0.45)',
-                  'hsla(80,80%,47%,0.60)',
-                  'hsla(60,82%,47%,0.70)',
-                  'hsla(35,84%,46%,0.80)',
-                  'hsla(10,86%,46%,0.88)',
-                  'hsla(0,87%,44%,0.92)',
-                ].join(', ') + ')',
-              }}
-            />
-            <span className="text-[10px] text-gray-500">{t('dashboard.heatmapHigh')}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Floating tooltip ────────────────────────────────────────── */}
-      {tooltip && (
-        <div
-          className="fixed z-50 pointer-events-none"
-          style={{ left: tooltip.x, top: tooltip.y - 8, transform: 'translate(-50%, -100%)' }}
-        >
-          <div className="bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 shadow-2xl text-center whitespace-nowrap">
-            <p className="text-white font-semibold text-sm">
-              {tooltip.v > 0
-                ? `${tooltip.v} ${t('dashboard.heatmapCheckIns')}`
-                : t('dashboard.heatmapNone')}
-            </p>
-            <p className="text-gray-400 text-xs mt-0.5">
-              {dayLabels[tooltip.d]} · {formatHour(tooltip.h)}–{formatHour((tooltip.h + 1) % 24)}
-            </p>
-          </div>
-          {/* Caret */}
-          <div className="w-2 h-2 bg-gray-900 border-b border-r border-gray-700 rotate-45 mx-auto -mt-[5px]" />
-        </div>
-      )}
-    </div>
-  );
-}
 
 function AnimatedStatCard({ title, value, icon: Icon, color, trend, animated, delay }) {
   const { count, ref } = useAnimatedCounter(value, 1500, delay);
