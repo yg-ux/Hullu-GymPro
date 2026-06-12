@@ -651,7 +651,7 @@ function CustomerCard({ customer, onClick, onCheckIn, onCheckOut, isCheckedIn, g
             <Eye className="w-4 h-4" />
           </button>
           <button
-            onClick={(e) => { e.stopPropagation(); /* Edit action */ }}
+            onClick={(e) => { e.stopPropagation(); navigate(`/customers/${customer.id}?edit=true`); }}
             className="p-2 bg-dark-200 text-gray-400 hover:text-blue-400 rounded-lg shadow-lg transition-all hover:scale-110"
             title={t('common.edit')}
           >
