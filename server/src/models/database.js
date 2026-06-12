@@ -242,6 +242,124 @@ export async function initDatabase() {
     `CREATE INDEX IF NOT EXISTS idx_qr_codes_customer_id ON qr_codes(customer_id)`,
     `CREATE INDEX IF NOT EXISTS idx_activity_log_gym_id ON activity_log(gym_id)`,
     `CREATE INDEX IF NOT EXISTS idx_sms_logs_gym_id ON sms_logs(gym_id)`,
+
+    // ── Branches (multi-location support) ─────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS branches (
+      id TEXT PRIMARY KEY,
+      gym_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      address TEXT,
+      phone TEXT,
+      manager_name TEXT,
+      is_main BOOLEAN DEFAULT FALSE,
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_branches_gym_id ON branches(gym_id)`,
+
+    // ── Expense Tracking ───────────────────────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS expenses (
+      id TEXT PRIMARY KEY,
+      gym_id TEXT NOT NULL,
+      branch_id TEXT,
+      amount REAL NOT NULL,
+      category TEXT NOT NULL,
+      description TEXT,
+      expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
+      payment_method TEXT DEFAULT 'cash',
+      receipt_photo TEXT,
+      created_by TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_expenses_gym_id ON expenses(gym_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date)`,
+
+    // ── Equipment / Asset Tracking ────────────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS equipment (
+      id TEXT PRIMARY KEY,
+      gym_id TEXT NOT NULL,
+      branch_id TEXT,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL,
+      purchase_date DATE,
+      purchase_price REAL,
+      warranty_expiry DATE,
+      last_service_date DATE,
+      next_service_date DATE,
+      status TEXT DEFAULT 'operational',
+      condition TEXT DEFAULT 'good',
+      notes TEXT,
+      photo TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_equipment_gym_id ON equipment(gym_id)`,
+
+    // ── Membership Packages / Pricing Menu ────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS membership_packages (
+      id TEXT PRIMARY KEY,
+      gym_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      membership_type TEXT NOT NULL,
+      price REAL NOT NULL,
+      description TEXT,
+      features TEXT,
+      is_active BOOLEAN DEFAULT TRUE,
+      sort_order INTEGER DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_packages_gym_id ON membership_packages(gym_id)`,
+
+    // ── Photo Progress Tracking ───────────────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS progress_photos (
+      id TEXT PRIMARY KEY,
+      gym_id TEXT NOT NULL,
+      customer_id TEXT NOT NULL,
+      photo_data TEXT NOT NULL,
+      angle TEXT DEFAULT 'front',
+      notes TEXT,
+      weight REAL,
+      body_fat REAL,
+      taken_at DATE NOT NULL DEFAULT CURRENT_DATE,
+      created_by TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE,
+      FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_progress_photos_customer ON progress_photos(customer_id)`,
+
+    // ── Member Self-Service Portal Tokens ─────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS portal_tokens (
+      id TEXT PRIMARY KEY,
+      gym_id TEXT NOT NULL,
+      customer_id TEXT NOT NULL,
+      token TEXT UNIQUE NOT NULL,
+      expires_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE,
+      FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_portal_tokens_token ON portal_tokens(token)`,
+    `CREATE INDEX IF NOT EXISTS idx_portal_tokens_customer ON portal_tokens(customer_id)`,
+
+    // ── PWA Push Subscriptions ────────────────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id TEXT PRIMARY KEY,
+      gym_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      endpoint TEXT NOT NULL,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(gym_id, user_id, endpoint),
+      FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
+    )`,
   ];
 
   for (const sql of tables) {
@@ -256,6 +374,22 @@ export async function initDatabase() {
 
   // Debt / partial payment tracking
   await p.query('ALTER TABLE payments ADD COLUMN IF NOT EXISTS total_due REAL');
+  await p.query('ALTER TABLE payments ADD COLUMN IF NOT EXISTS is_partial BOOLEAN DEFAULT FALSE');
+  await p.query('ALTER TABLE payments ADD COLUMN IF NOT EXISTS balance_paid REAL');
+
+  // Multi-branch columns
+  await p.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS branch_id TEXT');
+  await p.query('ALTER TABLE payments ADD COLUMN IF NOT EXISTS branch_id TEXT');
+  await p.query('ALTER TABLE attendance ADD COLUMN IF NOT EXISTS branch_id TEXT');
+
+  // Outstanding balance on customer
+  await p.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS outstanding_balance REAL DEFAULT 0');
+
+  // Birthday for birthday reminders
+  await p.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS date_of_birth DATE');
+
+  // Gym parent for multi-branch
+  await p.query('ALTER TABLE gyms ADD COLUMN IF NOT EXISTS parent_gym_id TEXT');
 
   // Seed default global settings
   const globalSettings = await getOne("SELECT gym_id FROM settings WHERE gym_id = 'global' AND key = 'delete_code'");

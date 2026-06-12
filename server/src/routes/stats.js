@@ -571,4 +571,165 @@ router.get('/revenue', authenticateToken, async (req, res) => {
   }
 });
 
+// ── GET /api/stats/forecast ──────────────────────────────────────────────────
+// Revenue forecasting: upcoming renewals + projected revenue for next 30/60/90 days
+router.get('/forecast', authenticateToken, async (req, res) => {
+  try {
+    const gymId = req.user.gym_id;
+
+    // Members expiring in next 30 days (potential renewals)
+    const expiringNext30 = await getAll(`
+      SELECT id, name, phone, membership_type, membership_end, status,
+        FLOOR(EXTRACT(EPOCH FROM (membership_end::timestamp - NOW())) / 86400)::integer as days_left
+      FROM customers
+      WHERE gym_id = ?
+        AND membership_end::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'
+        AND status NOT IN ('inactive', 'frozen')
+        AND membership_type != 'daily'
+      ORDER BY membership_end ASC
+    `, [gymId]);
+
+    const expiringNext60 = await getOne(`
+      SELECT COUNT(*) as count FROM customers
+      WHERE gym_id = ? AND membership_end::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '60 days'
+        AND status NOT IN ('inactive', 'frozen') AND membership_type != 'daily'
+    `, [gymId]);
+
+    const expiringNext90 = await getOne(`
+      SELECT COUNT(*) as count FROM customers
+      WHERE gym_id = ? AND membership_end::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '90 days'
+        AND status NOT IN ('inactive', 'frozen') AND membership_type != 'daily'
+    `, [gymId]);
+
+    // Average revenue per membership type from last 90 days
+    const avgByType = await getAll(`
+      SELECT membership_type, AVG(amount) as avg_amount, COUNT(*) as count
+      FROM payments
+      WHERE gym_id = ? AND created_at >= NOW() - INTERVAL '90 days'
+      GROUP BY membership_type
+    `, [gymId]);
+
+    const typeAvgMap = {};
+    for (const r of avgByType) typeAvgMap[r.membership_type] = parseFloat(r.avg_amount) || 0;
+
+    // Calculate projected revenue from expiring members (assume 70% renewal rate)
+    const RENEWAL_RATE = 0.70;
+    let projected30 = 0, projected60 = 0, projected90 = 0;
+    for (const m of expiringNext30) {
+      const avg = typeAvgMap[m.membership_type] || 0;
+      const daysLeft = m.days_left || 0;
+      if (daysLeft <= 30) projected30 += avg * RENEWAL_RATE;
+      if (daysLeft <= 60) projected60 += avg * RENEWAL_RATE;
+      if (daysLeft <= 90) projected90 += avg * RENEWAL_RATE;
+    }
+
+    // Historical monthly revenue for trend
+    const historicalMonthly = await getAll(`
+      SELECT TO_CHAR(payment_date::date, 'YYYY-MM') as month, SUM(amount) as total
+      FROM payments WHERE gym_id = ?
+        AND payment_date::date >= CURRENT_DATE - INTERVAL '6 months'
+      GROUP BY TO_CHAR(payment_date::date, 'YYYY-MM')
+      ORDER BY month ASC
+    `, [gymId]);
+
+    // At-risk revenue = members expiring in 7 days who haven't been seen in 14+ days
+    const atRisk = await getAll(`
+      SELECT c.id, c.name, c.phone, c.membership_type, c.membership_end,
+        FLOOR(EXTRACT(EPOCH FROM (c.membership_end::timestamp - NOW())) / 86400)::integer as days_left,
+        MAX(a.check_in) as last_visit
+      FROM customers c
+      LEFT JOIN attendance a ON a.customer_id = c.id AND a.gym_id = c.gym_id
+      WHERE c.gym_id = ?
+        AND c.membership_end::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'
+        AND c.status NOT IN ('inactive', 'frozen')
+      GROUP BY c.id, c.name, c.phone, c.membership_type, c.membership_end
+      HAVING (MAX(a.check_in) IS NULL OR MAX(a.check_in) < NOW() - INTERVAL '14 days')
+      ORDER BY c.membership_end ASC
+      LIMIT 20
+    `, [gymId]);
+
+    const atRiskRevenue = atRisk.reduce((sum, m) => sum + (typeAvgMap[m.membership_type] || 0) * RENEWAL_RATE, 0);
+
+    res.json({
+      expiring: {
+        next_30: { members: expiringNext30, count: expiringNext30.length, projected_revenue: Math.round(projected30) },
+        next_60: { count: parseInt(expiringNext60?.count || 0), projected_revenue: Math.round(projected60) },
+        next_90: { count: parseInt(expiringNext90?.count || 0), projected_revenue: Math.round(projected90) },
+      },
+      at_risk: { members: atRisk, count: atRisk.length, at_risk_revenue: Math.round(atRiskRevenue) },
+      historical_monthly: historicalMonthly,
+      renewal_rate_assumption: RENEWAL_RATE,
+      avg_by_type: typeAvgMap,
+    });
+  } catch (error) {
+    console.error('Forecast error:', error);
+    res.status(500).json({ error: 'Failed to get forecast' });
+  }
+});
+
+// ── GET /api/stats/retention ─────────────────────────────────────────────────
+// Smart retention: inactive active members, churn risk, win-back candidates
+router.get('/retention', authenticateToken, async (req, res) => {
+  try {
+    const gymId = req.user.gym_id;
+
+    // Members who visited 2+ weeks ago and haven't renewed (still active)
+    const inactive14 = await getAll(`
+      SELECT c.id, c.name, c.phone, c.photo, c.membership_type, c.membership_end, c.status,
+        MAX(a.check_in) as last_visit,
+        FLOOR(EXTRACT(EPOCH FROM (NOW() - MAX(a.check_in))) / 86400)::integer as days_since_visit,
+        FLOOR(EXTRACT(EPOCH FROM (c.membership_end::timestamp - NOW())) / 86400)::integer as days_until_expiry
+      FROM customers c
+      LEFT JOIN attendance a ON a.customer_id = c.id AND a.gym_id = c.gym_id
+      WHERE c.gym_id = ? AND c.status IN ('active', 'expiring')
+      GROUP BY c.id, c.name, c.phone, c.photo, c.membership_type, c.membership_end, c.status
+      HAVING (MAX(a.check_in) IS NULL OR MAX(a.check_in) < NOW() - INTERVAL '14 days')
+      ORDER BY last_visit ASC NULLS FIRST
+      LIMIT 30
+    `, [gymId]);
+
+    // Expired members who might come back (expired in last 60 days)
+    const winBack = await getAll(`
+      SELECT c.id, c.name, c.phone, c.photo, c.membership_type, c.membership_end,
+        MAX(a.check_in) as last_visit,
+        FLOOR(EXTRACT(EPOCH FROM (NOW() - c.membership_end::timestamp)) / 86400)::integer as days_expired
+      FROM customers c
+      LEFT JOIN attendance a ON a.customer_id = c.id AND a.gym_id = c.gym_id
+      WHERE c.gym_id = ? AND c.status = 'expired'
+        AND c.membership_end::date >= CURRENT_DATE - INTERVAL '60 days'
+      GROUP BY c.id, c.name, c.phone, c.photo, c.membership_type, c.membership_end
+      ORDER BY c.membership_end DESC
+      LIMIT 20
+    `, [gymId]);
+
+    // Churn rate: expired vs active this month vs last month
+    const thisMonthExpired = await getOne(`
+      SELECT COUNT(*) as count FROM customers
+      WHERE gym_id = ? AND status = 'expired'
+        AND TO_CHAR(membership_end::date, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')
+    `, [gymId]);
+
+    const lastMonthExpired = await getOne(`
+      SELECT COUNT(*) as count FROM customers
+      WHERE gym_id = ? AND status = 'expired'
+        AND TO_CHAR(membership_end::date, 'YYYY-MM') = TO_CHAR(NOW() - INTERVAL '1 month', 'YYYY-MM')
+    `, [gymId]);
+
+    const totalActive = await getOne(`SELECT COUNT(*) as count FROM customers WHERE gym_id = ? AND status IN ('active', 'expiring')`, [gymId]);
+
+    res.json({
+      inactive: { members: inactive14, count: inactive14.length },
+      win_back: { members: winBack, count: winBack.length },
+      churn: {
+        this_month: parseInt(thisMonthExpired?.count || 0),
+        last_month: parseInt(lastMonthExpired?.count || 0),
+        total_active: parseInt(totalActive?.count || 0),
+      },
+    });
+  } catch (error) {
+    console.error('Retention error:', error);
+    res.status(500).json({ error: 'Failed to get retention data' });
+  }
+});
+
 export default router;

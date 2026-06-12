@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { api } from '../utils/api';
+import { api, formatCurrency } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 import {
   Building,
   MapPin,
@@ -22,6 +23,12 @@ import {
   Server,
   UserCheck,
   Download,
+  Tag,
+  Plus,
+  Trash2,
+  Bell,
+  BellOff,
+  BellRing,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -493,6 +500,12 @@ export default function Settings() {
         );
       })()}
 
+      {/* ── Membership Pricing Packages ── */}
+      <PricingPackagesPanel toast={toast} />
+
+      {/* ── Push Notifications ── */}
+      <PushNotificationsPanel toast={toast} />
+
       {/* ── Data & Privacy ── */}
       <div className="card p-6 space-y-5 border border-blue-500/20 bg-blue-500/5">
         <div className="flex items-center gap-3">
@@ -574,6 +587,238 @@ export default function Settings() {
 
       {/* ── Change Password ── */}
       <ChangePasswordForm toast={toast} t={t} />
+    </div>
+  );
+}
+
+const MEMBERSHIP_TYPES = [
+  { value: 'daily', label: 'Daily Pass' },
+  { value: '1_month', label: '1 Month' },
+  { value: '2_months', label: '2 Months' },
+  { value: '3_months', label: '3 Months' },
+  { value: '6_months', label: '6 Months' },
+  { value: '1_year', label: '1 Year' },
+  { value: '3_days_week', label: '3×/Week' },
+];
+
+function PricingPackagesPanel({ toast }) {
+  const [packages, setPackages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ name: '', membership_type: '1_month', price: '', description: '', is_active: true });
+
+  useEffect(() => { loadPackages(); }, []);
+
+  const loadPackages = async () => {
+    try {
+      const data = await api.get('/packages');
+      setPackages(data.data || []);
+    } catch { toast.error('Failed to load pricing packages'); }
+    finally { setLoading(false); }
+  };
+
+  const openAdd = () => { setEditing(null); setForm({ name: '', membership_type: '1_month', price: '', description: '', is_active: true }); setShowForm(true); };
+  const openEdit = (pkg) => { setEditing(pkg); setForm({ name: pkg.name, membership_type: pkg.membership_type, price: String(pkg.price), description: pkg.description || '', is_active: pkg.is_active }); setShowForm(true); };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (!form.name || !form.price) return toast.error('Name and price are required');
+    setSaving(true);
+    try {
+      if (editing) {
+        await api.put(`/packages/${editing.id}`, { ...form, price: parseFloat(form.price) });
+        toast.success('Package updated');
+      } else {
+        await api.post('/packages', { ...form, price: parseFloat(form.price) });
+        toast.success('Package created');
+      }
+      setShowForm(false);
+      loadPackages();
+    } catch (err) { toast.error(err.message || 'Failed to save package'); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (pkg) => {
+    if (!confirm(`Delete "${pkg.name}"?`)) return;
+    try {
+      await api.delete(`/packages/${pkg.id}`);
+      toast.success('Package deleted');
+      loadPackages();
+    } catch { toast.error('Failed to delete package'); }
+  };
+
+  const toggleActive = async (pkg) => {
+    try {
+      await api.put(`/packages/${pkg.id}`, { is_active: !pkg.is_active });
+      loadPackages();
+    } catch { toast.error('Failed to update package'); }
+  };
+
+  return (
+    <div className="card p-6 space-y-5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-amber-600/20 flex items-center justify-center">
+            <Tag className="w-5 h-5 text-amber-400" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-white">Pricing Packages</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Set membership prices shown when adding members</p>
+          </div>
+        </div>
+        <button onClick={openAdd} className="btn-primary flex items-center gap-2 text-sm">
+          <Plus className="w-4 h-4" /> Add Package
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-14 bg-gray-800 rounded-xl animate-pulse" />)}</div>
+      ) : packages.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          <Tag className="w-10 h-10 mx-auto mb-2 opacity-30" />
+          <p className="text-sm">No pricing packages yet</p>
+          <p className="text-xs mt-1">Add your first package to auto-fill prices when adding members</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {packages.map(pkg => (
+            <div key={pkg.id} className={clsx('flex items-center gap-3 p-3 rounded-xl border transition-all', pkg.is_active ? 'bg-dark-200 border-gray-700' : 'bg-dark-300 border-gray-800 opacity-60')}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-white text-sm">{pkg.name}</span>
+                  <span className="text-xs bg-gym-500/20 text-gym-400 px-2 py-0.5 rounded-full">
+                    {MEMBERSHIP_TYPES.find(t => t.value === pkg.membership_type)?.label || pkg.membership_type}
+                  </span>
+                </div>
+                {pkg.description && <p className="text-xs text-gray-500 mt-0.5 truncate">{pkg.description}</p>}
+              </div>
+              <span className="text-gym-400 font-bold text-sm flex-shrink-0">{formatCurrency(pkg.price)}</span>
+              <button onClick={() => toggleActive(pkg)} title={pkg.is_active ? 'Deactivate' : 'Activate'}
+                className={clsx('w-8 h-4 rounded-full transition-colors flex-shrink-0 relative', pkg.is_active ? 'bg-green-500' : 'bg-gray-600')}>
+                <span className={clsx('absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform', pkg.is_active ? 'translate-x-4 left-0.5' : 'translate-x-0 left-0.5')} />
+              </button>
+              <button onClick={() => openEdit(pkg)} className="p-1.5 text-gray-400 hover:text-white transition-colors"><Save className="w-3.5 h-3.5" /></button>
+              <button onClick={() => handleDelete(pkg)} className="p-1.5 text-gray-400 hover:text-red-400 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showForm && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-dark-300 rounded-2xl p-6 w-full max-w-md space-y-4 border border-gray-700">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-white">{editing ? 'Edit Package' : 'New Package'}</h3>
+              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <form onSubmit={handleSave} className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Package Name</label>
+                <input value={form.name} onChange={e => setForm(p => ({...p, name: e.target.value}))} className="input-field" placeholder="e.g. Monthly Basic" required />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Membership Type</label>
+                  <select value={form.membership_type} onChange={e => setForm(p => ({...p, membership_type: e.target.value}))} className="input-field">
+                    {MEMBERSHIP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Price (ETB)</label>
+                  <input type="number" value={form.price} onChange={e => setForm(p => ({...p, price: e.target.value}))} className="input-field" placeholder="1500" min="0" required />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Description (optional)</label>
+                <input value={form.description} onChange={e => setForm(p => ({...p, description: e.target.value}))} className="input-field" placeholder="What's included..." />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setShowForm(false)} className="btn-secondary">Cancel</button>
+                <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving...' : editing ? 'Update' : 'Create'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PushNotificationsPanel({ toast }) {
+  const { supported, permission, subscribed, loading, error, subscribe, unsubscribe, sendTest } = usePushNotifications();
+
+  const handleTest = async () => {
+    try {
+      const result = await sendTest();
+      toast.success(result?.message || 'Test notification sent!');
+    } catch (err) {
+      toast.error(err.message || 'Failed to send test notification');
+    }
+  };
+
+  return (
+    <div className="card p-6 space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-lg bg-violet-600/20 flex items-center justify-center">
+          <BellRing className="w-5 h-5 text-violet-400" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold text-white">Push Notifications</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Get browser notifications for gym activity</p>
+        </div>
+      </div>
+
+      {!supported ? (
+        <div className="p-4 bg-gray-700/30 rounded-xl text-sm text-gray-400 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          Push notifications are not supported in this browser.
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between p-4 bg-dark-200 rounded-xl border border-gray-700">
+            <div className="flex items-center gap-3">
+              {subscribed ? <Bell className="w-5 h-5 text-green-400" /> : <BellOff className="w-5 h-5 text-gray-500" />}
+              <div>
+                <p className="text-sm font-medium text-white">{subscribed ? 'Notifications enabled' : 'Notifications disabled'}</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {permission === 'denied' ? '⚠️ Blocked in browser — change in browser settings' : subscribed ? 'You\'ll receive alerts on this device' : 'Click to enable browser notifications'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={subscribed ? unsubscribe : subscribe}
+              disabled={loading || permission === 'denied'}
+              className={clsx('btn-secondary text-sm flex items-center gap-2 flex-shrink-0',
+                subscribed && 'border-red-500/40 text-red-400 hover:bg-red-500/10'
+              )}
+            >
+              {loading ? '...' : subscribed ? <><BellOff className="w-4 h-4" /> Disable</> : <><Bell className="w-4 h-4" /> Enable</>}
+            </button>
+          </div>
+
+          {error && <p className="text-xs text-red-400 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{error}</p>}
+
+          {subscribed && (
+            <div className="flex items-center gap-3">
+              <button onClick={handleTest} disabled={loading} className="btn-secondary text-sm flex items-center gap-2">
+                <BellRing className="w-4 h-4" /> Send Test Notification
+              </button>
+              <p className="text-xs text-gray-500">Sends a test push to verify it's working</p>
+            </div>
+          )}
+
+          <div className="space-y-2 px-1">
+            {['Member check-in alerts', 'Membership expiry reminders', 'New payment notifications'].map(f => (
+              <div key={f} className="flex items-center gap-2 text-sm text-gray-400">
+                <CheckCircle className="w-4 h-4 flex-shrink-0 text-violet-400" />
+                {f}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

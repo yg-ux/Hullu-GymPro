@@ -5,7 +5,7 @@ import SubscriptionExpiredModal from './SubscriptionExpiredModal';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { api, formatCurrency } from '../utils/api';
-import { 
+import {
   LayoutDashboard,
   Users,
   Dumbbell,
@@ -29,7 +29,12 @@ import {
   UserCog,
   TrendingUp,
   Zap,
-  Search
+  Search,
+  Receipt,
+  Wrench,
+  GitBranch,
+  TrendingDown,
+  UserMinus,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -45,9 +50,14 @@ const navigation = [
   { name: 'Check Out',  i18n: 'nav.checkOut',  href: '/check-out',    icon: LogOutIcon,      roles: ALL_ROLES },
   { name: 'Staff',      i18n: 'nav.staff',     href: '/staff',        icon: UserCog,         roles: ['owner','admin','manager'], requiresPlan: 'starter' },
   { name: 'Reports',    i18n: 'nav.reports',   href: '/reports',      icon: BarChart3,       roles: ['owner','admin','manager'], requiresPlan: 'pro' },
-  { name: 'Revenue',    i18n: 'nav.revenue',   href: '/revenue',             icon: TrendingUp,      roles: ['owner','admin','manager'], requiresPlan: 'pro' },
-  { name: 'Analytics',  i18n: 'nav.analytics', href: '/attendance-analytics', icon: Activity,        roles: ['owner','admin','manager'] },
-  { name: 'Settings',   i18n: 'nav.settings',  href: '/settings',            icon: Settings,        roles: ['owner','admin'] },
+  { name: 'Revenue',    i18n: 'nav.revenue',   href: '/revenue',      icon: TrendingUp,      roles: ['owner','admin','manager'], requiresPlan: 'pro' },
+  { name: 'Forecast',   i18n: 'nav.forecast',  href: '/forecast',     icon: TrendingDown,    roles: ['owner','admin','manager'] },
+  { name: 'Retention',  i18n: 'nav.retention', href: '/retention',    icon: UserMinus,       roles: ['owner','admin','manager'] },
+  { name: 'Expenses',   i18n: 'nav.expenses',  href: '/expenses',     icon: Receipt,         roles: ['owner','admin','manager'] },
+  { name: 'Equipment',  i18n: 'nav.equipment', href: '/equipment',    icon: Wrench,          roles: ['owner','admin','manager'] },
+  { name: 'Branches',   i18n: 'nav.branches',  href: '/branches',     icon: GitBranch,       roles: ['owner','admin'] },
+  { name: 'Analytics',  i18n: 'nav.analytics', href: '/attendance-analytics', icon: Activity, roles: ['owner','admin','manager'] },
+  { name: 'Settings',   i18n: 'nav.settings',  href: '/settings',     icon: Settings,        roles: ['owner','admin'] },
 ];
 
 // Role display config
@@ -143,7 +153,7 @@ export default function Layout() {
     searchDebounceRef.current = setTimeout(async () => {
       try {
         const data = await api.get(`/customers?search=${encodeURIComponent(q)}&limit=6`);
-        setSearchResults(data.customers || []);
+        setSearchResults(data.data || []);
         setSelectedIndex(-1);
       } catch { setSearchResults([]); }
       finally { setSearchLoading(false); }

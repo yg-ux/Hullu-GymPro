@@ -16,6 +16,13 @@ import qrRoutes from './routes/qr.js';
 import reportsRoutes from './routes/reports.js';
 import adminRoutes from './routes/admin.js';
 import smsRoutes from './routes/sms.js';
+import expensesRoutes from './routes/expenses.js';
+import equipmentRoutes from './routes/equipment.js';
+import packagesRoutes from './routes/packages.js';
+import portalRoutes from './routes/portal.js';
+import branchesRoutes from './routes/branches.js';
+import pushRoutes from './routes/push.js';
+import progressRoutes from './routes/progress.js';
 import { reminderService } from './services/reminderService.js';
 
 const app = express();
@@ -76,6 +83,13 @@ app.use('/api/qr', qrRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/admin', adminLimiter, adminRoutes);
 app.use('/api/sms', smsRoutes);
+app.use('/api/expenses', expensesRoutes);
+app.use('/api/equipment', equipmentRoutes);
+app.use('/api/packages', packagesRoutes);
+app.use('/api/portal', portalRoutes);
+app.use('/api/branches', branchesRoutes);
+app.use('/api/push', pushRoutes);
+app.use('/api/progress', progressRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -19,6 +19,11 @@ export const core = {
     'nav.upgrade':       'Upgrade',
     'nav.kiosk':         'Kiosk Mode',
     'nav.analytics':     'Analytics',
+    'nav.forecast':      'Forecast',
+    'nav.retention':     'Retention',
+    'nav.expenses':      'Expenses',
+    'nav.equipment':     'Equipment',
+    'nav.branches':      'Branches',
 
     // Plan / subscription badges
     'plan.free':        'Free',
@@ -250,6 +255,11 @@ export const core = {
     'nav.upgrade':       'አሻሽል',
     'nav.kiosk':         'ኪዮስክ ሁነታ',
     'nav.analytics':     'ትንተና',
+    'nav.forecast':      'ትንበያ',
+    'nav.retention':     'ዕቆያ',
+    'nav.expenses':      'ወጪዎች',
+    'nav.equipment':     'መሣሪያዎች',
+    'nav.branches':      'ቅርንጫፎች',
 
     // Plan / subscription badges
     'plan.free':        'ነጻ',

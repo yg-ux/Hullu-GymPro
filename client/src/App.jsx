@@ -24,12 +24,18 @@ import Receipt from './pages/Receipt';
 import Kiosk from './pages/Kiosk';
 import ImportCustomers from './pages/ImportCustomers';
 import AttendanceAnalytics from './pages/AttendanceAnalytics';
+import MemberPortal from './pages/MemberPortal';
+import Forecast from './pages/Forecast';
+import Retention from './pages/Retention';
+import Expenses from './pages/Expenses';
+import Equipment from './pages/Equipment';
+import Branches from './pages/Branches';
 
 // Pages each role can access (must match Layout.jsx nav roles)
 const ROLE_PAGES = {
-  owner:        ['/dashboard', '/check-in', '/check-out', '/customers', '/staff', '/reports', '/revenue', '/settings', '/subscription', '/attendance-analytics'],
-  admin:        ['/dashboard', '/check-in', '/check-out', '/customers', '/staff', '/reports', '/revenue', '/settings', '/attendance-analytics'],
-  manager:      ['/dashboard', '/check-in', '/check-out', '/customers', '/staff', '/reports', '/revenue', '/attendance-analytics'],
+  owner:        ['/dashboard', '/check-in', '/check-out', '/customers', '/staff', '/reports', '/revenue', '/settings', '/subscription', '/attendance-analytics', '/forecast', '/retention', '/expenses', '/equipment', '/branches'],
+  admin:        ['/dashboard', '/check-in', '/check-out', '/customers', '/staff', '/reports', '/revenue', '/settings', '/attendance-analytics', '/forecast', '/retention', '/expenses', '/equipment', '/branches'],
+  manager:      ['/dashboard', '/check-in', '/check-out', '/customers', '/staff', '/reports', '/revenue', '/attendance-analytics', '/forecast', '/retention', '/expenses', '/equipment'],
   trainer:      ['/dashboard', '/check-in', '/check-out', '/customers'],
   receptionist: ['/dashboard', '/check-in', '/check-out', '/customers'],
 };
@@ -98,6 +104,7 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/admin-login" element={<AdminLogin />} />
       <Route path="/admin-dashboard" element={<AdminDashboard />} />
+      <Route path="/portal/:token" element={<MemberPortal />} />
 
       {/* Full-screen protected routes (no sidebar layout) */}
       <Route path="/receipt/:id" element={<ProtectedRoute><Receipt /></ProtectedRoute>} />
@@ -125,6 +132,11 @@ function App() {
         <Route path="settings"                element={<RoleRoute path="/settings">             <Settings />             </RoleRoute>} />
         <Route path="customers/import"        element={<RoleRoute path="/customers">            <ImportCustomers />       </RoleRoute>} />
         <Route path="attendance-analytics"    element={<RoleRoute path="/attendance-analytics"> <AttendanceAnalytics />   </RoleRoute>} />
+        <Route path="forecast"                element={<RoleRoute path="/forecast">             <Forecast />              </RoleRoute>} />
+        <Route path="retention"               element={<RoleRoute path="/retention">            <Retention />             </RoleRoute>} />
+        <Route path="expenses"                element={<RoleRoute path="/expenses">             <Expenses />              </RoleRoute>} />
+        <Route path="equipment"               element={<RoleRoute path="/equipment">            <Equipment />             </RoleRoute>} />
+        <Route path="branches"                element={<RoleRoute path="/branches">             <Branches />              </RoleRoute>} />
       </Route>
     </Routes>
     </ToastProvider>

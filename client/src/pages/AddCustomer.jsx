@@ -27,6 +27,7 @@ export default function AddCustomer() {
   const { t } = useLanguage();
   const gate = useSubscriptionGate();
   const isEditing = Boolean(id);
+  const [pricingPackages, setPricingPackages] = useState([]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -56,6 +57,8 @@ export default function AddCustomer() {
     if (isEditing) {
       loadCustomer();
     }
+    // Load pricing packages to show price hints
+    api.get('/packages').then(data => setPricingPackages(data.data || [])).catch(() => {});
   }, [id]);
 
   const loadCustomer = async () => {
@@ -462,6 +465,25 @@ export default function AddCustomer() {
                     placeholder={t('customers.enterAmountPaid')}
                     min="1"
                   />
+                  {/* Pricing hint from packages */}
+                  {(() => {
+                    const matchingPkgs = pricingPackages.filter(p => p.is_active && p.membership_type === formData.membership_type);
+                    if (!matchingPkgs.length) return null;
+                    return (
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {matchingPkgs.map(pkg => (
+                          <button
+                            key={pkg.id}
+                            type="button"
+                            onClick={() => handleChange({ target: { name: 'amount', value: String(pkg.price) } })}
+                            className="text-xs px-2 py-0.5 bg-gym-500/10 border border-gym-500/20 text-gym-400 rounded-full hover:bg-gym-500/20 transition-colors"
+                          >
+                            {pkg.name}: ETB {pkg.price.toLocaleString()}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
                 {fieldErrors.amount && (
                   <p className="mt-1 text-xs text-red-400 flex items-center gap-1">
