@@ -603,9 +603,9 @@ export default function Dashboard() {
       </div>
 
       {/* Recent Payments with Activity Feed */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
         {/* Recent Payments */}
-        <div className="glass-card p-6">
+        <div className="glass-card p-6 flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
               <Receipt className="w-5 h-5 text-gray-400" />
@@ -617,7 +617,7 @@ export default function Dashboard() {
           </div>
           
           {stats?.recent_payments?.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-3 flex-1">
               {stats.recent_payments.map((payment, index) => (
                 <div 
                   key={payment.id}
@@ -670,7 +670,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          <div className="relative flex-1 overflow-y-auto max-h-[420px] pr-1">
+          <div className="relative flex-1 min-h-0 overflow-y-auto pr-1">
             {/* Timeline line */}
             <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gradient-to-b from-gym-500 via-gym-400/30 to-transparent pointer-events-none" />
 
