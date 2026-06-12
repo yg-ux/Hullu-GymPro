@@ -651,7 +651,7 @@ export default function Landing() {
         <div className="bg-gray-900/95 backdrop-blur-xl border-t border-gray-700 px-4 py-3 flex items-center gap-3">
           <div className="flex-1">
             <p className="text-white font-semibold text-sm">Get Started Free</p>
-            <p className="text-gray-400 text-xs">No credit card required</p>
+            <p className="text-gray-400 text-xs">Start instantly, no payment needed</p>
           </div>
           <button
             onClick={() => setShowRegister(true)}

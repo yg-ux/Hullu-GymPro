@@ -48,7 +48,7 @@ export const auth = {
     'landing.nav.signIn': 'Sign In',
     'landing.nav.startFreeTrial': 'Get Started Free',
 
-    'landing.hero.badge': 'Free Plan Available · No Credit Card Required',
+    'landing.hero.badge': 'Free Plan Available · No Payment Required to Start',
     'landing.hero.title1': 'Run Your Gym Like',
     'landing.hero.title2': 'A Pro',
     'landing.hero.subtitle': 'Hullu Gyms gives Ethiopian gym owners everything they need — member management, payments, SMS reminders, attendance tracking, and staff control — all in one place.',
@@ -141,7 +141,7 @@ export const auth = {
     'landing.footer.copyright': '© 2025 Hullu Gyms. Gym Management Software · Built in Ethiopia',
 
     'landing.register.title': 'Create Your Gym Account',
-    'landing.register.subtitle': 'Free plan available · No credit card required',
+    'landing.register.subtitle': 'Free plan available · Start instantly, no payment needed',
     'landing.register.logoLabel': 'Gym Logo',
     'landing.register.logoHint': 'Click to upload (JPG/PNG, max 1MB)',
     'landing.register.logoTooBig': 'Logo must be under 1MB',
