@@ -583,7 +583,7 @@ router.get('/activity-log', authenticateToken, async (req, res) => {
 // Get broadcast message
 router.get('/broadcast', authenticateToken, async (req, res) => {
   try {
-    const row = await getOne(`SELECT value FROM settings WHERE gym_id = 'GLOBAL' AND key = 'broadcast'`);
+    const row = await getOne(`SELECT value FROM settings WHERE gym_id = 'global' AND key = 'broadcast'`);
     res.json(row ? JSON.parse(row.value) : null);
   } catch (error) {
     res.status(500).json({ error: 'Failed to get broadcast' });
@@ -595,16 +595,16 @@ router.post('/broadcast', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
   const { message, type = 'info' } = req.body; // type: info | warning | success
   try {
-    const existing = await getOne(`SELECT id FROM settings WHERE gym_id = 'GLOBAL' AND key = 'broadcast'`);
+    const existing = await getOne(`SELECT key FROM settings WHERE gym_id = 'global' AND key = 'broadcast'`);
     if (!message) {
-      await runQuery(`DELETE FROM settings WHERE gym_id = 'GLOBAL' AND key = 'broadcast'`);
+      await runQuery(`DELETE FROM settings WHERE gym_id = 'global' AND key = 'broadcast'`);
       return res.json({ message: 'Broadcast cleared' });
     }
     const value = JSON.stringify({ message, type, created_at: new Date().toISOString() });
     if (existing) {
-      await runQuery(`UPDATE settings SET value = ? WHERE gym_id = 'GLOBAL' AND key = 'broadcast'`, [value]);
+      await runQuery(`UPDATE settings SET value = ? WHERE gym_id = 'global' AND key = 'broadcast'`, [value]);
     } else {
-      await runQuery(`INSERT INTO settings (gym_id, key, value) VALUES ('GLOBAL', 'broadcast', ?)`, [value]);
+      await runQuery(`INSERT INTO settings (gym_id, key, value) VALUES ('global', 'broadcast', ?)`, [value]);
     }
     res.json({ message: 'Broadcast saved' });
   } catch (error) {
