@@ -491,7 +491,7 @@ router.put('/gym', authenticateToken, async (req, res) => {
   try {
     const { name, phone, address, sms_enabled, color_theme, logo } = req.body;
 
-    const VALID_THEMES = ['default', 'emerald', 'purple', 'red', 'amber', 'cyan'];
+    const VALID_THEMES = ['default', 'indigo', 'purple', 'rose', 'red', 'amber', 'lime', 'emerald', 'teal', 'gold', 'chocolate', 'slate'];
 
     const updates = [];
     const values = [];
