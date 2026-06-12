@@ -168,7 +168,23 @@ export default function Customers() {
     }
   };
 
-  const filteredCustomers = customers; // Server handles filtering now
+  const filteredCustomers = useMemo(() => {
+    const list = [...customers];
+    if (sortBy === 'name') {
+      list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    } else if (sortBy === 'created_at') {
+      list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    } else {
+      // Default: membership_end (soonest expiry first, nulls last)
+      list.sort((a, b) => {
+        if (!a.membership_end && !b.membership_end) return 0;
+        if (!a.membership_end) return 1;
+        if (!b.membership_end) return -1;
+        return new Date(a.membership_end) - new Date(b.membership_end);
+      });
+    }
+    return list;
+  }, [customers, sortBy]);
 
   const statusCounts = {
     all: summary.total,
