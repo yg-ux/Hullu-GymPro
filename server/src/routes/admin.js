@@ -355,7 +355,8 @@ router.get('/stats', authenticateToken, async (req, res) => {
 
     const expiringRow = await getOne(`
       SELECT COUNT(*) as count FROM gyms
-      WHERE subscription_end BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '14 days'
+      WHERE subscription_end IS NOT NULL
+        AND subscription_end::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '14 days'
         AND subscription_status = 'active'
     `);
 
@@ -497,9 +498,9 @@ router.post('/gyms/:id/set-plan', authenticateToken, async (req, res) => {
       WHERE id = ?
     `, [plan, plan === 'free' ? 'active' : 'active', endDate, planLimits[plan], req.params.id]);
     // Log to activity_log
-    await runQuery(`INSERT INTO activity_log (id, gym_id, action, details, created_at)
-      VALUES (?, ?, 'admin_plan_change', ?, NOW())`,
-      [uuidv4(), req.params.id, JSON.stringify({ plan, months, notes: notes || null, by: req.user.email })]);
+    await runQuery(`INSERT INTO activity_log (id, gym_id, user_id, action_type, details, created_at)
+      VALUES (?, ?, ?, 'admin_plan_change', ?, NOW())`,
+      [uuidv4(), req.params.id, req.user.id, JSON.stringify({ plan, months, notes: notes || null, by: req.user.email })]);
     res.json({ message: `Plan updated to ${plan}`, end_date: endDate });
   } catch (error) {
     console.error('Set plan error:', error);
@@ -517,9 +518,9 @@ router.post('/gyms/:id/extend', authenticateToken, async (req, res) => {
     if (!gym) return res.status(404).json({ error: 'Gym not found' });
     await runQuery(`UPDATE gyms SET subscription_end = ?, subscription_status = 'active', updated_at = NOW() WHERE id = ?`,
       [end_date, req.params.id]);
-    await runQuery(`INSERT INTO activity_log (id, gym_id, action, details, created_at)
-      VALUES (?, ?, 'admin_extend', ?, NOW())`,
-      [uuidv4(), req.params.id, JSON.stringify({ end_date, notes: notes || null, by: req.user.email })]);
+    await runQuery(`INSERT INTO activity_log (id, gym_id, user_id, action_type, details, created_at)
+      VALUES (?, ?, ?, 'admin_extend', ?, NOW())`,
+      [uuidv4(), req.params.id, req.user.id, JSON.stringify({ end_date, notes: notes || null, by: req.user.email })]);
     res.json({ message: 'Subscription extended', end_date });
   } catch (error) {
     console.error('Extend subscription error:', error);
@@ -549,7 +550,8 @@ router.get('/revenue-analytics', authenticateToken, async (req, res) => {
     const expiring = await getAll(`
       SELECT id, name, email, phone, subscription_plan, subscription_end
       FROM gyms
-      WHERE subscription_end BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '14 days'
+      WHERE subscription_end IS NOT NULL
+        AND subscription_end::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '14 days'
         AND subscription_status = 'active'
       ORDER BY subscription_end ASC
     `);
