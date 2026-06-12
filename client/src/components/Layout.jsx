@@ -148,6 +148,16 @@ export default function Layout() {
   const showSubscriptionAlert = subscription && !subscription.valid && !isFreePlan;
   const showFreePlanBanner = isFreePlan && !showGraceBanner && !showSubscriptionAlert;
 
+  // ── Admin broadcast banner ───────────────────────────────────────────────────
+  const [broadcast, setBroadcast] = useState(null);
+  const [broadcastDismissed, setBroadcastDismissed] = useState(false);
+
+  useEffect(() => {
+    api.get('/admin/broadcast')
+      .then(data => { if (data) setBroadcast(data); })
+      .catch(() => {}); // silently ignore — non-critical
+  }, []);
+
   // ── Real-time notifications ──────────────────────────────────────────────────
   const [notifications, setNotifications] = useState([]);
   const [notifLoading, setNotifLoading] = useState(true);
@@ -288,8 +298,32 @@ export default function Layout() {
     }
   };
 
+  const broadcastColors = {
+    info:    { bar: 'from-blue-500/10 to-blue-600/10 border-blue-500/30', icon: 'text-blue-400', text: 'text-blue-200' },
+    warning: { bar: 'from-yellow-500/10 to-orange-500/10 border-yellow-500/30', icon: 'text-yellow-400', text: 'text-yellow-200' },
+    success: { bar: 'from-green-500/10 to-emerald-500/10 border-green-500/30', icon: 'text-green-400', text: 'text-green-200' },
+  };
+
   return (
     <div className="min-h-screen bg-dark-200">
+      {/* Admin Broadcast Banner */}
+      {broadcast && !broadcastDismissed && (
+        <div className={`bg-gradient-to-r ${(broadcastColors[broadcast.type] || broadcastColors.info).bar} border-b px-4 py-2`}>
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            <div className={`flex items-center gap-2 text-sm ${(broadcastColors[broadcast.type] || broadcastColors.info).text}`}>
+              <Bell className={`w-4 h-4 flex-shrink-0 ${(broadcastColors[broadcast.type] || broadcastColors.info).icon}`} />
+              <span>{broadcast.message}</span>
+            </div>
+            <button
+              onClick={() => setBroadcastDismissed(true)}
+              className="flex-shrink-0 text-gray-400 hover:text-white transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Free Plan Info Banner */}
       {showFreePlanBanner && (
         <div className="bg-gradient-to-r from-blue-500/8 to-indigo-500/8 border-b border-blue-500/20 px-4 py-2">
