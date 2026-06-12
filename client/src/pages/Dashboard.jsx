@@ -154,68 +154,34 @@ export default function Dashboard() {
 
   const loadActivities = async () => {
     try {
-      const [customersRes, paymentsRes, attendanceRes] = await Promise.allSettled([
-        api.get('/customers?limit=5&sort=created_at'),
-        api.get('/payments?limit=5'),
-        api.get('/attendance/today')
-      ]);
+      const feed = await api.get('/stats/activity');
 
-      const activityItems = [];
+      const TYPE_CONFIG = {
+        check_in:   { icon: UserCheck,  color: 'from-gym-400 to-gym-500',       dot: 'from-gym-400 to-gym-500' },
+        new_member: { icon: UserPlus,   color: 'from-purple-500 to-purple-600',  dot: 'from-purple-400 to-purple-600' },
+        payment:    { icon: DollarSign, color: 'from-emerald-500 to-emerald-600', dot: 'from-emerald-400 to-emerald-600' },
+      };
 
-      // Process recent customers
-      if (customersRes.status === 'fulfilled' && customersRes.value?.customers) {
-        customersRes.value.customers.slice(0, 3).forEach(customer => {
-          activityItems.push({
-            id: `customer-${customer.id}`,
-            icon: UserPlus,
-            color: 'from-gym-500 to-gym-600',
-            type: 'new_member',
-            title: t('dashboard.newMember', { name: customer.name }),
-            time: customer.created_at,
-            timeAgo: getTimeAgo(customer.created_at)
-          });
-        });
-      }
+      const activityItems = feed.map(item => {
+        const cfg = TYPE_CONFIG[item.type] || TYPE_CONFIG.check_in;
+        let title = '';
+        if (item.type === 'check_in')   title = t('dashboard.checkedIn', { name: item.customer_name });
+        if (item.type === 'new_member') title = t('dashboard.newMember', { name: item.customer_name });
+        if (item.type === 'payment')    title = t('dashboard.paymentReceived', { amount: formatCurrency(item.amount) });
+        return {
+          id: `${item.type}-${item.id}`,
+          icon: cfg.icon,
+          color: cfg.color,
+          dot: cfg.dot,
+          type: item.type,
+          title,
+          subtitle: item.type === 'payment' ? item.customer_name : null,
+          timeAgo: getTimeAgo(item.event_time),
+          time: item.event_time,
+        };
+      });
 
-      // Process recent payments
-      if (paymentsRes.status === 'fulfilled' && paymentsRes.value?.payments) {
-        paymentsRes.value.payments.slice(0, 3).forEach(payment => {
-          activityItems.push({
-            id: `payment-${payment.id}`,
-            icon: DollarSign,
-            color: 'from-emerald-500 to-emerald-600',
-            type: 'payment',
-            title: t('dashboard.paymentReceived', { amount: formatCurrency(payment.amount) }),
-            time: payment.payment_date,
-            timeAgo: getTimeAgo(payment.payment_date),
-            customer: payment.customer_name
-          });
-        });
-      }
-
-      // Process today's attendance/check-ins
-      if (attendanceRes.status === 'fulfilled' && attendanceRes.value) {
-        const allAttendance = [
-          ...(attendanceRes.value.currently_present || []),
-          ...(attendanceRes.value.checked_out || [])
-        ];
-        allAttendance.slice(0, 3).forEach(record => {
-          activityItems.push({
-            id: `checkin-${record.id}`,
-            icon: UserCheck,
-            color: 'from-gym-400 to-gym-500',
-            type: 'check_in',
-            title: t('dashboard.checkedIn', { name: record.customer_name }),
-            time: record.check_in,
-            timeAgo: getTimeAgo(record.check_in)
-          });
-        });
-      }
-
-      // Sort by time, most recent first
-      activityItems.sort((a, b) => new Date(b.time) - new Date(a.time));
-
-      setActivities(activityItems.slice(0, 8)); // Limit to 8 most recent activities
+      setActivities(activityItems);
     } catch (error) {
       console.error('Failed to load activities:', error);
     } finally {
@@ -684,69 +650,78 @@ export default function Dashboard() {
         </div>
 
         {/* Activity Feed */}
-        <div className="glass-card p-6">
+        <div className="glass-card p-6 flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
               <Activity className="w-5 h-5 text-gym-400" />
               {t('dashboard.activityFeed')}
             </h2>
+            <span className="text-xs text-gray-500 bg-dark-200 px-2.5 py-1 rounded-full">
+              Today · {activities.length} events
+            </span>
           </div>
-          
-          <div className="relative">
+
+          {/* Legend */}
+          {!activitiesLoading && activities.length > 0 && (
+            <div className="flex items-center gap-4 mb-4 text-[11px] text-gray-500">
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-gym-400 inline-block" />Check-ins</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-400 inline-block" />New Members</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />Payments</span>
+            </div>
+          )}
+
+          <div className="relative flex-1 overflow-y-auto max-h-[420px] pr-1">
             {/* Timeline line */}
-            <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gradient-to-b from-gym-500 via-gym-400/40 to-transparent" />
-            
+            <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gradient-to-b from-gym-500 via-gym-400/30 to-transparent pointer-events-none" />
+
             {activitiesLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="flex items-start gap-4 pl-10 animate-pulse">
+              <div className="space-y-3">
+                {[1,2,3,4,5].map(i => (
+                  <div key={i} className="flex items-center gap-3 pl-10 animate-pulse">
                     <div className="absolute left-3 w-4 h-4 rounded-full bg-dark-300" />
-                    <div className="flex-1 p-3 bg-dark-200/50 rounded-xl">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-dark-300" />
-                        <div>
-                          <div className="h-4 bg-dark-300 rounded w-32 mb-1" />
-                          <div className="h-3 bg-dark-300 rounded w-16" />
-                        </div>
-                      </div>
-                    </div>
+                    <div className="flex-1 h-12 bg-dark-200/50 rounded-xl" />
                   </div>
                 ))}
               </div>
             ) : activities.length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {activities.map((activity, index) => (
-                  <div 
+                  <div
                     key={activity.id}
-                    className="relative flex items-start gap-4 pl-10 animate-slide-up"
-                    style={{ animationDelay: `${index * 100}ms` }}
+                    className="relative flex items-center gap-3 pl-10 animate-slide-up"
+                    style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
                   >
                     {/* Timeline dot */}
                     <div className={clsx(
-                      "absolute left-3 w-4 h-4 rounded-full bg-gradient-to-br border-2 border-dark-100 shadow-lg",
-                      activity.color
+                      'absolute left-3 w-4 h-4 rounded-full bg-gradient-to-br border-2 border-dark-100 shadow-md flex-shrink-0',
+                      activity.dot
                     )} />
-                    
-                    <div className="flex-1 p-3 bg-dark-200/50 rounded-xl hover:bg-dark-200 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className={clsx("w-8 h-8 rounded-lg bg-gradient-to-br flex items-center justify-center", activity.color)}>
-                          <activity.icon className="w-4 h-4 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-sm text-white">{activity.title}</p>
-                          <p className="text-xs text-gray-500">{activity.timeAgo}</p>
-                        </div>
+
+                    <div className="flex-1 flex items-center gap-3 px-3 py-2.5 bg-dark-200/40 hover:bg-dark-200/80 rounded-xl transition-colors">
+                      {/* Icon */}
+                      <div className={clsx('w-7 h-7 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0', activity.color)}>
+                        <activity.icon className="w-3.5 h-3.5 text-white" />
                       </div>
+                      {/* Text */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-white truncate leading-tight">{activity.title}</p>
+                        {activity.subtitle && (
+                          <p className="text-xs text-gray-500 truncate">{activity.subtitle}</p>
+                        )}
+                      </div>
+                      {/* Time */}
+                      <span className="text-[11px] text-gray-500 flex-shrink-0">{activity.timeAgo}</span>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="text-center py-12">
-                <div className="w-16 h-16 rounded-2xl bg-dark-200 flex items-center justify-center mx-auto mb-4">
-                  <Activity className="w-8 h-8 text-gray-600" />
+                <div className="w-14 h-14 rounded-2xl bg-dark-200 flex items-center justify-center mx-auto mb-3">
+                  <Activity className="w-7 h-7 text-gray-600" />
                 </div>
-                <p className="text-gray-500">{t('dashboard.noRecentActivity')}</p>
+                <p className="text-gray-500 text-sm">{t('dashboard.noRecentActivity')}</p>
+                <p className="text-gray-600 text-xs mt-1">No check-ins, sign-ups or payments today yet</p>
               </div>
             )}
           </div>

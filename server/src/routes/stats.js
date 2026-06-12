@@ -392,6 +392,73 @@ router.get('/reports', authenticateToken, async (req, res) => {
   }
 });
 
+// ── GET /api/stats/activity ──────────────────────────────────────────────────
+// Returns today's activity feed: check-ins, new members, payments — merged & sorted
+router.get('/activity', authenticateToken, async (req, res) => {
+  const gymId = req.user.gym_id;
+  if (!gymId) return res.status(403).json({ error: 'Gym access required' });
+  try {
+    const [checkIns, newMembers, payments] = await Promise.all([
+      // Today's check-ins
+      getAll(`
+        SELECT
+          a.id, 'check_in' AS type,
+          c.name AS customer_name,
+          a.check_in AS event_time,
+          NULL AS amount,
+          c.membership_type
+        FROM attendance a
+        JOIN customers c ON a.customer_id = c.id
+        WHERE a.gym_id = ?
+          AND a.check_in::date = CURRENT_DATE
+        ORDER BY a.check_in DESC
+        LIMIT 30
+      `, [gymId]),
+
+      // Today's new member registrations
+      getAll(`
+        SELECT
+          id, 'new_member' AS type,
+          name AS customer_name,
+          created_at AS event_time,
+          NULL AS amount,
+          membership_type
+        FROM customers
+        WHERE gym_id = ?
+          AND created_at::date = CURRENT_DATE
+        ORDER BY created_at DESC
+        LIMIT 10
+      `, [gymId]),
+
+      // Today's payments
+      getAll(`
+        SELECT
+          p.id, 'payment' AS type,
+          c.name AS customer_name,
+          p.created_at AS event_time,
+          p.amount,
+          p.membership_type
+        FROM payments p
+        JOIN customers c ON p.customer_id = c.id
+        WHERE p.gym_id = ?
+          AND p.created_at::date = CURRENT_DATE
+        ORDER BY p.created_at DESC
+        LIMIT 10
+      `, [gymId]),
+    ]);
+
+    // Merge and sort newest first
+    const feed = [...checkIns, ...newMembers, ...payments]
+      .sort((a, b) => new Date(b.event_time) - new Date(a.event_time))
+      .slice(0, 30);
+
+    res.json(feed);
+  } catch (error) {
+    console.error('Activity feed error:', error);
+    res.status(500).json({ error: 'Failed to load activity feed' });
+  }
+});
+
 // Get revenue stats for revenue page
 router.get('/revenue', authenticateToken, async (req, res) => {
   try {
