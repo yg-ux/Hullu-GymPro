@@ -46,6 +46,14 @@ async function request(endpoint, options = {}) {
   }
   
   if (!response.ok) {
+    // Token missing or expired — clear storage and redirect to login
+    if (response.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('gym');
+      localStorage.removeItem('subscription');
+      window.location.href = '/login';
+      throw new Error('Session expired. Please log in again.');
+    }
     // Fire global gate modal when the server blocks a write due to expired subscription
     if (response.status === 403 && data?.subscription_valid === false) {
       window.dispatchEvent(new CustomEvent('subscription-expired'));
