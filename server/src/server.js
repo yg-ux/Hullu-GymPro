@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import cron from 'node-cron';
 import { initDatabase } from './models/database.js';
 import authRoutes from './routes/auth.js';
 import customerRoutes from './routes/customers.js';
@@ -276,6 +277,16 @@ async function startServer() {
   try {
     await initDatabase();
     console.log('✅ Database ready');
+
+    // Run SMS reminders every day at 08:00 AM (Africa/Addis_Ababa = UTC+3)
+    cron.schedule('0 5 * * *', () => {
+      console.log('⏰ Daily cron: running SMS reminders...');
+      reminderService.runAllChecks().catch(e =>
+        console.error('Cron reminder error:', e.message)
+      );
+    }, { timezone: 'UTC' });
+    console.log('📅 Daily SMS reminder cron scheduled (08:00 EAT / 05:00 UTC)');
+
     app.listen(PORT, () => {
       console.log(`🏋️ Hullu Gym Server running on http://localhost:${PORT}`);
       console.log(`📊 API available at http://localhost:${PORT}/api`);
