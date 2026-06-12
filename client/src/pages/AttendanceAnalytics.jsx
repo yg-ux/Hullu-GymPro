@@ -307,44 +307,163 @@ function StatCard({ title, value, icon: Icon, color, sub, isText }) {
 }
 
 function DailyChart({ data, t }) {
+  const [hovered, setHovered] = useState(null);
+
   if (!data || data.length === 0) {
     return (
-      <div className="h-40 flex items-center justify-center text-gray-500 text-sm">
+      <div className="h-40 flex flex-col items-center justify-center text-gray-500 text-sm gap-2">
+        <BarChart3 className="w-8 h-8 opacity-30" />
         {t('analytics.noData')}
       </div>
     );
   }
 
-  const maxVisits = Math.max(...data.map(d => parseInt(d.visits) || 0), 1);
-  const chartH = 120;
+  const values = data.map(d => parseInt(d.visits) || 0);
+  const maxVisits = Math.max(...values, 1);
+  const totalVisits = values.reduce((a, b) => a + b, 0);
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // Chart dimensions
+  const W = 420, H = 140, PAD_LEFT = 28, PAD_BOTTOM = 32, PAD_TOP = 20;
+  const chartW = W - PAD_LEFT - 8;
+  const chartH = H - PAD_BOTTOM - PAD_TOP;
+  const colW = chartW / data.length;
+  const barW = Math.min(colW * 0.55, 36);
+
+  // Grid lines
+  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(f => ({
+    y: PAD_TOP + chartH * (1 - f),
+    label: f === 0 ? '' : Math.round(f * maxVisits),
+  }));
 
   return (
-    <div className="space-y-2">
-      <svg viewBox={`0 0 ${data.length * 60} ${chartH + 30}`} className="w-full" style={{ height: 'auto' }}>
-        {data.map((day, i) => {
-          const visits = parseInt(day.visits) || 0;
-          const barH = Math.max((visits / maxVisits) * chartH, visits > 0 ? 4 : 0);
-          const barY = chartH - barH;
-          const cx = i * 60 + 30;
-          const barW = 32;
-          const dateStr = typeof day.date === 'string' ? day.date.slice(0, 10) : new Date(day.date).toISOString().slice(0, 10);
-          const isToday = dateStr === new Date().toISOString().split('T')[0];
-          return (
-            <g key={dateStr}>
-              <rect x={cx - barW/2} y={barY} width={barW} height={barH}
-                rx={4} fill={isToday ? 'rgb(var(--gym-400-rgb))' : 'rgb(var(--gym-500-rgb) / 0.5)'} />
-              <text x={cx} y={chartH + 16} textAnchor="middle" fill="#6b7280" fontSize="10">
-                {new Date(dateStr + 'T00:00:00').toLocaleDateString('en', { weekday: 'short' })}
-              </text>
-              {visits > 0 && (
-                <text x={cx} y={barY - 4} textAnchor="middle" fill="#9ca3af" fontSize="9">
-                  {visits}
-                </text>
+    <div className="space-y-3">
+      {/* Mini summary row */}
+      <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+        <span>{totalVisits} total check-ins this week</span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-gym-400 inline-block" />
+          Today
+          <span className="w-2 h-2 rounded-full bg-gym-600/60 inline-block ml-2" />
+          Other days
+        </span>
+      </div>
+
+      {/* SVG Chart */}
+      <div className="relative">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 'auto', overflow: 'visible' }}>
+          <defs>
+            <linearGradient id="barGradToday" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="rgb(var(--gym-400-rgb))" stopOpacity="1" />
+              <stop offset="100%" stopColor="rgb(var(--gym-600-rgb))" stopOpacity="0.7" />
+            </linearGradient>
+            <linearGradient id="barGradOther" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="rgb(var(--gym-500-rgb))" stopOpacity="0.55" />
+              <stop offset="100%" stopColor="rgb(var(--gym-700-rgb))" stopOpacity="0.25" />
+            </linearGradient>
+            <linearGradient id="barGradHover" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="rgb(var(--gym-300-rgb))" stopOpacity="1" />
+              <stop offset="100%" stopColor="rgb(var(--gym-500-rgb))" stopOpacity="0.8" />
+            </linearGradient>
+          </defs>
+
+          {/* Grid lines */}
+          {gridLines.map(({ y, label }) => (
+            <g key={y}>
+              <line x1={PAD_LEFT} y1={y} x2={W - 8} y2={y}
+                stroke="rgba(255,255,255,0.05)" strokeWidth="1" strokeDasharray={label ? '4 4' : '0'} />
+              {label > 0 && (
+                <text x={PAD_LEFT - 4} y={y + 3.5} textAnchor="end"
+                  fill="#4b5563" fontSize="8" fontFamily="monospace">{label}</text>
               )}
             </g>
+          ))}
+
+          {/* Baseline */}
+          <line x1={PAD_LEFT} y1={PAD_TOP + chartH} x2={W - 8} y2={PAD_TOP + chartH}
+            stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+
+          {/* Bars */}
+          {data.map((day, i) => {
+            const visits = parseInt(day.visits) || 0;
+            const dateStr = typeof day.date === 'string' ? day.date.slice(0, 10) : new Date(day.date).toISOString().slice(0, 10);
+            const isToday = dateStr === todayStr;
+            const isHovered = hovered === i;
+            const barH = Math.max((visits / maxVisits) * chartH, visits > 0 ? 6 : 0);
+            const cx = PAD_LEFT + colW * i + colW / 2;
+            const barX = cx - barW / 2;
+            const barY = PAD_TOP + chartH - barH;
+            const weekday = new Date(dateStr + 'T12:00:00').toLocaleDateString('en', { weekday: 'short' });
+            const fill = isHovered ? 'url(#barGradHover)' : isToday ? 'url(#barGradToday)' : 'url(#barGradOther)';
+            const r = Math.min(6, barW / 2);
+
+            return (
+              <g key={dateStr}
+                onMouseEnter={() => setHovered(i)}
+                onMouseLeave={() => setHovered(null)}
+                style={{ cursor: 'default' }}>
+
+                {/* Hover background column */}
+                <rect x={cx - colW * 0.45} y={PAD_TOP} width={colW * 0.9} height={chartH}
+                  fill={isHovered ? 'rgba(255,255,255,0.03)' : 'transparent'}
+                  rx={6} />
+
+                {/* Bar with rounded top */}
+                {barH > 0 && (
+                  <path
+                    d={`M${barX + r},${barY} h${barW - r * 2} a${r},${r} 0 0 1 ${r},${r} v${barH - r} h-${barW} v-${barH - r} a${r},${r} 0 0 1 ${r},-${r}z`}
+                    fill={fill}
+                  />
+                )}
+
+                {/* Today dot indicator */}
+                {isToday && (
+                  <circle cx={cx} cy={PAD_TOP + chartH + 20} r={2.5}
+                    fill="rgb(var(--gym-400-rgb))" />
+                )}
+
+                {/* Day label */}
+                <text x={cx} y={PAD_TOP + chartH + 14} textAnchor="middle"
+                  fill={isToday ? 'rgb(var(--gym-400-rgb))' : isHovered ? '#d1d5db' : '#6b7280'}
+                  fontSize="10" fontWeight={isToday ? '700' : '400'}>
+                  {weekday}
+                </text>
+
+                {/* Value label above bar */}
+                {(visits > 0 || isHovered) && (
+                  <text x={cx} y={barH > 0 ? barY - 5 : PAD_TOP + chartH - 5}
+                    textAnchor="middle"
+                    fill={isToday ? 'rgb(var(--gym-300-rgb))' : isHovered ? '#e5e7eb' : '#9ca3af'}
+                    fontSize="9.5" fontWeight="600">
+                    {visits}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+
+        {/* Tooltip */}
+        {hovered !== null && (() => {
+          const day = data[hovered];
+          const visits = parseInt(day.visits) || 0;
+          const dateStr = typeof day.date === 'string' ? day.date.slice(0, 10) : new Date(day.date).toISOString().slice(0, 10);
+          const isToday = dateStr === todayStr;
+          const label = new Date(dateStr + 'T12:00:00').toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' });
+          const pct = totalVisits > 0 ? Math.round((visits / totalVisits) * 100) : 0;
+          return (
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 pointer-events-none z-20
+              bg-gray-900/95 border border-gray-700 rounded-xl px-3 py-2 shadow-2xl text-center whitespace-nowrap">
+              <p className="text-white font-semibold text-sm">
+                {visits} {visits === 1 ? 'visit' : 'visits'}
+                {isToday && <span className="ml-1.5 text-[10px] text-gym-400 font-normal">Today</span>}
+              </p>
+              <p className="text-gray-400 text-xs mt-0.5">{label}</p>
+              {totalVisits > 0 && <p className="text-gray-600 text-[10px] mt-0.5">{pct}% of week</p>}
+            </div>
           );
-        })}
-      </svg>
+        })()}
+      </div>
     </div>
   );
 }
