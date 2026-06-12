@@ -14,6 +14,7 @@ import attendanceRoutes from './routes/attendance.js';
 import qrRoutes from './routes/qr.js';
 import reportsRoutes from './routes/reports.js';
 import adminRoutes from './routes/admin.js';
+import smsRoutes from './routes/sms.js';
 import { reminderService } from './services/reminderService.js';
 
 const app = express();
@@ -73,6 +74,7 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/qr', qrRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/admin', adminLimiter, adminRoutes);
+app.use('/api/sms', smsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -23,7 +23,12 @@ import {
   Shield,
   Server,
   UserCheck,
-  Download
+  Download,
+  Send,
+  RefreshCw,
+  Clock,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -574,6 +579,9 @@ export default function Settings() {
         </p>
       </div>
 
+      {/* ── SMS & Notifications ── */}
+      <SmsPanel toast={toast} />
+
       {/* ── Change Password ── */}
       <ChangePasswordForm toast={toast} t={t} />
     </div>
@@ -667,5 +675,277 @@ function ChangePasswordForm({ toast, t }) {
         </button>
       </div>
     </form>
+  );
+}
+
+// ── SMS & Notifications Panel ────────────────────────────────────────────────
+const SMS_TYPES = [
+  { id: 'welcome',   label: 'Welcome SMS',              desc: 'Sent when a new member is registered',            color: 'text-gym-400',     bg: 'bg-gym-500/10',     border: 'border-gym-500/20'    },
+  { id: 'payment',   label: 'Payment Confirmation',     desc: 'Sent after a payment is recorded',                color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20'},
+  { id: 'expiry_3d', label: 'Expiry Reminder (3 days)', desc: 'Sent 3 days before membership expires',           color: 'text-amber-400',   bg: 'bg-amber-500/10',   border: 'border-amber-500/20'  },
+  { id: 'expiry_1d', label: 'Expiry Reminder (1 day)',  desc: 'Sent the day before membership expires',          color: 'text-orange-400',  bg: 'bg-orange-500/10',  border: 'border-orange-500/20' },
+  { id: 'expiry_0d', label: 'Expiry Day Notice',        desc: 'Sent on the day membership expires',              color: 'text-red-400',     bg: 'bg-red-500/10',     border: 'border-red-500/20'    },
+];
+
+const TYPE_LABEL = {
+  welcome:   'Welcome',
+  payment:   'Payment',
+  expiry_3d: 'Expiry 3d',
+  expiry_1d: 'Expiry 1d',
+  expiry_0d: 'Expiry Today',
+  subscription_renewal_7d: 'Sub Renewal 7d',
+  subscription_renewal_1d: 'Sub Renewal 1d',
+};
+
+function SmsPanel({ toast }) {
+  const [tab, setTab] = useState('preview');
+  const [previews, setPreviews] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [expandedType, setExpandedType] = useState(null);
+
+  const [testPhone, setTestPhone] = useState('');
+  const [testType, setTestType] = useState('welcome');
+  const [testLoading, setTestLoading] = useState(false);
+
+  const [logs, setLogs] = useState([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+
+  const loadPreviews = useCallback(async () => {
+    setPreviewLoading(true);
+    try {
+      const data = await api.get('/sms/preview');
+      setPreviews(data);
+    } catch (e) {
+      toast.error('Failed to load SMS previews');
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, [toast]);
+
+  const loadLogs = useCallback(async () => {
+    setLogsLoading(true);
+    try {
+      const data = await api.get('/sms/logs');
+      setLogs(data);
+    } catch (e) {
+      toast.error('Failed to load SMS logs');
+    } finally {
+      setLogsLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (tab === 'preview' && !previews) loadPreviews();
+    if (tab === 'logs') loadLogs();
+  }, [tab]);
+
+  const sendTest = async () => {
+    if (!testPhone.trim()) { toast.error('Enter a phone number'); return; }
+    setTestLoading(true);
+    try {
+      const res = await api.post('/sms/send-test', { phone: testPhone.trim(), type: testType });
+      if (res.success) toast.success('Test SMS sent successfully!');
+      else toast.error(res.message || 'SMS failed to send');
+    } catch (e) {
+      toast.error(e.message || 'Failed to send test SMS');
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
+  const formatDate = (d) => {
+    if (!d) return '—';
+    return new Date(d).toLocaleString('en-ET', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  };
+
+  return (
+    <div className="card p-6 space-y-5">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-lg bg-gym-600/20 flex items-center justify-center">
+          <MessageSquare className="w-5 h-5 text-gym-400" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold text-white">SMS & Notifications</h2>
+          <p className="text-xs text-gray-500">Preview message templates, send tests, and check delivery history</p>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-dark-200 p-1 rounded-xl">
+        {[
+          { id: 'preview', label: 'Message Previews' },
+          { id: 'test',    label: 'Send Test SMS' },
+          { id: 'logs',    label: 'Delivery Log' },
+        ].map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={clsx(
+              'flex-1 py-2 px-3 text-sm font-medium rounded-lg transition-all',
+              tab === t.id ? 'bg-gym-600 text-white shadow' : 'text-gray-400 hover:text-white'
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Preview Tab ── */}
+      {tab === 'preview' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-500">Actual message text using your gym name. "Abebe Bikila" is a placeholder for the real member name.</p>
+            <button onClick={loadPreviews} className="p-1.5 text-gray-400 hover:text-white transition-colors" title="Refresh">
+              <RefreshCw className={clsx('w-4 h-4', previewLoading && 'animate-spin')} />
+            </button>
+          </div>
+
+          {previewLoading ? (
+            <div className="space-y-3">
+              {[1,2,3].map(i => <div key={i} className="h-16 bg-dark-200 rounded-xl animate-pulse" />)}
+            </div>
+          ) : !previews ? (
+            <button onClick={loadPreviews} className="w-full py-8 text-gym-400 text-sm hover:text-gym-300 transition-colors">
+              Click to load previews
+            </button>
+          ) : (
+            SMS_TYPES.map(type => (
+              <div key={type.id} className={clsx('border rounded-xl overflow-hidden', type.border)}>
+                <button
+                  onClick={() => setExpandedType(expandedType === type.id ? null : type.id)}
+                  className={clsx('w-full flex items-center justify-between px-4 py-3 transition-colors', type.bg)}
+                >
+                  <div className="flex items-center gap-3 text-left">
+                    <div>
+                      <p className={clsx('text-sm font-semibold', type.color)}>{type.label}</p>
+                      <p className="text-xs text-gray-500">{type.desc}</p>
+                    </div>
+                  </div>
+                  {expandedType === type.id
+                    ? <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    : <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+                </button>
+                {expandedType === type.id && (
+                  <div className="px-4 py-3 bg-dark-200/60 border-t border-gray-800">
+                    <p className="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap font-mono bg-dark-300 p-3 rounded-lg border border-gray-700">
+                      {previews[type.id] || <span className="text-gray-600 italic">Preview not available</span>}
+                    </p>
+                    <p className="text-xs text-gray-600 mt-2">{previews[type.id]?.length || 0} characters</p>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ── Test SMS Tab ── */}
+      {tab === 'test' && (
+        <div className="space-y-4">
+          <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-sm text-amber-200">
+            ⚠️ This sends a <strong>real SMS</strong> to the number you enter. Use it to verify your SMS service is working and check how messages look on a real phone.
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1.5">Phone Number</label>
+            <input
+              type="tel"
+              value={testPhone}
+              onChange={e => setTestPhone(e.target.value)}
+              placeholder="e.g. 0912345678 or 251912345678"
+              className="input w-full"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1.5">Message Type</label>
+            <select value={testType} onChange={e => setTestType(e.target.value)} className="input w-full">
+              {SMS_TYPES.map(t => (
+                <option key={t.id} value={t.id}>{t.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            onClick={sendTest}
+            disabled={testLoading}
+            className="btn-primary w-full flex items-center justify-center gap-2"
+          >
+            {testLoading
+              ? <><RefreshCw className="w-4 h-4 animate-spin" /> Sending…</>
+              : <><Send className="w-4 h-4" /> Send Test SMS</>}
+          </button>
+        </div>
+      )}
+
+      {/* ── Logs Tab ── */}
+      {tab === 'logs' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-500">Last 100 SMS attempts for your gym</p>
+            <button onClick={loadLogs} className="p-1.5 text-gray-400 hover:text-white transition-colors" title="Refresh">
+              <RefreshCw className={clsx('w-4 h-4', logsLoading && 'animate-spin')} />
+            </button>
+          </div>
+
+          {logsLoading ? (
+            <div className="space-y-2">
+              {[1,2,3,4].map(i => <div key={i} className="h-12 bg-dark-200 rounded-lg animate-pulse" />)}
+            </div>
+          ) : logs.length === 0 ? (
+            <div className="py-12 text-center text-gray-500 text-sm">
+              <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              No SMS logs yet. Logs appear here once members are added or reminders run.
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-gray-800">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-dark-200 text-xs text-gray-500 uppercase tracking-wider">
+                    <th className="text-left px-4 py-2.5">Date</th>
+                    <th className="text-left px-4 py-2.5">Customer</th>
+                    <th className="text-left px-4 py-2.5">Phone</th>
+                    <th className="text-left px-4 py-2.5">Type</th>
+                    <th className="text-left px-4 py-2.5">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {logs.map(log => (
+                    <tr key={log.id} className="hover:bg-dark-200/50 transition-colors">
+                      <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-3 h-3 opacity-50" />
+                          {formatDate(log.created_at)}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-white">{log.customer_name || <span className="text-gray-600">—</span>}</td>
+                      <td className="px-4 py-3 text-gray-300 font-mono text-xs">{log.phone}</td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 rounded-full text-xs bg-dark-300 text-gray-300">
+                          {TYPE_LABEL[log.message_type] || log.message_type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={clsx(
+                          'flex items-center gap-1 w-fit px-2 py-0.5 rounded-full text-xs font-medium',
+                          log.status === 'sent'   ? 'bg-emerald-500/15 text-emerald-400' :
+                          log.status === 'failed' ? 'bg-red-500/15 text-red-400' :
+                                                    'bg-gray-500/15 text-gray-400'
+                        )}>
+                          {log.status === 'sent' && <CheckCircle className="w-3 h-3" />}
+                          {log.status === 'failed' && <AlertCircle className="w-3 h-3" />}
+                          {log.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
