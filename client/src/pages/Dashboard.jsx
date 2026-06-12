@@ -585,8 +585,8 @@ export default function Dashboard() {
             </h2>
             <div className="space-y-4">
               {stats.payment_methods.map((method, index) => {
-                const maxCount = Math.max(...stats.payment_methods.map(m => m.count));
-                const percentage = maxCount > 0 ? (method.count / maxCount) * 100 : 0;
+                const maxCount = Math.max(...stats.payment_methods.map(m => parseInt(m.count, 10)));
+                const percentage = maxCount > 0 ? (parseInt(method.count, 10) / maxCount) * 100 : 0;
 
                 return (
                   <div key={method.payment_method} className="animate-slide-up" style={{ animationDelay: `${index * 100}ms` }}>
@@ -1408,20 +1408,22 @@ function AnimatedBarChart({ data, animated }) {
 }
 
 function AnimatedPieChart({ data, animated }) {
-  const total = data.reduce((sum, item) => sum + item.count, 0);
+  // pg returns COUNT(*) as string (bigint) — parse to int before arithmetic
+  const total = data.reduce((sum, item) => sum + parseInt(item.count, 10), 0);
   const colors = ['from-gym-500 to-gym-600', 'from-gym-400 to-gym-500', 'from-emerald-500 to-emerald-600', 'from-gym-300 to-gym-400', 'from-amber-500 to-amber-600'];
   const textColors = ['text-gym-400', 'text-gym-300', 'text-emerald-400', 'text-gym-200', 'text-amber-400'];
-  
+
   return (
     <div className="space-y-4">
       {data.map((item, index) => {
-        const percentage = total > 0 ? Math.round((item.count / total) * 100) : 0;
+        const count = parseInt(item.count, 10);
+        const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
         
         return (
           <div key={item.membership_type} className="animate-slide-up" style={{ animationDelay: `${index * 100}ms` }}>
             <div className="flex justify-between text-sm mb-2">
               <span className={textColors[index % textColors.length]}>{getMembershipLabel(item.membership_type)}</span>
-              <span className="text-gray-400">{item.count} ({percentage}%)</span>
+              <span className="text-gray-400">{count} ({percentage}%)</span>
             </div>
             <div className="h-4 bg-dark-200 rounded-full overflow-hidden flex">
               <div 
