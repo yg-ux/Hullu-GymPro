@@ -382,11 +382,11 @@ router.get('/stats', authenticateToken, async (req, res) => {
 
     const peakHours = await getAll(`
       SELECT
-        TO_CHAR(check_in, 'HH24') as hour,
+        TO_CHAR(check_in AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Addis_Ababa', 'HH24') as hour,
         COUNT(*) as visits
       FROM attendance
       WHERE gym_id = ? AND check_in::date >= CURRENT_DATE - INTERVAL '30 days'
-      GROUP BY TO_CHAR(check_in, 'HH24')
+      GROUP BY TO_CHAR(check_in AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Addis_Ababa', 'HH24')
       ORDER BY visits DESC
       LIMIT 5
     `, [gymId]);
