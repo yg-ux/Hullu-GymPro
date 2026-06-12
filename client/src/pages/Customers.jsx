@@ -541,25 +541,31 @@ export default function Customers() {
                     {getMembershipLabel(customer.membership_type)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Clock className={clsx("w-4 h-4 flex-shrink-0", getDaysColor(customer.days_until_expiry))} />
-                      <span className={clsx("text-sm font-medium", getDaysColor(customer.days_until_expiry))}>
-                        <span className="hidden sm:inline">{getDaysDisplay(customer)}</span>
-                        <span className="sm:hidden">
-                          {customer.days_until_expiry > 0
-                            ? t('customers.daysShort').replace('{n}', customer.days_until_expiry)
-                            : customer.days_until_expiry === 0
-                            ? t('customers.today')
-                            : t('customers.daysOverShort').replace('{n}', Math.abs(customer.days_until_expiry))}
-                        </span>
+                    {customer.membership_type === 'daily' ? (
+                      <span className="text-amber-400 text-sm font-medium">
+                        🎫 {Math.max(0, (customer.total_sessions || 0) - (customer.sessions_used || 0))} passes
                       </span>
-                    </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <Clock className={clsx("w-4 h-4 flex-shrink-0", getDaysColor(customer.days_until_expiry))} />
+                        <span className={clsx("text-sm font-medium", getDaysColor(customer.days_until_expiry))}>
+                          <span className="hidden sm:inline">{getDaysDisplay(customer)}</span>
+                          <span className="sm:hidden">
+                            {customer.days_until_expiry > 0
+                              ? t('customers.daysShort').replace('{n}', customer.days_until_expiry)
+                              : customer.days_until_expiry === 0
+                              ? t('customers.today')
+                              : t('customers.daysOverShort').replace('{n}', Math.abs(customer.days_until_expiry))}
+                          </span>
+                        </span>
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3 hidden sm:table-cell">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-gray-500" />
                       <span className="text-sm text-gray-300">
-                        {formatDate(customer.membership_end)}
+                        {customer.membership_type === 'daily' ? '—' : formatDate(customer.membership_end)}
                       </span>
                     </div>
                   </td>
@@ -706,29 +712,53 @@ function CustomerCard({ customer, onClick, onCheckIn, onCheckOut, isCheckedIn, g
           </span>
         </div>
 
-        {/* Days Left - Progress Ring */}
-        <div className="w-full p-3 bg-dark-200/50 rounded-xl mb-3">
-          <div className="flex items-center justify-center gap-3">
-            <ProgressRing 
-              progress={Math.max(0, Math.min(100, (customer.days_until_expiry / 30) * 100))}
-              status={customer.status}
-              size={32}
-            />
-            <div className="text-center">
-              <span className={clsx("font-bold text-xl", getDaysColor(customer.days_until_expiry))}>
-                {customer.days_until_expiry > 0 ? customer.days_until_expiry : 0}
-              </span>
-              <span className="text-gray-400 text-sm ml-1">{t('customers.days')}</span>
+        {/* Days Left / Passes Left */}
+        {customer.membership_type === 'daily' ? (
+          <div className="w-full p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl mb-3">
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-amber-400 text-lg">🎫</span>
+              <div className="text-center">
+                <span className={clsx("font-bold text-xl",
+                  (customer.total_sessions - customer.sessions_used) > 3 ? "text-green-400"
+                  : (customer.total_sessions - customer.sessions_used) > 0 ? "text-yellow-400"
+                  : "text-red-400"
+                )}>
+                  {Math.max(0, (customer.total_sessions || 0) - (customer.sessions_used || 0))}
+                </span>
+                <span className="text-gray-400 text-sm ml-1">{t('customers.passesLeft') || 'passes left'}</span>
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="w-full p-3 bg-dark-200/50 rounded-xl mb-3">
+            <div className="flex items-center justify-center gap-3">
+              <ProgressRing
+                progress={Math.max(0, Math.min(100, (customer.days_until_expiry / 30) * 100))}
+                status={customer.status}
+                size={32}
+              />
+              <div className="text-center">
+                <span className={clsx("font-bold text-xl", getDaysColor(customer.days_until_expiry))}>
+                  {customer.days_until_expiry > 0 ? customer.days_until_expiry : 0}
+                </span>
+                <span className="text-gray-400 text-sm ml-1">{t('customers.days')}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Expiry */}
         <div className="w-full pt-3 border-t border-gray-800/50">
           <div className="flex items-center justify-center gap-2 text-sm">
             <Calendar className="w-4 h-4 text-gray-500" />
-            <span className="text-gray-400">{t('customers.expiresLabel')} </span>
-            <span className="text-gray-300">{formatDate(customer.membership_end)}</span>
+            {customer.membership_type === 'daily' ? (
+              <span className="text-amber-400 font-medium">{t('customers.dailyPassLabel') || 'Daily Walk-in Pass'}</span>
+            ) : (
+              <>
+                <span className="text-gray-400">{t('customers.expiresLabel')} </span>
+                <span className="text-gray-300">{formatDate(customer.membership_end)}</span>
+              </>
+            )}
           </div>
         </div>
 
