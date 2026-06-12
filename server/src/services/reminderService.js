@@ -28,7 +28,7 @@ class ReminderService {
     console.log('🔔 Checking membership expirations...');
     try {
       const expiringCustomers = await getAll(`
-        SELECT c.*, g.name as gym_name, g.sms_enabled, g.id as gym_id_ref
+        SELECT c.*, g.name as gym_name, g.phone as gym_phone, g.sms_enabled, g.id as gym_id_ref
         FROM customers c
         JOIN gyms g ON c.gym_id = g.id
         WHERE c.status IN ('active', 'expiring')
@@ -59,7 +59,7 @@ class ReminderService {
         try {
           const result = await smsService.sendMembershipExpiryReminder(
             customer,
-            { name: customer.gym_name },
+            { id: customer.gym_id, name: customer.gym_name, phone: customer.gym_phone },
             daysLeft
           );
           const status = result?.success ? 'sent' : 'failed';

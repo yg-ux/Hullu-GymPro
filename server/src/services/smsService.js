@@ -1,4 +1,6 @@
-﻿/**
+﻿import { getOne } from '../models/database.js';
+
+/**
  * GeezSMS Integration Service
  * Handles all SMS notifications for GymPro
  */
@@ -91,12 +93,43 @@ class SmsService {
     }
   }
 
+  // Fetch a gym-specific custom template; returns null if none saved
+  async _getCustomTemplate(gymId, key) {
+    if (!gymId) return null;
+    try {
+      const row = await getOne(`SELECT value FROM settings WHERE gym_id = ? AND key = ?`, [gymId, key]);
+      return row?.value || null;
+    } catch { return null; }
+  }
+
+  // Replace {variable} placeholders in a template string
+  _render(template, vars) {
+    return Object.entries(vars).reduce(
+      (s, [k, v]) => s.replaceAll(`{${k}}`, v ?? ''), template
+    );
+  }
+
   /**
    * Send welcome SMS when customer registers for the first time
    * @param {object} customer - Customer object
    * @param {object} gym - Gym object
    */
   async sendWelcomeSms(customer, gym) {
+    // Check for custom template first
+    const customWelcome = await this._getCustomTemplate(gym?.id, 'sms_welcome');
+    if (customWelcome) {
+      const message = this._render(customWelcome, {
+        name: customer.name || '',
+        gym: gym.name || '',
+        amount: customer.amount ? `ETB ${parseFloat(customer.amount).toLocaleString()}` : '',
+        expiry_date: customer.membership_end
+          ? new Date(customer.membership_end).toLocaleDateString('en-ET', { day: 'numeric', month: 'short', year: 'numeric' })
+          : '',
+        duration: customer.membership_type?.replace(/_/g, ' ') || 'monthly',
+        gym_phone: gym.phone || '',
+      });
+      return await this.sendSms(customer.phone, message);
+    }
     const amount = customer.amount ? `ETB ${bi(parseFloat(customer.amount).toLocaleString())}` : null;
     const end = customer.membership_end
       ? new Date(customer.membership_end).toLocaleDateString('en-ET', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -127,6 +160,20 @@ class SmsService {
    * @param {object} gym - Gym object
    */
   async sendPaymentConfirmation(customer, payment, gym) {
+    const customPayment = await this._getCustomTemplate(gym?.id, 'sms_payment');
+    if (customPayment) {
+      const message = this._render(customPayment, {
+        name: customer.name || '',
+        gym: gym.name || '',
+        amount: payment.amount ? parseFloat(payment.amount).toLocaleString() : '',
+        expiry_date: payment.end_date
+          ? new Date(payment.end_date).toLocaleDateString('en-ET', { day: 'numeric', month: 'short', year: 'numeric' })
+          : '',
+        duration: customer.membership_type?.replace(/_/g, ' ') || 'membership',
+        gym_phone: gym.phone || '',
+      });
+      return await this.sendSms(customer.phone, message);
+    }
     const amount = bi(parseFloat(payment.amount).toLocaleString());
     const duration = customer.membership_type ? customer.membership_type.replace(/_/g, ' ') : 'membership';
     const endDate = payment.end_date
@@ -148,6 +195,17 @@ class SmsService {
    * @param {number} daysLeft - Days until expiry
    */
   async sendMembershipExpiryReminder(customer, gym, daysLeft) {
+    const templateKey = daysLeft <= 0 ? 'sms_expiry_today' : daysLeft === 1 ? 'sms_expiry_tomorrow' : 'sms_expiry_soon';
+    const customExpiry = await this._getCustomTemplate(gym?.id, templateKey);
+    if (customExpiry) {
+      const message = this._render(customExpiry, {
+        name: customer.name || '',
+        gym: gym.name || '',
+        days_left: String(daysLeft),
+        gym_phone: gym.phone || '',
+      });
+      return await this.sendSms(customer.phone, message);
+    }
     let message;
     if (daysLeft <= 0) {
       message = `Hi ${customer.name}, your membership at ${gym.name} has expired today. Don't let the momentum stop — renew now and keep going! 🔥`;

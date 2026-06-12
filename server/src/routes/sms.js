@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticateToken } from './auth.js';
-import { getAll, getOne } from '../models/database.js';
+import { getAll, getOne, runQuery } from '../models/database.js';
 import { smsService } from '../services/smsService.js';
 
 const router = express.Router();
@@ -120,6 +120,61 @@ router.post('/send-test', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('SMS test send error:', error);
     res.status(500).json({ error: 'Failed to send test SMS' });
+  }
+});
+
+// ── GET /api/sms/templates ───────────────────────────────────────────────────
+// Get all custom SMS templates for this gym
+router.get('/templates', authenticateToken, async (req, res) => {
+  const gymId = req.user.gym_id;
+  if (!gymId) return res.status(403).json({ error: 'Gym access required' });
+  try {
+    const rows = await getAll(
+      `SELECT key, value FROM settings WHERE gym_id = ? AND key LIKE 'sms_%'`,
+      [gymId]
+    );
+    const templates = {};
+    rows.forEach(r => { templates[r.key] = r.value; });
+    res.json(templates);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get templates' });
+  }
+});
+
+// ── PUT /api/sms/templates/:key ──────────────────────────────────────────────
+// Save a custom template
+router.put('/templates/:key', authenticateToken, async (req, res) => {
+  const gymId = req.user.gym_id;
+  if (!gymId) return res.status(403).json({ error: 'Gym access required' });
+  const { key } = req.params;
+  const { value } = req.body;
+  const allowedKeys = ['sms_welcome', 'sms_payment', 'sms_expiry_soon', 'sms_expiry_tomorrow', 'sms_expiry_today'];
+  if (!allowedKeys.includes(key)) return res.status(400).json({ error: 'Invalid template key' });
+  if (!value || !value.trim()) return res.status(400).json({ error: 'Template text required' });
+  if (value.length > 335) return res.status(400).json({ error: 'Template too long (max 335 characters)' });
+  try {
+    const existing = await getOne(`SELECT key FROM settings WHERE gym_id = ? AND key = ?`, [gymId, key]);
+    if (existing) {
+      await runQuery(`UPDATE settings SET value = ? WHERE gym_id = ? AND key = ?`, [value.trim(), gymId, key]);
+    } else {
+      await runQuery(`INSERT INTO settings (gym_id, key, value) VALUES (?, ?, ?)`, [gymId, key, value.trim()]);
+    }
+    res.json({ message: 'Template saved' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to save template' });
+  }
+});
+
+// ── DELETE /api/sms/templates/:key ──────────────────────────────────────────
+// Reset a template to default (delete custom)
+router.delete('/templates/:key', authenticateToken, async (req, res) => {
+  const gymId = req.user.gym_id;
+  if (!gymId) return res.status(403).json({ error: 'Gym access required' });
+  try {
+    await runQuery(`DELETE FROM settings WHERE gym_id = ? AND key = ?`, [gymId, req.params.key]);
+    res.json({ message: 'Template reset to default' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to reset template' });
   }
 });
 

@@ -13,7 +13,23 @@
       "mcp__Claude_in_Chrome__tabs_context_mcp",
       "Bash(git commit -m 'fix: admin login and dashboard use VITE_API_URL instead of hardcoded relative URL *)",
       "Bash(git commit -m 'Upgrade @libsql/client to 0.14.x, require Node 20 *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(git reset *)",
+      "Bash(git revert *)",
+      "Bash(npm uninstall *)",
+      "Bash(npm run *)",
+      "Bash(gh run *)",
+      "Bash(cat server/.env)",
+      "Bash(cat server/.env.example)",
+      "Bash(curl -s -X POST https://hullu-gympro.onrender.com/api/admin/login -H \"Content-Type: application/json\" -d '{\"email\":\"akaluyg@gmail.com\",\"password\":\"911677153#Aa\"}')",
+      "Bash(curl -s https://hullu-gympro.onrender.com/api/health)",
+      "Bash(curl -s -X POST https://hullu-gympro.onrender.com/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"test-1781153599193@hullutest.com\",\"password\":\"Test1234!\"}')",
+      "Bash(python -m json.tool)",
+      "Bash(node -e ' *)",
+      "Bash(findstr /i \"depend\\\\|postgres\\\\|pg\\\\|neon\\\\|db\")",
+      "Bash(netstat -ano)",
+      "Bash(findstr \":3000 \\\\|:5173 \")",
+      "Bash(grep -v \"//\")"
     ]
   }
 }

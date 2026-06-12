@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { background: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 60px; min-height: 100vh; margin: 0; padding: 40px; box-sizing: border-box; }
+    .row { display: flex; align-items: center; gap: 50px; flex-wrap: wrap; justify-content: center; }
+    .item { display: flex; flex-direction: column; align-items: center; gap: 10px; color: #64748b; font-family: sans-serif; font-size: 12px; }
+    h2 { font-family: sans-serif; color: #334155; margin: 0; }
+    .dark { background: #0f172a; padding: 40px 60px; border-radius: 16px; }
+  </style>
+</head>
+<body>
+
+  <h2>On light background</h2>
+  <div class="row">
+    <div class="item"><img src="logo.svg" width="380" height="160"/><span>Full size</span></div>
+  </div>
+  <div class="row">
+    <div class="item"><img src="logo.svg" width="240" height="101"/><span>240px</span></div>
+    <div class="item"><img src="logo.svg" width="160" height="67"/><span>160px</span></div>
+    <div class="item"><img src="logo.svg" width="100" height="42"/><span>100px</span></div>
+  </div>
+
+  <h2>On dark background</h2>
+  <div class="dark">
+    <div class="row">
+      <div class="item" style="color:#475569"><img src="logo.svg" width="300" height="126"/><span style="color:#475569">300px</span></div>
+    </div>
+  </div>
+
+</body>
+</html>

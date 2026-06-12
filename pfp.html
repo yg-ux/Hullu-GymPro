@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@800;900&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 800px; height: 800px;
+    font-family: 'Inter', sans-serif;
+    overflow: hidden;
+    background: #000;
+  }
+
+  .pfp {
+    width: 800px; height: 800px;
+    background: linear-gradient(145deg, #060b1a 0%, #0d1730 100%);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    gap: 0;
+  }
+
+  /* Glow rings */
+  .ring1 {
+    position: absolute;
+    width: 620px; height: 620px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(37,99,235,0.2);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .ring2 {
+    position: absolute;
+    width: 480px; height: 480px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(124,58,237,0.2);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .glow {
+    position: absolute;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(37,99,235,0.25) 0%, transparent 65%);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+  }
+
+  /* Logo */
+  .logo-wrap {
+    position: relative;
+    width: 200px; height: 200px;
+    border-radius: 48px;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 6px rgba(37,99,235,0.3),
+      0 0 60px rgba(37,99,235,0.6),
+      0 0 120px rgba(124,58,237,0.3);
+    margin-bottom: 32px;
+    flex-shrink: 0;
+  }
+
+  /* Name */
+  .name {
+    font-size: 72px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+    letter-spacing: -2px;
+    text-align: center;
+  }
+
+  /* Tagline English */
+  .tagline-en {
+    font-size: 18px;
+    font-weight: 800;
+    color: #475569;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 10px;
+    text-align: center;
+  }
+
+  /* Tagline Amharic */
+  .tagline-am {
+    font-size: 22px;
+    font-weight: 800;
+    color: #7dd3fc;
+    margin-top: 8px;
+    text-align: center;
+    letter-spacing: 0.5px;
+  }
+
+  /* Bottom gradient bar */
+  .bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 5px;
+    background: linear-gradient(90deg, #2563eb, #7c3aed, #ec4899);
+  }
+
+  /* Corner dots */
+  .dot {
+    position: absolute;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: rgba(37,99,235,0.5);
+  }
+  .dot.tl { top: 32px; left: 32px; }
+  .dot.tr { top: 32px; right: 32px; }
+  .dot.bl { bottom: 24px; left: 32px; }
+  .dot.br { bottom: 24px; right: 32px; }
+</style>
+</head>
+<body>
+<div class="pfp">
+  <div class="glow"></div>
+  <div class="ring1"></div>
+  <div class="ring2"></div>
+
+  <div class="dot tl"></div>
+  <div class="dot tr"></div>
+  <div class="dot bl"></div>
+  <div class="dot br"></div>
+
+  <!-- Logo -->
+  <div class="logo-wrap">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="200" height="200">
+      <rect width="100" height="100" rx="0" fill="#2563eb"/>
+      <g transform="translate(2, 2) scale(4.08333)" stroke="white" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round" fill="none">
+        <path d="m6.5 6.5 11 11"/>
+        <path d="m21 21-1-1"/>
+        <path d="m3 3 1 1"/>
+        <path d="m18 22 4-4"/>
+        <path d="m2 6 4-4"/>
+        <path d="m3 10 7-7"/>
+        <path d="m14 21 7-7"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="name">Hullu Gyms</div>
+  <div class="tagline-en">Gym Management Platform</div>
+  <div class="tagline-am">ጂምዎን ያስተዳድሩ 💪</div>
+
+  <div class="bar"></div>
+</div>
+</body>
+</html>

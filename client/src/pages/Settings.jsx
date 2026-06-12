@@ -710,6 +710,105 @@ function SmsPanel({ toast }) {
   const [logs, setLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
 
+  const [templates, setTemplates] = useState({});
+  const [editValues, setEditValues] = useState({});
+  const [savingKey, setSavingKey] = useState(null);
+  const [resetingKey, setResetingKey] = useState(null);
+
+  const TEMPLATE_DEFS = [
+    {
+      key: 'sms_welcome',
+      label: 'Welcome SMS',
+      desc: 'Sent when a new member is registered',
+      vars: ['{name}', '{gym}', '{amount}', '{expiry_date}', '{duration}', '{gym_phone}'],
+      defaultText: `Hi {name}, you're officially registered at {gym}! 💪 Your {duration} membership is active — ETB {amount} received. Valid until {expiry_date}. Any questions? Call {gym_phone}.`,
+    },
+    {
+      key: 'sms_payment',
+      label: 'Payment Confirmation',
+      desc: 'Sent after a payment is recorded',
+      vars: ['{name}', '{gym}', '{amount}', '{expiry_date}', '{duration}', '{gym_phone}'],
+      defaultText: `Hi {name}, payment confirmed! ✅ ETB {amount} received for your {duration} at {gym}. You're covered until {expiry_date}. Keep showing up! 💪 Questions? Call {gym_phone}.`,
+    },
+    {
+      key: 'sms_expiry_soon',
+      label: 'Expiry Reminder (3+ days)',
+      desc: 'Sent a few days before membership expires',
+      vars: ['{name}', '{gym}', '{days_left}', '{gym_phone}'],
+      defaultText: `Hi {name}, your membership at {gym} expires in {days_left} days. Renew soon and stay on track! Call us at {gym_phone} to renew.`,
+    },
+    {
+      key: 'sms_expiry_tomorrow',
+      label: 'Expiry Reminder (1 day)',
+      desc: 'Sent the day before membership expires',
+      vars: ['{name}', '{gym}', '{gym_phone}'],
+      defaultText: `Hi {name}, heads up! Your membership at {gym} expires tomorrow. Renew today and keep that streak alive! 💪 Call {gym_phone}.`,
+    },
+    {
+      key: 'sms_expiry_today',
+      label: 'Expiry Day Notice',
+      desc: 'Sent on the day membership expires',
+      vars: ['{name}', '{gym}', '{gym_phone}'],
+      defaultText: `Hi {name}, your membership at {gym} has expired today. Don't let the momentum stop — renew now and keep going! 🔥 Call {gym_phone}.`,
+    },
+  ];
+
+  const loadTemplates = useCallback(async () => {
+    try {
+      const data = await api.get('/sms/templates');
+      setTemplates(data);
+      const vals = {};
+      TEMPLATE_DEFS.forEach(def => {
+        vals[def.key] = data[def.key] || def.defaultText;
+      });
+      setEditValues(vals);
+    } catch (e) {
+      toast.error('Failed to load templates');
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (tab === 'customize' && Object.keys(editValues).length === 0) loadTemplates();
+  }, [tab]);
+
+  const insertVar = (key, variable) => {
+    setEditValues(prev => {
+      const textarea = document.getElementById(`tpl-${key}`);
+      if (!textarea) return { ...prev, [key]: (prev[key] || '') + variable };
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const current = prev[key] || '';
+      return { ...prev, [key]: current.slice(0, start) + variable + current.slice(end) };
+    });
+  };
+
+  const saveTemplate = async (key) => {
+    setSavingKey(key);
+    try {
+      await api.put(`/sms/templates/${key}`, { value: editValues[key] });
+      setTemplates(prev => ({ ...prev, [key]: editValues[key] }));
+      toast.success('Template saved');
+    } catch (e) {
+      toast.error(e.message || 'Failed to save template');
+    } finally {
+      setSavingKey(null);
+    }
+  };
+
+  const resetTemplate = async (def) => {
+    setResetingKey(def.key);
+    try {
+      await api.delete(`/sms/templates/${def.key}`);
+      setTemplates(prev => { const n = { ...prev }; delete n[def.key]; return n; });
+      setEditValues(prev => ({ ...prev, [def.key]: def.defaultText }));
+      toast.success('Reset to default');
+    } catch (e) {
+      toast.error('Failed to reset');
+    } finally {
+      setResetingKey(null);
+    }
+  };
+
   const loadPreviews = useCallback(async () => {
     setPreviewLoading(true);
     try {
@@ -774,9 +873,10 @@ function SmsPanel({ toast }) {
       {/* Tabs */}
       <div className="flex gap-1 bg-dark-200 p-1 rounded-xl">
         {[
-          { id: 'preview', label: 'Message Previews' },
-          { id: 'test',    label: 'Send Test SMS' },
-          { id: 'logs',    label: 'Delivery Log' },
+          { id: 'preview',   label: 'Message Previews' },
+          { id: 'customize', label: 'Customize' },
+          { id: 'test',      label: 'Send Test' },
+          { id: 'logs',      label: 'Delivery Log' },
         ].map(t => (
           <button
             key={t.id}
@@ -876,6 +976,89 @@ function SmsPanel({ toast }) {
               ? <><RefreshCw className="w-4 h-4 animate-spin" /> Sending…</>
               : <><Send className="w-4 h-4" /> Send Test SMS</>}
           </button>
+        </div>
+      )}
+
+      {/* ── Customize Tab ── */}
+      {tab === 'customize' && (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500">
+            Write your messages in any language. Use the variable buttons to insert dynamic values. Changes save per template — unused templates use the default.
+          </p>
+          {TEMPLATE_DEFS.map(def => {
+            const isCustom = !!templates[def.key];
+            const val = editValues[def.key] || def.defaultText;
+            const charCount = val.length;
+            const overLimit = charCount > 335;
+            const isChanged = val !== (templates[def.key] || def.defaultText);
+            return (
+              <div key={def.key} className="border border-gray-800 rounded-xl overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 bg-dark-200/60">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-white">{def.label}</p>
+                      {isCustom && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-gym-500/20 text-gym-400 font-medium">Custom</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500">{def.desc}</p>
+                  </div>
+                </div>
+                <div className="p-4 space-y-3 bg-dark-300/30">
+                  {/* Variable chips */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {def.vars.map(v => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => insertVar(def.key, v)}
+                        className="px-2 py-0.5 text-xs bg-dark-200 border border-gray-700 text-gym-400 rounded-lg hover:bg-gym-500/10 hover:border-gym-500/40 transition-all font-mono"
+                      >
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Textarea */}
+                  <textarea
+                    id={`tpl-${def.key}`}
+                    value={val}
+                    onChange={e => setEditValues(prev => ({ ...prev, [def.key]: e.target.value }))}
+                    rows={4}
+                    className={clsx(
+                      'w-full bg-dark-200 border rounded-xl px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none resize-none transition-colors',
+                      overLimit ? 'border-red-500/60 focus:border-red-500' : 'border-gray-700 focus:border-gym-500/60'
+                    )}
+                  />
+                  {/* Footer */}
+                  <div className="flex items-center justify-between">
+                    <span className={clsx('text-xs', overLimit ? 'text-red-400 font-medium' : 'text-gray-500')}>
+                      {charCount}/335 characters{overLimit ? ' — too long!' : ''}
+                    </span>
+                    <div className="flex gap-2">
+                      {isCustom && (
+                        <button
+                          type="button"
+                          onClick={() => resetTemplate(def)}
+                          disabled={!!resetingKey}
+                          className="px-3 py-1.5 text-xs text-gray-400 border border-gray-700 rounded-lg hover:border-gray-500 hover:text-white transition-all disabled:opacity-50"
+                        >
+                          {resetingKey === def.key ? 'Resetting…' : 'Reset to default'}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => saveTemplate(def.key)}
+                        disabled={overLimit || !isChanged || !!savingKey}
+                        className="px-3 py-1.5 text-xs btn-primary disabled:opacity-40"
+                      >
+                        {savingKey === def.key ? 'Saving…' : 'Save'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
