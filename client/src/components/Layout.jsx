@@ -19,8 +19,6 @@ import {
   Settings,
   LogIn,
   LogOut as LogOutIcon,
-  Sun,
-  Moon,
   Bell,
   DollarSign,
   UserPlus,
@@ -84,19 +82,9 @@ export default function Layout() {
   // Track which notification IDs the user has already seen (persisted across reloads)
   const seenIdsRef  = useRef(new Set(JSON.parse(localStorage.getItem('notif_seen') || '[]')));
   const notifOpenRef = useRef(false);
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('darkMode');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
-
-  // Apply theme class and color theme
+  // Apply color theme CSS variables
   useEffect(() => {
-    localStorage.setItem('darkMode', JSON.stringify(darkMode));
-    document.documentElement.classList.toggle('light-mode', !darkMode);
-    
-    // Apply color theme as CSS variables
     const colorTheme = gym?.color_theme || 'default';
-    // Space-separated RGB values for Tailwind <alpha-value> and modern rgb() syntax
     const themeScales = {
       default:   { r300:'125 211 252', r400:'56 189 248',  r500:'14 165 233',  r600:'2 132 199',   r700:'3 105 161'  },
       indigo:    { r300:'165 180 252', r400:'129 140 248', r500:'99 102 241',  r600:'79 70 229',   r700:'67 56 202'  },
@@ -117,7 +105,7 @@ export default function Layout() {
     document.documentElement.style.setProperty('--gym-500-rgb', s.r500);
     document.documentElement.style.setProperty('--gym-600-rgb', s.r600);
     document.documentElement.style.setProperty('--gym-700-rgb', s.r700);
-  }, [darkMode, gym?.color_theme]);
+  }, [gym?.color_theme]);
 
   const handleLogout = () => {
     logout();
@@ -581,18 +569,6 @@ export default function Layout() {
                 title={t('layout.searchPlaceholder')}
               >
                 <Search className="w-5 h-5" />
-              </button>
-              {/* Dark/Light Mode Toggle */}
-              <button
-                onClick={() => setDarkMode(!darkMode)}
-                className="p-2.5 text-gray-400 hover:text-white rounded-xl hover:bg-dark-100 transition-all duration-300"
-                title={darkMode ? t('layout.switchLight') : t('layout.switchDark')}
-              >
-                {darkMode ? (
-                  <Sun className="w-5 h-5" />
-                ) : (
-                  <Moon className="w-5 h-5" />
-                )}
               </button>
 
               {/* Notifications */}
