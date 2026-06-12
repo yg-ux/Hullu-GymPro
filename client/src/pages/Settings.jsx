@@ -28,12 +28,18 @@ import {
 import clsx from 'clsx';
 
 const COLOR_THEMES = [
-  { id: 'default', name: 'Ocean Blue',   from: '#0ea5e9', to: '#0284c7' },
-  { id: 'emerald', name: 'Emerald Green', from: '#10b981', to: '#059669' },
+  { id: 'default', name: 'Ocean Blue',    from: '#0ea5e9', to: '#0284c7' },
+  { id: 'emerald', name: 'Emerald',       from: '#10b981', to: '#059669' },
   { id: 'purple',  name: 'Purple',        from: '#a855f7', to: '#9333ea' },
   { id: 'red',     name: 'Ruby Red',      from: '#ef4444', to: '#dc2626' },
   { id: 'amber',   name: 'Amber',         from: '#f59e0b', to: '#d97706' },
   { id: 'cyan',    name: 'Cyan',          from: '#06b6d4', to: '#0891b2' },
+  { id: 'rose',    name: 'Rose Pink',     from: '#f43f5e', to: '#e11d48' },
+  { id: 'indigo',  name: 'Indigo',        from: '#6366f1', to: '#4f46e5' },
+  { id: 'teal',    name: 'Teal',          from: '#14b8a6', to: '#0d9488' },
+  { id: 'orange',  name: 'Orange',        from: '#f97316', to: '#ea580c' },
+  { id: 'lime',    name: 'Lime',          from: '#84cc16', to: '#65a30d' },
+  { id: 'fuchsia', name: 'Fuchsia',       from: '#d946ef', to: '#c026d3' },
 ];
 
 const THEME_SCALES = {
@@ -43,6 +49,12 @@ const THEME_SCALES = {
   red:     { r300:'252 165 165', r400:'248 113 113', r500:'239 68 68',   r600:'220 38 38',   r700:'185 28 28'  },
   amber:   { r300:'252 211 77',  r400:'251 191 36',  r500:'245 158 11',  r600:'217 119 6',   r700:'180 83 9'   },
   cyan:    { r300:'103 232 249', r400:'34 211 238',  r500:'6 182 212',   r600:'8 145 178',   r700:'14 116 144' },
+  rose:    { r300:'253 164 175', r400:'251 113 133', r500:'244 63 94',   r600:'225 29 72',   r700:'190 18 60'  },
+  indigo:  { r300:'165 180 252', r400:'129 140 248', r500:'99 102 241',  r600:'79 70 229',   r700:'67 56 202'  },
+  teal:    { r300:'94 234 212',  r400:'45 212 191',  r500:'20 184 166',  r600:'13 148 136',  r700:'15 118 110' },
+  orange:  { r300:'253 186 116', r400:'251 146 60',  r500:'249 115 22',  r600:'234 88 12',   r700:'194 65 12'  },
+  lime:    { r300:'190 242 100', r400:'163 230 53',  r500:'132 204 22',  r600:'101 163 13',  r700:'77 124 15'  },
+  fuchsia: { r300:'240 171 252', r400:'232 121 249', r500:'217 70 239',  r600:'192 38 211',  r700:'162 28 175' },
 };
 
 function applyTheme(themeId) {
