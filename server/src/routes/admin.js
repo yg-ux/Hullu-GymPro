@@ -353,6 +353,12 @@ router.get('/stats', authenticateToken, async (req, res) => {
       LIMIT 10
     `);
 
+    const expiringRow = await getOne(`
+      SELECT COUNT(*) as count FROM gyms
+      WHERE subscription_end BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '14 days'
+        AND subscription_status = 'active'
+    `);
+
     res.json({
       total_gyms: totalGyms,
       active_gyms: activeGyms,
@@ -360,6 +366,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
       pending_requests: pendingRequests,
       total_revenue: totalRevenue,
       this_month_revenue: thisMonthRevenue,
+      expiring_soon: expiringRow?.count || 0,
       plan_distribution: planDistribution,
       recent_registrations: recentRegistrations
     });
@@ -460,6 +467,147 @@ router.post('/create-test-gym', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Create test gym error:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Manual plan override — change a gym's plan instantly without a request
+router.post('/gyms/:id/set-plan', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  const { plan, months = 1, notes } = req.body;
+  const validPlans = ['free', 'starter', 'pro', 'enterprise'];
+  if (!validPlans.includes(plan)) return res.status(400).json({ error: 'Invalid plan' });
+  try {
+    const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [req.params.id]);
+    if (!gym) return res.status(404).json({ error: 'Gym not found' });
+    const planLimits = { free: 10, starter: 100, pro: -1, enterprise: -1 };
+    let endDate = null;
+    if (plan !== 'free') {
+      const today = new Date();
+      const existing = gym.subscription_end ? new Date(gym.subscription_end) : null;
+      const base = existing && existing > today ? existing : today;
+      const end = new Date(base);
+      end.setMonth(end.getMonth() + parseInt(months));
+      endDate = end.toISOString().split('T')[0];
+    }
+    await runQuery(`
+      UPDATE gyms SET
+        subscription_plan = ?, subscription_status = ?,
+        subscription_start = NOW()::date, subscription_end = ?,
+        max_members = ?, updated_at = NOW()
+      WHERE id = ?
+    `, [plan, plan === 'free' ? 'active' : 'active', endDate, planLimits[plan], req.params.id]);
+    // Log to activity_log
+    await runQuery(`INSERT INTO activity_log (id, gym_id, action, details, created_at)
+      VALUES (?, ?, 'admin_plan_change', ?, NOW())`,
+      [uuidv4(), req.params.id, JSON.stringify({ plan, months, notes: notes || null, by: req.user.email })]);
+    res.json({ message: `Plan updated to ${plan}`, end_date: endDate });
+  } catch (error) {
+    console.error('Set plan error:', error);
+    res.status(500).json({ error: 'Failed to update plan' });
+  }
+});
+
+// Extend subscription end date for a gym
+router.post('/gyms/:id/extend', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  const { end_date, notes } = req.body;
+  if (!end_date) return res.status(400).json({ error: 'end_date required (YYYY-MM-DD)' });
+  try {
+    const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [req.params.id]);
+    if (!gym) return res.status(404).json({ error: 'Gym not found' });
+    await runQuery(`UPDATE gyms SET subscription_end = ?, subscription_status = 'active', updated_at = NOW() WHERE id = ?`,
+      [end_date, req.params.id]);
+    await runQuery(`INSERT INTO activity_log (id, gym_id, action, details, created_at)
+      VALUES (?, ?, 'admin_extend', ?, NOW())`,
+      [uuidv4(), req.params.id, JSON.stringify({ end_date, notes: notes || null, by: req.user.email })]);
+    res.json({ message: 'Subscription extended', end_date });
+  } catch (error) {
+    console.error('Extend subscription error:', error);
+    res.status(500).json({ error: 'Failed to extend subscription' });
+  }
+});
+
+// Revenue analytics — monthly breakdown for last 12 months
+router.get('/revenue-analytics', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  try {
+    const monthly = await getAll(`
+      SELECT
+        TO_CHAR(reviewed_at, 'YYYY-MM') as month,
+        COALESCE(SUM(amount_paid), 0) as revenue,
+        COUNT(*) as approvals
+      FROM subscription_requests
+      WHERE status = 'approved' AND reviewed_at >= NOW() - INTERVAL '12 months'
+      GROUP BY TO_CHAR(reviewed_at, 'YYYY-MM')
+      ORDER BY month ASC
+    `);
+    const byPlan = await getAll(`
+      SELECT requested_plan as plan, COALESCE(SUM(amount_paid), 0) as revenue, COUNT(*) as count
+      FROM subscription_requests WHERE status = 'approved'
+      GROUP BY requested_plan
+    `);
+    const expiring = await getAll(`
+      SELECT id, name, email, phone, subscription_plan, subscription_end
+      FROM gyms
+      WHERE subscription_end BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '14 days'
+        AND subscription_status = 'active'
+      ORDER BY subscription_end ASC
+    `);
+    res.json({ monthly, by_plan: byPlan, expiring_soon: expiring });
+  } catch (error) {
+    console.error('Revenue analytics error:', error);
+    res.status(500).json({ error: 'Failed to get revenue analytics' });
+  }
+});
+
+// Activity log — recent admin + system actions
+router.get('/activity-log', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  try {
+    const logs = await getAll(`
+      SELECT al.*, g.name as gym_name
+      FROM activity_log al
+      LEFT JOIN gyms g ON al.gym_id = g.id
+      ORDER BY al.created_at DESC
+      LIMIT 100
+    `);
+    res.json(logs);
+  } catch (error) {
+    console.error('Activity log error:', error);
+    res.status(500).json({ error: 'Failed to get activity log' });
+  }
+});
+
+// Get broadcast message
+router.get('/broadcast', authenticateToken, async (req, res) => {
+  try {
+    const row = await getOne(`SELECT value FROM settings WHERE gym_id = 'GLOBAL' AND key = 'broadcast'`);
+    res.json(row ? JSON.parse(row.value) : null);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get broadcast' });
+  }
+});
+
+// Set/clear broadcast message
+router.post('/broadcast', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  const { message, type = 'info' } = req.body; // type: info | warning | success
+  try {
+    const existing = await getOne(`SELECT id FROM settings WHERE gym_id = 'GLOBAL' AND key = 'broadcast'`);
+    if (!message) {
+      await runQuery(`DELETE FROM settings WHERE gym_id = 'GLOBAL' AND key = 'broadcast'`);
+      return res.json({ message: 'Broadcast cleared' });
+    }
+    const value = JSON.stringify({ message, type, created_at: new Date().toISOString() });
+    if (existing) {
+      await runQuery(`UPDATE settings SET value = ? WHERE gym_id = 'GLOBAL' AND key = 'broadcast'`, [value]);
+    } else {
+      await runQuery(`INSERT INTO settings (gym_id, key, value) VALUES ('GLOBAL', 'broadcast', ?)`, [value]);
+    }
+    res.json({ message: 'Broadcast saved' });
+  } catch (error) {
+    console.error('Broadcast error:', error);
+    res.status(500).json({ error: 'Failed to save broadcast' });
   }
 });
 

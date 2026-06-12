@@ -1,25 +1,22 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2, Users, DollarSign, TrendingUp, AlertCircle,
-  Check, X, Clock, Crown, LogOut, RefreshCw, ChevronRight,
+  Check, X, Clock, LogOut, RefreshCw, ChevronRight,
   CheckCircle, XCircle, Phone, Mail, Calendar, Hash,
-  CreditCard, Search, Filter, Eye, Shield, Trash2,
-  MessageSquare, Play, Bell
+  Search, Eye, Shield, Trash2, MessageSquare, Play, Bell,
+  ChevronUp, ChevronDown, Download, Crown, Megaphone,
+  Activity, BarChart3, Zap, CalendarClock, Edit3, Save
 } from 'lucide-react';
 import clsx from 'clsx';
 
-const ADMIN_API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+const ADMIN_API = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
 
 function adminFetch(path, options = {}) {
   const token = localStorage.getItem('adminToken');
-  return fetch(`${ADMIN_API_BASE}/admin${path}`, {
+  return fetch(`${ADMIN_API}/admin${path}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      ...options.headers,
-    },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...options.headers },
   }).then(async res => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Request failed');
@@ -27,124 +24,162 @@ function adminFetch(path, options = {}) {
   });
 }
 
+const DECLINE_REASONS = [
+  'Transaction ID not found in records',
+  'Transaction amount does not match',
+  'Transaction ID already used',
+  'Payment not received',
+  'Invalid or expired transaction',
+  'Wrong payment method',
+  'Duplicate request',
+  'Other',
+];
+
+const PLAN_LIMITS = { free: 10, starter: 100, pro: -1, enterprise: -1 };
+const PLAN_COLORS = {
+  free:       'bg-gray-500/20 text-gray-400',
+  starter:    'bg-blue-500/20 text-blue-400',
+  pro:        'bg-purple-500/20 text-purple-400',
+  enterprise: 'bg-amber-500/20 text-amber-400',
+};
+const STATUS_COLORS = {
+  active:        'bg-green-500/20 text-green-400',
+  trial:         'bg-yellow-500/20 text-yellow-400',
+  expired:       'bg-red-500/20 text-red-400',
+  trial_expired: 'bg-red-500/20 text-red-400',
+  pending:       'bg-yellow-500/20 text-yellow-400',
+  approved:      'bg-green-500/20 text-green-400',
+  declined:      'bg-red-500/20 text-red-400',
+};
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [stats, setStats] = useState(null);
-  const [gyms, setGyms] = useState([]);
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats]         = useState(null);
+  const [gyms, setGyms]           = useState([]);
+  const [requests, setRequests]   = useState([]);
+  const [revenue, setRevenue]     = useState(null);
+  const [activityLog, setActivityLog] = useState([]);
+  const [loading, setLoading]     = useState(true);
   const [loadError, setLoadError] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
   const [processing, setProcessing] = useState(null);
-  const [gymSearch, setGymSearch] = useState('');
+
+  // Gym search & sort
+  const [gymSearch, setGymSearch]   = useState('');
+  const [sortField, setSortField]   = useState('created_at');
+  const [sortDir, setSortDir]       = useState('desc');
+
+  // Request filter & search
   const [requestFilter, setRequestFilter] = useState('pending');
+  const [requestSearch, setRequestSearch] = useState('');
 
-  // Review modal
-  const [reviewModal, setReviewModal] = useState(null); // { request, action: 'approve'|'decline' }
-  const [adminNotes, setAdminNotes] = useState('');
+  // Modals
+  const [reviewModal, setReviewModal]     = useState(null);
+  const [adminNotes, setAdminNotes]       = useState('');
   const [declineReason, setDeclineReason] = useState('');
+  const [gymDetail, setGymDetail]         = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleting, setDeleting]           = useState(false);
+  const [setPlanModal, setSetPlanModal]   = useState(null); // gym
+  const [extendModal, setExtendModal]     = useState(null); // gym
+  const [broadcastModal, setBroadcastModal] = useState(false);
 
-  const DECLINE_REASONS = [
-    'Transaction ID not found in records',
-    'Transaction amount does not match',
-    'Transaction ID already used',
-    'Payment not received',
-    'Invalid or expired transaction',
-    'Wrong payment method',
-    'Duplicate request',
-    'Other',
-  ];
+  // Plan override form
+  const [planForm, setPlanForm] = useState({ plan: 'starter', months: 1, notes: '' });
+  const [planSaving, setPlanSaving] = useState(false);
 
-  // SMS test tool
+  // Extend form
+  const [extendDate, setExtendDate] = useState('');
+  const [extendNotes, setExtendNotes] = useState('');
+  const [extendSaving, setExtendSaving] = useState(false);
+
+  // Broadcast form
+  const [broadcastMsg, setBroadcastMsg]   = useState('');
+  const [broadcastType, setBroadcastType] = useState('info');
+  const [broadcastSaving, setBroadcastSaving] = useState(false);
+  const [currentBroadcast, setCurrentBroadcast] = useState(null);
+
+  // SMS dev tool
+  const [cronSecret, setCronSecret] = useState('');
   const [smsTest, setSmsTest] = useState({ loading: false, result: null, error: null });
 
-  const handleSmsTest = async () => {
-    setSmsTest({ loading: true, result: null, error: null });
-    try {
-      const cronSecret = prompt('Enter CRON_SECRET (from Render env vars):');
-      if (!cronSecret) { setSmsTest({ loading: false, result: null, error: null }); return; }
-      const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
-      const res = await fetch(`${API_BASE}/cron/sms-reminders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ secret: cronSecret }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed');
-      setSmsTest({ loading: false, result: data, error: null });
-    } catch (err) {
-      setSmsTest({ loading: false, result: null, error: err.message });
-    }
-  };
-
-  // Gym detail modal
-  const [gymDetail, setGymDetail] = useState(null);
-
-  // Delete gym confirm
-  const [deleteConfirm, setDeleteConfirm] = useState(null); // gym object
-  const [deleting, setDeleting] = useState(false);
-
-  const handleDeleteGym = async () => {
-    if (!deleteConfirm) return;
-    setDeleting(true);
-    try {
-      await adminFetch(`/gyms/${deleteConfirm.id}`, { method: 'DELETE' });
-      setDeleteConfirm(null);
-      loadData();
-    } catch (error) {
-      alert(error.message);
-    } finally {
-      setDeleting(false);
-    }
-  };
-
+  // ── Auth check ──────────────────────────────────────────────────────────────
   useEffect(() => {
     const token = localStorage.getItem('adminToken');
-    if (!token) {
-      navigate('/admin-login');
-      return;
-    }
-    // Verify token is still valid before loading data
+    if (!token) { navigate('/admin-login'); return; }
     adminFetch('/verify')
-      .then(() => loadData())
-      .catch(() => {
-        localStorage.removeItem('adminToken');
-        localStorage.removeItem('adminUser');
-        navigate('/admin-login');
-      });
+      .then(() => loadAll())
+      .catch(() => { localStorage.removeItem('adminToken'); navigate('/admin-login'); });
   }, []);
 
-  const loadData = async () => {
-    setLoading(true);
-    setLoadError('');
+  const loadAll = async () => {
+    setLoading(true); setLoadError('');
     try {
-      const [statsData, gymsData, requestsData] = await Promise.all([
+      const [s, g, r, rev, bc] = await Promise.all([
         adminFetch('/stats'),
         adminFetch('/gyms'),
         adminFetch('/subscription-requests'),
+        adminFetch('/revenue-analytics'),
+        adminFetch('/broadcast'),
       ]);
-      setStats(statsData);
-      setGyms(Array.isArray(gymsData) ? gymsData : []);
-      setRequests(Array.isArray(requestsData) ? requestsData : []);
-    } catch (error) {
-      console.error('Failed to load admin data:', error);
-      setLoadError(error.message || 'Failed to load data. Check server connection.');
+      setStats(s);
+      setGyms(Array.isArray(g) ? g : []);
+      setRequests(Array.isArray(r) ? r : []);
+      setRevenue(rev);
+      setCurrentBroadcast(bc);
+    } catch (e) {
+      setLoadError(e.message || 'Failed to load data');
     } finally {
       setLoading(false);
     }
   };
 
-  const openReview = (request, action) => {
-    setReviewModal({ request, action });
-    setAdminNotes('');
-    setDeclineReason('');
+  const loadActivityLog = async () => {
+    try { setActivityLog(await adminFetch('/activity-log')); } catch {}
+  };
+  useEffect(() => { if (activeTab === 'activity') loadActivityLog(); }, [activeTab]);
+
+  // ── Gym sort + filter ───────────────────────────────────────────────────────
+  const sortedGyms = useMemo(() => {
+    const filtered = gyms.filter(g =>
+      !gymSearch ||
+      g.name?.toLowerCase().includes(gymSearch.toLowerCase()) ||
+      g.email?.toLowerCase().includes(gymSearch.toLowerCase())
+    );
+    return [...filtered].sort((a, b) => {
+      let av = a[sortField], bv = b[sortField];
+      if (typeof av === 'string') av = av.toLowerCase();
+      if (typeof bv === 'string') bv = bv.toLowerCase();
+      if (av == null) av = '';
+      if (bv == null) bv = '';
+      return sortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+    });
+  }, [gyms, gymSearch, sortField, sortDir]);
+
+  const toggleSort = (field) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('desc'); }
   };
 
+  const SortIcon = ({ field }) => {
+    if (sortField !== field) return <ChevronUp className="w-3 h-3 opacity-20" />;
+    return sortDir === 'asc' ? <ChevronUp className="w-3 h-3 text-gym-400" /> : <ChevronDown className="w-3 h-3 text-gym-400" />;
+  };
+
+  // ── Request filter ──────────────────────────────────────────────────────────
+  const filteredRequests = useMemo(() =>
+    requests.filter(r =>
+      (requestFilter === 'all' || r.status === requestFilter) &&
+      (!requestSearch || r.gym_name?.toLowerCase().includes(requestSearch.toLowerCase()) ||
+       r.transaction_id?.toLowerCase().includes(requestSearch.toLowerCase()))
+    ), [requests, requestFilter, requestSearch]);
+
+  const pendingCount = requests.filter(r => r.status === 'pending').length;
+
+  // ── Actions ─────────────────────────────────────────────────────────────────
   const handleReview = async () => {
     if (!reviewModal) return;
     const { request, action } = reviewModal;
-
-    // For declines, build the final note from dropdown + optional custom text
     let finalNote = '';
     if (action === 'decline') {
       if (!declineReason) return;
@@ -152,49 +187,120 @@ export default function AdminDashboard() {
         ? (adminNotes.trim() || 'Other')
         : declineReason + (adminNotes.trim() ? ` — ${adminNotes.trim()}` : '');
     }
-
     setProcessing(request.id);
     try {
       await adminFetch(`/${action === 'approve' ? 'approve' : 'decline'}-request/${request.id}`, {
-        method: 'POST',
-        body: JSON.stringify({ admin_notes: finalNote || null }),
+        method: 'POST', body: JSON.stringify({ admin_notes: finalNote || null }),
       });
       setReviewModal(null);
-      loadData();
-    } catch (error) {
-      alert(error.message);
-    } finally {
-      setProcessing(null);
+      loadAll();
+    } catch (e) { alert(e.message); }
+    finally { setProcessing(null); }
+  };
+
+  const handleDeleteGym = async () => {
+    if (!deleteConfirm) return;
+    setDeleting(true);
+    try {
+      await adminFetch(`/gyms/${deleteConfirm.id}`, { method: 'DELETE' });
+      setDeleteConfirm(null); loadAll();
+    } catch (e) { alert(e.message); }
+    finally { setDeleting(false); }
+  };
+
+  const handleSetPlan = async () => {
+    setPlanSaving(true);
+    try {
+      await adminFetch(`/gyms/${setPlanModal.id}/set-plan`, {
+        method: 'POST', body: JSON.stringify(planForm),
+      });
+      setSetPlanModal(null); loadAll();
+    } catch (e) { alert(e.message); }
+    finally { setPlanSaving(false); }
+  };
+
+  const handleExtend = async () => {
+    setExtendSaving(true);
+    try {
+      await adminFetch(`/gyms/${extendModal.id}/extend`, {
+        method: 'POST', body: JSON.stringify({ end_date: extendDate, notes: extendNotes }),
+      });
+      setExtendModal(null); loadAll();
+    } catch (e) { alert(e.message); }
+    finally { setExtendSaving(false); }
+  };
+
+  const handleBroadcast = async () => {
+    setBroadcastSaving(true);
+    try {
+      await adminFetch('/broadcast', {
+        method: 'POST', body: JSON.stringify({ message: broadcastMsg, type: broadcastType }),
+      });
+      setBroadcastModal(false);
+      setBroadcastMsg('');
+      loadAll();
+    } catch (e) { alert(e.message); }
+    finally { setBroadcastSaving(false); }
+  };
+
+  const clearBroadcast = async () => {
+    try {
+      await adminFetch('/broadcast', { method: 'POST', body: JSON.stringify({ message: '' }) });
+      setCurrentBroadcast(null);
+    } catch {}
+  };
+
+  const handleSmsTest = async () => {
+    if (!cronSecret) return;
+    setSmsTest({ loading: true, result: null, error: null });
+    try {
+      const res = await fetch(`${ADMIN_API}/cron/sms-reminders`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secret: cronSecret }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      setSmsTest({ loading: false, result: data, error: null });
+    } catch (e) {
+      setSmsTest({ loading: false, result: null, error: e.message });
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('adminUser');
-    navigate('/admin-login');
+  // ── Export CSV ──────────────────────────────────────────────────────────────
+  const exportGymsCSV = () => {
+    const headers = ['Name', 'Email', 'Phone', 'Plan', 'Status', 'Members', 'Revenue (ETB)', 'Registered', 'Expires'];
+    const rows = sortedGyms.map(g => [
+      g.name, g.email, g.phone || '',
+      g.subscription_plan, g.subscription_status,
+      g.member_count || 0, g.total_revenue || 0,
+      g.created_at ? new Date(g.created_at).toLocaleDateString() : '',
+      g.subscription_end ? new Date(g.subscription_end).toLocaleDateString() : '',
+    ]);
+    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `hullu-gyms-${new Date().toISOString().slice(0,10)}.csv`; a.click();
   };
 
-  const filteredGyms = gyms.filter(g =>
-    !gymSearch || g.name?.toLowerCase().includes(gymSearch.toLowerCase()) ||
-    g.email?.toLowerCase().includes(gymSearch.toLowerCase())
+  const handleLogout = () => { localStorage.removeItem('adminToken'); localStorage.removeItem('adminUser'); navigate('/admin-login'); };
+
+  if (loading) return (
+    <div className="min-h-screen bg-dark-100 flex items-center justify-center">
+      <div className="w-8 h-8 rounded-full border-4 border-gym-500 border-t-transparent animate-spin" />
+    </div>
   );
 
-  const filteredRequests = requests.filter(r =>
-    requestFilter === 'all' || r.status === requestFilter
-  );
-
-  const pendingCount = requests.filter(r => r.status === 'pending').length;
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-dark-100 flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-4 border-gym-500 border-t-transparent animate-spin" />
-      </div>
-    );
-  }
+  const tabs = [
+    { key: 'overview',  label: 'Overview',  icon: TrendingUp },
+    { key: 'gyms',      label: `Gyms (${gyms.length})`, icon: Building2 },
+    { key: 'requests',  label: 'Requests',  icon: Clock, badge: pendingCount },
+    { key: 'revenue',   label: 'Revenue',   icon: BarChart3 },
+    { key: 'activity',  label: 'Activity',  icon: Activity },
+  ];
 
   return (
     <div className="min-h-screen bg-dark-100">
+
       {/* Header */}
       <header className="bg-dark-200 border-b border-gray-800 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
@@ -208,7 +314,10 @@ export default function AdminDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={loadData} className="p-2 text-gray-400 hover:text-white hover:bg-dark-300 rounded-lg transition-colors" title="Refresh">
+            <button onClick={() => setBroadcastModal(true)} title="Broadcast" className="p-2 text-gray-400 hover:text-yellow-400 hover:bg-dark-300 rounded-lg transition-colors">
+              <Megaphone className="w-5 h-5" />
+            </button>
+            <button onClick={loadAll} className="p-2 text-gray-400 hover:text-white hover:bg-dark-300 rounded-lg transition-colors" title="Refresh">
               <RefreshCw className="w-5 h-5" />
             </button>
             <button onClick={handleLogout} className="flex items-center gap-2 px-3 py-2 text-gray-400 hover:text-white hover:bg-dark-300 rounded-lg transition-colors">
@@ -220,72 +329,83 @@ export default function AdminDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        {/* Active broadcast banner */}
+        {currentBroadcast && (
+          <div className={clsx('flex items-center gap-3 p-4 rounded-xl border text-sm',
+            currentBroadcast.type === 'warning' ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' :
+            currentBroadcast.type === 'success' ? 'bg-green-500/10 border-green-500/30 text-green-300' :
+            'bg-blue-500/10 border-blue-500/30 text-blue-300')}>
+            <Megaphone className="w-4 h-4 flex-shrink-0" />
+            <span className="flex-1"><span className="font-semibold">Active broadcast: </span>{currentBroadcast.message}</span>
+            <button onClick={clearBroadcast} className="text-gray-500 hover:text-white ml-2"><X className="w-4 h-4" /></button>
+          </div>
+        )}
+
         {/* Tabs */}
-        <div className="flex items-center gap-1 bg-dark-200 rounded-xl p-1 w-fit">
-          {[
-            { key: 'overview', label: 'Overview', icon: TrendingUp },
-            { key: 'gyms', label: `Gyms (${gyms.length})`, icon: Building2 },
-            { key: 'requests', label: 'Requests', icon: Clock, badge: pendingCount },
-          ].map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={clsx(
-                'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
-                activeTab === tab.key ? 'bg-gym-600 text-white' : 'text-gray-400 hover:text-white hover:bg-dark-300'
-              )}
-            >
+        <div className="flex items-center gap-1 bg-dark-200 rounded-xl p-1 w-fit overflow-x-auto">
+          {tabs.map(tab => (
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+              className={clsx('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap',
+                activeTab === tab.key ? 'bg-gym-600 text-white' : 'text-gray-400 hover:text-white hover:bg-dark-300')}>
               <tab.icon className="w-4 h-4" />
               {tab.label}
-              {tab.badge > 0 && (
-                <span className="px-1.5 py-0.5 bg-yellow-500 text-black text-xs rounded-full font-bold">
-                  {tab.badge}
-                </span>
-              )}
+              {tab.badge > 0 && <span className="px-1.5 py-0.5 bg-yellow-500 text-black text-xs rounded-full font-bold">{tab.badge}</span>}
             </button>
           ))}
         </div>
 
-        {/* Error banner */}
+        {/* Error */}
         {loadError && (
           <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3 text-red-400">
             <AlertCircle className="w-5 h-5 flex-shrink-0" />
-            <div className="flex-1">
-              <p className="font-medium">Failed to load data</p>
-              <p className="text-sm opacity-80">{loadError}</p>
-            </div>
-            <button onClick={loadData} className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-sm transition-colors">
-              Retry
-            </button>
+            <div className="flex-1"><p className="font-medium">Failed to load data</p><p className="text-sm opacity-80">{loadError}</p></div>
+            <button onClick={loadAll} className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-sm">Retry</button>
           </div>
         )}
 
-        {/* ── OVERVIEW TAB ── */}
+        {/* ══ OVERVIEW ══════════════════════════════════════════════════════════ */}
         {activeTab === 'overview' && (
           <div className="space-y-6 animate-fade-in">
+            {/* Stat cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard title="Total Gyms" value={stats?.total_gyms || 0} icon={Building2} color="blue" />
-              <StatCard title="Active" value={stats?.active_gyms || 0} icon={CheckCircle} color="green" />
-              <StatCard title="On Trial" value={stats?.trial_gyms || 0} icon={Clock} color="yellow" />
-              <StatCard title="Total Revenue" value={`ETB ${(stats?.total_revenue || 0).toLocaleString()}`} icon={DollarSign} color="purple" />
+              <StatCard title="Total Gyms"     value={stats?.total_gyms || 0}       icon={Building2}   color="blue" />
+              <StatCard title="Active"         value={stats?.active_gyms || 0}      icon={CheckCircle} color="green" />
+              <StatCard title="On Trial"       value={stats?.trial_gyms || 0}       icon={Clock}       color="yellow" />
+              <StatCard title="Total Revenue"  value={`ETB ${(stats?.total_revenue || 0).toLocaleString()}`} icon={DollarSign} color="purple" />
             </div>
 
-            {pendingCount > 0 && (
-              <div className="card p-5 border-yellow-500/30 bg-yellow-500/5">
-                <div className="flex items-center gap-4">
+            {/* Alerts row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {pendingCount > 0 && (
+                <div className="card p-5 border-yellow-500/30 bg-yellow-500/5 flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
                     <AlertCircle className="w-6 h-6 text-yellow-400" />
                   </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-white">{pendingCount} Subscription Request{pendingCount > 1 ? 's' : ''} Awaiting Review</p>
-                    <p className="text-gray-400 text-sm">Review and approve or decline subscription upgrade requests</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-white">{pendingCount} Pending Request{pendingCount > 1 ? 's' : ''}</p>
+                    <p className="text-gray-400 text-sm">Awaiting review</p>
                   </div>
-                  <button onClick={() => setActiveTab('requests')} className="btn-primary flex items-center gap-2 whitespace-nowrap">
+                  <button onClick={() => setActiveTab('requests')} className="btn-primary flex items-center gap-2 whitespace-nowrap text-sm">
                     Review <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
-              </div>
-            )}
+              )}
+              {(stats?.expiring_soon || 0) > 0 && (
+                <div className="card p-5 border-orange-500/30 bg-orange-500/5 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center flex-shrink-0">
+                    <CalendarClock className="w-6 h-6 text-orange-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-white">{stats.expiring_soon} Expiring in 14 days</p>
+                    <p className="text-gray-400 text-sm">Subscriptions need renewal</p>
+                  </div>
+                  <button onClick={() => setActiveTab('revenue')} className="px-3 py-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
+                    View <ChevronRight className="w-4 h-4 inline" />
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* Plan distribution */}
             <div className="card p-6">
@@ -293,14 +413,8 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {['free', 'starter', 'pro', 'enterprise'].map(plan => {
                   const count = gyms.filter(g => g.subscription_plan === plan).length;
-                  const colors = {
-                    free: 'text-gray-400 bg-gray-500/10',
-                    starter: 'text-blue-400 bg-blue-500/10',
-                    pro: 'text-purple-400 bg-purple-500/10',
-                    enterprise: 'text-amber-400 bg-amber-500/10',
-                  };
                   return (
-                    <div key={plan} className={clsx('p-4 rounded-xl text-center', colors[plan])}>
+                    <div key={plan} className={clsx('p-4 rounded-xl text-center', PLAN_COLORS[plan])}>
                       <p className="text-2xl font-bold">{count}</p>
                       <p className="text-sm capitalize">{plan}</p>
                     </div>
@@ -321,69 +435,57 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Trigger SMS Reminders */}
+                {/* SMS trigger — inline secret input (no browser prompt) */}
                 <div className="p-4 bg-dark-200/60 rounded-xl space-y-3">
                   <div className="flex items-center gap-2">
                     <MessageSquare className="w-4 h-4 text-blue-400" />
                     <span className="text-sm font-medium text-white">SMS Reminders Cron</span>
                   </div>
-                  <p className="text-xs text-gray-400">
-                    Triggers the daily SMS reminder check — sends expiry warnings to members whose memberships end today or in 3 days.
-                  </p>
-                  <button
-                    onClick={handleSmsTest}
-                    disabled={smsTest.loading}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                  >
-                    {smsTest.loading ? (
-                      <><RefreshCw className="w-4 h-4 animate-spin" /> Running…</>
-                    ) : (
-                      <><Play className="w-4 h-4" /> Trigger Now</>
-                    )}
+                  <p className="text-xs text-gray-400">Triggers the daily SMS reminder check for expiring memberships.</p>
+                  <input
+                    type="password"
+                    placeholder="Enter CRON_SECRET…"
+                    value={cronSecret}
+                    onChange={e => setCronSecret(e.target.value)}
+                    className="w-full px-3 py-2 text-sm bg-dark-300 border border-gray-700 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-blue-500"
+                  />
+                  <button onClick={handleSmsTest} disabled={smsTest.loading || !cronSecret}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">
+                    {smsTest.loading ? <><RefreshCw className="w-4 h-4 animate-spin" /> Running…</> : <><Play className="w-4 h-4" /> Trigger Now</>}
                   </button>
                   {smsTest.result && (
                     <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-                      <p className="text-xs text-green-400 font-medium flex items-center gap-1">
-                        <CheckCircle className="w-3.5 h-3.5" /> {smsTest.result.message}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">Check server logs on Render for per-customer details.</p>
+                      <p className="text-xs text-green-400 font-medium flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5" /> {smsTest.result.message}</p>
                     </div>
                   )}
                   {smsTest.error && (
                     <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-                      <p className="text-xs text-red-400 font-medium flex items-center gap-1">
-                        <XCircle className="w-3.5 h-3.5" /> {smsTest.error}
-                      </p>
-                      {smsTest.error.includes('Unauthorized') && (
-                        <p className="text-xs text-gray-500 mt-1">Wrong CRON_SECRET — check Render env vars.</p>
-                      )}
+                      <p className="text-xs text-red-400 font-medium flex items-center gap-1"><XCircle className="w-3.5 h-3.5" /> {smsTest.error}</p>
                     </div>
                   )}
                 </div>
-
-                {/* How to set up automatic cron */}
+                {/* Auto-schedule instructions */}
                 <div className="p-4 bg-dark-200/60 rounded-xl space-y-2">
                   <div className="flex items-center gap-2">
                     <Bell className="w-4 h-4 text-amber-400" />
                     <span className="text-sm font-medium text-white">Auto Schedule (cron.job)</span>
                   </div>
-                  <p className="text-xs text-gray-400">Set this up once so reminders run automatically every day at 8 AM:</p>
+                  <p className="text-xs text-gray-400">Set this up once so reminders run every day at 8 AM:</p>
                   <ol className="text-xs text-gray-400 space-y-1 list-decimal list-inside">
                     <li>Go to <span className="text-white">cron-job.org</span> (free)</li>
-                    <li>Create a new cron job</li>
                     <li>URL: <code className="text-blue-400 bg-dark-300 px-1 rounded">POST /api/cron/sms-reminders</code></li>
                     <li>Schedule: <code className="text-blue-400 bg-dark-300 px-1 rounded">0 8 * * *</code></li>
-                    <li>Body: <code className="text-blue-400 bg-dark-300 px-1 rounded">{`{"secret":"YOUR_CRON_SECRET"}`}</code></li>
+                    <li>Body: <code className="text-blue-400 bg-dark-300 px-1 rounded">{`{"secret":"CRON_SECRET"}`}</code></li>
                   </ol>
                 </div>
               </div>
             </div>
 
-            {/* Recent registrations */}
+            {/* Recent registrations — newest first */}
             <div className="card p-6">
               <h2 className="text-lg font-semibold text-white mb-4">Recent Registrations</h2>
               <div className="space-y-3">
-                {gyms.slice(0, 5).map(gym => (
+                {[...gyms].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5).map(gym => (
                   <div key={gym.id} className="flex items-center justify-between p-4 bg-dark-200/60 rounded-xl">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gym-500 to-purple-600 flex items-center justify-center text-sm font-bold text-white">
@@ -391,7 +493,7 @@ export default function AdminDashboard() {
                       </div>
                       <div>
                         <p className="font-medium text-white">{gym.name}</p>
-                        <p className="text-xs text-gray-400">{gym.email}</p>
+                        <p className="text-xs text-gray-400">{gym.email} · {gym.created_at ? new Date(gym.created_at).toLocaleDateString() : ''}</p>
                       </div>
                     </div>
                     <PlanBadge plan={gym.subscription_plan} />
@@ -402,36 +504,45 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* ── GYMS TAB ── */}
+        {/* ══ GYMS ══════════════════════════════════════════════════════════════ */}
         {activeTab === 'gyms' && (
           <div className="space-y-4 animate-fade-in">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search gyms by name or email..."
-                value={gymSearch}
-                onChange={e => setGymSearch(e.target.value)}
-                className="input-field pl-10"
-              />
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="relative flex-1 min-w-48">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input type="text" placeholder="Search by name or email…" value={gymSearch}
+                  onChange={e => setGymSearch(e.target.value)} className="input-field pl-10" />
+              </div>
+              <button onClick={exportGymsCSV}
+                className="flex items-center gap-2 px-4 py-2.5 bg-dark-200 hover:bg-dark-300 text-gray-300 rounded-xl text-sm font-medium transition-colors border border-gray-700">
+                <Download className="w-4 h-4" /> Export CSV
+              </button>
             </div>
 
-            <div className="card overflow-hidden">
+            <div className="card overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-gray-400 border-b border-gray-800 text-xs uppercase tracking-wider">
                     <th className="p-4">Gym</th>
                     <th className="p-4">Contact</th>
-                    <th className="p-4">Plan</th>
-                    <th className="p-4 text-center">Members</th>
-                    <th className="p-4 text-right">Revenue</th>
+                    <th className="p-4 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('subscription_plan')}>
+                      <span className="flex items-center gap-1">Plan <SortIcon field="subscription_plan" /></span>
+                    </th>
+                    <th className="p-4 text-center cursor-pointer hover:text-white select-none" onClick={() => toggleSort('member_count')}>
+                      <span className="flex items-center justify-center gap-1">Members <SortIcon field="member_count" /></span>
+                    </th>
+                    <th className="p-4 text-right cursor-pointer hover:text-white select-none" onClick={() => toggleSort('total_revenue')}>
+                      <span className="flex items-center justify-end gap-1">Revenue <SortIcon field="total_revenue" /></span>
+                    </th>
                     <th className="p-4">Status</th>
-                    <th className="p-4">Expires</th>
+                    <th className="p-4 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('subscription_end')}>
+                      <span className="flex items-center gap-1">Expires <SortIcon field="subscription_end" /></span>
+                    </th>
                     <th className="p-4"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800/50">
-                  {filteredGyms.map(gym => (
+                  {sortedGyms.map(gym => (
                     <tr key={gym.id} className="hover:bg-dark-200/40 transition-colors">
                       <td className="p-4">
                         <div className="flex items-center gap-3">
@@ -450,37 +561,23 @@ export default function AdminDashboard() {
                       </td>
                       <td className="p-4"><PlanBadge plan={gym.subscription_plan} /></td>
                       <td className="p-4 text-center text-white">{gym.member_count || 0}</td>
-                      <td className="p-4 text-right text-green-400 font-medium">
-                        ETB {(gym.total_revenue || 0).toLocaleString()}
-                      </td>
+                      <td className="p-4 text-right text-green-400 font-medium">ETB {(gym.total_revenue || 0).toLocaleString()}</td>
                       <td className="p-4"><StatusBadge status={gym.subscription_status} /></td>
                       <td className="p-4 text-gray-400 text-xs">
                         {gym.subscription_end ? new Date(gym.subscription_end).toLocaleDateString() : '—'}
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => setGymDetail(gym)}
-                            className="p-1.5 text-gray-400 hover:text-white hover:bg-dark-300 rounded-lg transition-colors"
-                            title="View details"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirm(gym)}
-                            className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                            title="Delete gym"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <button onClick={() => setGymDetail(gym)} className="p-1.5 text-gray-400 hover:text-white hover:bg-dark-300 rounded-lg transition-colors" title="View details"><Eye className="w-4 h-4" /></button>
+                          <button onClick={() => { setSetPlanModal(gym); setPlanForm({ plan: gym.subscription_plan || 'starter', months: 1, notes: '' }); }} className="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors" title="Change plan"><Crown className="w-4 h-4" /></button>
+                          <button onClick={() => { setExtendModal(gym); setExtendDate(gym.subscription_end?.slice(0,10) || ''); setExtendNotes(''); }} className="p-1.5 text-gray-400 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-colors" title="Extend subscription"><CalendarClock className="w-4 h-4" /></button>
+                          <button onClick={() => setDeleteConfirm(gym)} className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </td>
                     </tr>
                   ))}
-                  {filteredGyms.length === 0 && (
-                    <tr>
-                      <td colSpan={8} className="p-12 text-center text-gray-500">No gyms found</td>
-                    </tr>
+                  {sortedGyms.length === 0 && (
+                    <tr><td colSpan={8} className="p-12 text-center text-gray-500">No gyms found</td></tr>
                   )}
                 </tbody>
               </table>
@@ -488,23 +585,25 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* ── REQUESTS TAB ── */}
+        {/* ══ REQUESTS ══════════════════════════════════════════════════════════ */}
         {activeTab === 'requests' && (
           <div className="space-y-4 animate-fade-in">
-            {/* Filter */}
-            <div className="flex gap-2">
-              {['pending', 'approved', 'declined', 'all'].map(f => (
-                <button
-                  key={f}
-                  onClick={() => setRequestFilter(f)}
-                  className={clsx(
-                    'px-4 py-2 rounded-lg text-sm font-medium capitalize transition-all',
-                    requestFilter === f ? 'bg-gym-600 text-white' : 'bg-dark-200 text-gray-400 hover:text-white'
-                  )}
-                >
-                  {f} {f !== 'all' && `(${requests.filter(r => r.status === f).length})`}
-                </button>
-              ))}
+            <div className="flex flex-wrap gap-3 items-center">
+              <div className="flex gap-2">
+                {['pending', 'approved', 'declined', 'all'].map(f => (
+                  <button key={f} onClick={() => setRequestFilter(f)}
+                    className={clsx('px-4 py-2 rounded-lg text-sm font-medium capitalize transition-all',
+                      requestFilter === f ? 'bg-gym-600 text-white' : 'bg-dark-200 text-gray-400 hover:text-white')}>
+                    {f} {f !== 'all' && `(${requests.filter(r => r.status === f).length})`}
+                  </button>
+                ))}
+              </div>
+              <div className="relative flex-1 min-w-48">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input type="text" placeholder="Search gym or transaction ID…" value={requestSearch}
+                  onChange={e => setRequestSearch(e.target.value)}
+                  className="input-field pl-9 py-2 text-sm" />
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -522,50 +621,45 @@ export default function AdminDashboard() {
                       </div>
                       <div className="space-y-1">
                         <p className="font-semibold text-white text-lg">{req.gym_name}</p>
-                        <p className="text-sm text-gray-400 flex items-center gap-1">
+                        <p className="text-sm text-gray-400 flex items-center gap-1 flex-wrap">
                           <Mail className="w-3 h-3" /> {req.gym_email}
                           {req.gym_phone && <><Phone className="w-3 h-3 ml-2" /> {req.gym_phone}</>}
                         </p>
                         <div className="flex flex-wrap items-center gap-3 pt-1">
-                          <span className="flex items-center gap-1 text-sm text-gray-300">
-                            <CreditCard className="w-4 h-4 text-gray-400" />
-                            ETB {(req.amount_paid || 0).toLocaleString()}
-                          </span>
+                          <span className="text-sm text-gray-300">ETB {(req.amount_paid || 0).toLocaleString()}</span>
                           <span className="text-gray-500 text-sm capitalize">{req.payment_method?.replace('_', ' ')}</span>
                           <span className="flex items-center gap-1 text-sm font-mono text-gym-400 bg-gym-500/10 px-2 py-0.5 rounded">
                             <Hash className="w-3 h-3" />{req.transaction_id}
                           </span>
-                          <span className="text-sm text-gray-400">
-                            {req.duration_months || 1} month{(req.duration_months || 1) > 1 ? 's' : ''}
-                          </span>
+                          <span className="text-sm text-gray-400">{req.duration_months || 1} month{(req.duration_months || 1) > 1 ? 's' : ''}</span>
                         </div>
+                        {/* Payment proof image */}
+                        {req.payment_proof && (
+                          <div className="mt-2">
+                            <p className="text-xs text-gray-500 mb-1">Payment Proof:</p>
+                            <img src={req.payment_proof} alt="Payment proof"
+                              className="max-h-40 max-w-xs rounded-lg border border-gray-700 cursor-pointer hover:opacity-90"
+                              onClick={() => window.open(req.payment_proof, '_blank')} />
+                          </div>
+                        )}
                         <p className="text-xs text-gray-500 flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
                           Submitted {new Date(req.created_at).toLocaleDateString('en-ET', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </p>
-                        {req.admin_notes && (
-                          <p className="text-sm text-gray-400 italic mt-1">Note: {req.admin_notes}</p>
-                        )}
+                        {req.admin_notes && <p className="text-sm text-gray-400 italic mt-1">Note: {req.admin_notes}</p>}
                       </div>
                     </div>
-
                     <div className="flex items-center gap-3 sm:flex-col sm:items-end">
                       <PlanBadge plan={req.requested_plan} large />
                       <StatusBadge status={req.status} />
                       {req.status === 'pending' && (
                         <div className="flex gap-2 mt-1">
-                          <button
-                            onClick={() => openReview(req, 'approve')}
-                            disabled={processing === req.id}
-                            className="flex items-center gap-1.5 px-3 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
-                          >
+                          <button onClick={() => openReview(req, 'approve')} disabled={processing === req.id}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-xl text-sm font-medium transition-colors disabled:opacity-50">
                             <Check className="w-4 h-4" /> Approve
                           </button>
-                          <button
-                            onClick={() => openReview(req, 'decline')}
-                            disabled={processing === req.id}
-                            className="flex items-center gap-1.5 px-3 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
-                          >
+                          <button onClick={() => openReview(req, 'decline')} disabled={processing === req.id}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl text-sm font-medium transition-colors disabled:opacity-50">
                             <X className="w-4 h-4" /> Decline
                           </button>
                         </div>
@@ -577,228 +671,435 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+
+        {/* ══ REVENUE ═══════════════════════════════════════════════════════════ */}
+        {activeTab === 'revenue' && (
+          <div className="space-y-6 animate-fade-in">
+            {/* Summary cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <StatCard title="Total Revenue"       value={`ETB ${(stats?.total_revenue || 0).toLocaleString()}`}      icon={DollarSign}  color="purple" />
+              <StatCard title="This Month"          value={`ETB ${(stats?.this_month_revenue || 0).toLocaleString()}`} icon={TrendingUp}   color="green" />
+              <StatCard title="Paid Gyms"           value={gyms.filter(g => g.subscription_plan !== 'free').length}    icon={Crown}        color="blue" />
+              <StatCard title="Expiring (14 days)"  value={revenue?.expiring_soon?.length || 0}                        icon={CalendarClock} color="yellow" />
+            </div>
+
+            {/* Revenue by plan */}
+            <div className="card p-6">
+              <h2 className="text-lg font-semibold text-white mb-4">Revenue by Plan</h2>
+              {revenue?.by_plan?.length > 0 ? (
+                <div className="space-y-3">
+                  {revenue.by_plan.map(p => {
+                    const total = revenue.by_plan.reduce((s, x) => s + parseFloat(x.revenue), 0) || 1;
+                    const pct = (parseFloat(p.revenue) / total) * 100;
+                    return (
+                      <div key={p.plan} className="flex items-center gap-4">
+                        <div className="w-20 text-right">
+                          <PlanBadge plan={p.plan} />
+                        </div>
+                        <div className="flex-1 h-8 bg-dark-200 rounded-lg overflow-hidden">
+                          <div className={clsx('h-full rounded-lg flex items-center justify-end pr-3 transition-all',
+                            p.plan === 'pro' ? 'bg-gradient-to-r from-purple-600 to-purple-400' : 'bg-gradient-to-r from-blue-600 to-blue-400')}
+                            style={{ width: `${Math.max(pct, 2)}%` }}>
+                            {pct > 15 && <span className="text-xs font-bold text-white">{p.count} gyms</span>}
+                          </div>
+                        </div>
+                        <div className="w-28 text-right text-sm text-green-400 font-medium">ETB {parseFloat(p.revenue).toLocaleString()}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : <p className="text-gray-500 text-sm">No revenue data yet</p>}
+            </div>
+
+            {/* Monthly chart */}
+            <div className="card p-6">
+              <h2 className="text-lg font-semibold text-white mb-4">Monthly Revenue (Last 12 Months)</h2>
+              {revenue?.monthly?.length > 0 ? (
+                <div className="space-y-2">
+                  {(() => {
+                    const max = Math.max(...revenue.monthly.map(m => parseFloat(m.revenue)), 1);
+                    return revenue.monthly.map(m => {
+                      const pct = (parseFloat(m.revenue) / max) * 100;
+                      return (
+                        <div key={m.month} className="flex items-center gap-3">
+                          <div className="w-16 text-xs text-gray-400 text-right flex-shrink-0">{m.month}</div>
+                          <div className="flex-1 h-7 bg-dark-200 rounded-lg overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-gym-600 to-gym-400 rounded-lg flex items-center justify-end pr-2 transition-all"
+                              style={{ width: `${Math.max(pct, 1)}%` }}>
+                              {pct > 20 && <span className="text-[10px] font-bold text-white">{m.approvals} gyms</span>}
+                            </div>
+                          </div>
+                          <div className="w-28 text-right text-sm text-green-400 font-medium flex-shrink-0">ETB {parseFloat(m.revenue).toLocaleString()}</div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              ) : <p className="text-gray-500 text-sm">No monthly data yet</p>}
+            </div>
+
+            {/* Expiring soon */}
+            {revenue?.expiring_soon?.length > 0 && (
+              <div className="card p-6 border border-orange-500/20">
+                <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <CalendarClock className="w-5 h-5 text-orange-400" /> Expiring in 14 Days
+                </h2>
+                <div className="space-y-3">
+                  {revenue.expiring_soon.map(gym => (
+                    <div key={gym.id} className="flex items-center justify-between p-3 bg-dark-200/60 rounded-xl">
+                      <div>
+                        <p className="font-medium text-white">{gym.name}</p>
+                        <p className="text-xs text-gray-400">{gym.email} · {gym.phone || '—'}</p>
+                      </div>
+                      <div className="text-right">
+                        <PlanBadge plan={gym.subscription_plan} />
+                        <p className="text-xs text-orange-400 mt-1">Expires {new Date(gym.subscription_end).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══ ACTIVITY LOG ══════════════════════════════════════════════════════ */}
+        {activeTab === 'activity' && (
+          <div className="space-y-4 animate-fade-in">
+            <div className="card p-6">
+              <h2 className="text-lg font-semibold text-white mb-4">Recent Activity (Last 100)</h2>
+              {activityLog.length === 0 ? (
+                <p className="text-gray-500 text-sm text-center py-8">No activity recorded yet</p>
+              ) : (
+                <div className="space-y-2">
+                  {activityLog.map((log, i) => {
+                    let details = {};
+                    try { details = JSON.parse(log.details || '{}'); } catch {}
+                    const actionLabels = {
+                      admin_plan_change: { label: 'Plan changed', color: 'text-blue-400', icon: Crown },
+                      admin_extend:      { label: 'Subscription extended', color: 'text-green-400', icon: CalendarClock },
+                      customer_added:    { label: 'Member added', color: 'text-gym-400', icon: Users },
+                      customer_deleted:  { label: 'Member deleted', color: 'text-red-400', icon: Trash2 },
+                      payment_added:     { label: 'Payment recorded', color: 'text-green-400', icon: DollarSign },
+                      check_in:          { label: 'Check-in', color: 'text-gray-400', icon: Zap },
+                    };
+                    const meta = actionLabels[log.action] || { label: log.action, color: 'text-gray-400', icon: Activity };
+                    const Icon = meta.icon;
+                    return (
+                      <div key={i} className="flex items-start gap-3 p-3 bg-dark-200/40 rounded-xl">
+                        <div className="w-7 h-7 rounded-lg bg-dark-300 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Icon className={clsx('w-3.5 h-3.5', meta.color)} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={clsx('text-sm font-medium', meta.color)}>{meta.label}</span>
+                            {log.gym_name && <span className="text-xs text-gray-300 bg-dark-300 px-2 py-0.5 rounded">{log.gym_name}</span>}
+                          </div>
+                          {Object.keys(details).length > 0 && (
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {Object.entries(details).filter(([k]) => k !== 'by').map(([k, v]) => `${k}: ${v}`).join(' · ')}
+                              {details.by && <span className="ml-2 text-gray-600">by {details.by}</span>}
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-600 flex-shrink-0">{log.created_at ? new Date(log.created_at).toLocaleDateString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </main>
 
-      {/* ── Review Modal ── */}
+      {/* ══ REVIEW MODAL ════════════════════════════════════════════════════════ */}
       {reviewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setReviewModal(null)} />
-          <div className="relative bg-dark-100 border border-gray-800 rounded-2xl w-full max-w-md p-6 shadow-2xl animate-scale-in">
-            <div className="flex items-center gap-3 mb-4">
-              <div className={clsx(
-                'w-12 h-12 rounded-xl flex items-center justify-center',
-                reviewModal.action === 'approve' ? 'bg-green-500/20' : 'bg-red-500/20'
-              )}>
-                {reviewModal.action === 'approve'
-                  ? <CheckCircle className="w-6 h-6 text-green-400" />
-                  : <XCircle className="w-6 h-6 text-red-400" />
-                }
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-white capitalize">
-                  {reviewModal.action} Request
-                </h3>
-                <p className="text-sm text-gray-400">{reviewModal.request.gym_name}</p>
-              </div>
+        <Modal onClose={() => setReviewModal(null)}>
+          <div className="flex items-center gap-3 mb-4">
+            <div className={clsx('w-12 h-12 rounded-xl flex items-center justify-center', reviewModal.action === 'approve' ? 'bg-green-500/20' : 'bg-red-500/20')}>
+              {reviewModal.action === 'approve' ? <CheckCircle className="w-6 h-6 text-green-400" /> : <XCircle className="w-6 h-6 text-red-400" />}
             </div>
-
-            {/* Request summary */}
-            <div className="p-4 bg-dark-200 rounded-xl space-y-2 text-sm mb-4">
-              <div className="flex justify-between">
-                <span className="text-gray-400">Plan</span>
-                <PlanBadge plan={reviewModal.request.requested_plan} />
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Duration</span>
-                <span className="text-white">{reviewModal.request.duration_months || 1} month(s)</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Amount</span>
-                <span className="text-green-400 font-medium">ETB {(reviewModal.request.amount_paid || 0).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Transaction ID</span>
-                <span className="text-white font-mono text-xs">{reviewModal.request.transaction_id}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Payment via</span>
-                <span className="text-white capitalize">{reviewModal.request.payment_method?.replace('_', ' ')}</span>
-              </div>
-            </div>
-
-            {reviewModal.action === 'decline' ? (
-              <div className="mb-4 space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Reason for decline <span className="text-red-400">*</span>
-                  </label>
-                  <select
-                    value={declineReason}
-                    onChange={e => { setDeclineReason(e.target.value); setAdminNotes(''); }}
-                    className="input-field"
-                  >
-                    <option value="">— Select a reason —</option>
-                    {DECLINE_REASONS.map(r => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
-                  </select>
-                </div>
-                {declineReason === 'Other' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Describe the reason <span className="text-red-400">*</span>
-                    </label>
-                    <textarea
-                      value={adminNotes}
-                      onChange={e => setAdminNotes(e.target.value)}
-                      className="input-field h-20 resize-none"
-                      placeholder="Explain why this request is being declined…"
-                    />
-                  </div>
-                )}
-                {declineReason && declineReason !== 'Other' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                      Additional details (optional)
-                    </label>
-                    <textarea
-                      value={adminNotes}
-                      onChange={e => setAdminNotes(e.target.value)}
-                      className="input-field h-16 resize-none"
-                      placeholder="Add any extra context for the gym owner…"
-                    />
-                  </div>
-                )}
-              </div>
-            ) : null}
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setReviewModal(null)}
-                className="flex-1 px-4 py-2.5 bg-dark-200 text-white rounded-xl font-medium hover:bg-dark-300 transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleReview}
-                disabled={processing || (reviewModal.action === 'decline' && (!declineReason || (declineReason === 'Other' && !adminNotes.trim())))}
-                className={clsx(
-                  'flex-1 px-4 py-2.5 rounded-xl font-medium transition-all disabled:opacity-50 flex items-center justify-center gap-2',
-                  reviewModal.action === 'approve'
-                    ? 'bg-green-500 hover:bg-green-600 text-white'
-                    : 'bg-red-500 hover:bg-red-600 text-white'
-                )}
-              >
-                {processing ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : reviewModal.action === 'approve' ? (
-                  <><Check className="w-4 h-4" /> Approve & Activate</>
-                ) : (
-                  <><X className="w-4 h-4" /> Decline Request</>
-                )}
-              </button>
+            <div>
+              <h3 className="text-lg font-semibold text-white capitalize">{reviewModal.action} Request</h3>
+              <p className="text-sm text-gray-400">{reviewModal.request.gym_name}</p>
             </div>
           </div>
-        </div>
+          <div className="p-4 bg-dark-200 rounded-xl space-y-2 text-sm mb-4">
+            <Row label="Plan"           value={<PlanBadge plan={reviewModal.request.requested_plan} />} />
+            <Row label="Duration"       value={`${reviewModal.request.duration_months || 1} month(s)`} />
+            <Row label="Amount"         value={<span className="text-green-400 font-medium">ETB {(reviewModal.request.amount_paid || 0).toLocaleString()}</span>} />
+            <Row label="Transaction ID" value={<span className="font-mono text-xs">{reviewModal.request.transaction_id}</span>} />
+            <Row label="Payment via"    value={<span className="capitalize">{reviewModal.request.payment_method?.replace('_', ' ')}</span>} />
+          </div>
+          {reviewModal.request.payment_proof && (
+            <div className="mb-4">
+              <p className="text-xs text-gray-500 mb-2">Payment Proof</p>
+              <img src={reviewModal.request.payment_proof} alt="Payment proof"
+                className="w-full max-h-48 object-contain rounded-xl border border-gray-700 cursor-pointer"
+                onClick={() => window.open(reviewModal.request.payment_proof, '_blank')} />
+            </div>
+          )}
+          {reviewModal.action === 'decline' && (
+            <div className="mb-4 space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Reason <span className="text-red-400">*</span></label>
+                <select value={declineReason} onChange={e => { setDeclineReason(e.target.value); setAdminNotes(''); }} className="input-field">
+                  <option value="">— Select a reason —</option>
+                  {DECLINE_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              {declineReason === 'Other' && (
+                <textarea value={adminNotes} onChange={e => setAdminNotes(e.target.value)}
+                  className="input-field h-20 resize-none" placeholder="Explain the reason…" />
+              )}
+              {declineReason && declineReason !== 'Other' && (
+                <textarea value={adminNotes} onChange={e => setAdminNotes(e.target.value)}
+                  className="input-field h-16 resize-none" placeholder="Additional details (optional)" />
+              )}
+            </div>
+          )}
+          <div className="flex gap-3">
+            <button onClick={() => setReviewModal(null)} className="flex-1 px-4 py-2.5 bg-dark-200 text-white rounded-xl font-medium hover:bg-dark-300 transition-all">Cancel</button>
+            <button onClick={handleReview}
+              disabled={processing || (reviewModal.action === 'decline' && (!declineReason || (declineReason === 'Other' && !adminNotes.trim())))}
+              className={clsx('flex-1 px-4 py-2.5 rounded-xl font-medium transition-all disabled:opacity-50 flex items-center justify-center gap-2',
+                reviewModal.action === 'approve' ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-red-500 hover:bg-red-600 text-white')}>
+              {processing ? <Spinner /> : reviewModal.action === 'approve' ? <><Check className="w-4 h-4" /> Approve & Activate</> : <><X className="w-4 h-4" /> Decline Request</>}
+            </button>
+          </div>
+        </Modal>
       )}
 
-      {/* ── Gym Detail Modal ── */}
+      {/* ══ GYM DETAIL MODAL ════════════════════════════════════════════════════ */}
       {gymDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setGymDetail(null)} />
-          <div className="relative bg-dark-100 border border-gray-800 rounded-2xl w-full max-w-lg p-6 shadow-2xl animate-scale-in max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start justify-between mb-5">
-              <div className="flex items-center gap-3">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-gym-500 to-purple-600 flex items-center justify-center text-2xl font-bold text-white">
-                  {gymDetail.name?.charAt(0)}
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-white">{gymDetail.name}</h3>
-                  <p className="text-gray-400 text-sm">{gymDetail.slug}</p>
-                </div>
-              </div>
-              <button onClick={() => setGymDetail(null)} className="p-1 text-gray-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <Section title="Contact">
-                <Row label="Email" value={gymDetail.email} />
-                <Row label="Phone" value={gymDetail.phone || '—'} />
-                <Row label="Address" value={gymDetail.address || '—'} />
-              </Section>
-              <Section title="Subscription">
-                <Row label="Plan" value={<PlanBadge plan={gymDetail.subscription_plan} />} />
-                <Row label="Status" value={<StatusBadge status={gymDetail.subscription_status} />} />
-                <Row label="Started" value={gymDetail.subscription_start || '—'} />
-                <Row label="Expires" value={gymDetail.subscription_end || '—'} />
-                <Row label="Max Members" value={gymDetail.max_members === -1 ? 'Unlimited' : gymDetail.max_members} />
-              </Section>
-              <Section title="Activity">
-                <Row label="Total Members" value={gymDetail.member_count || 0} />
-                <Row label="Total Revenue" value={`ETB ${(gymDetail.total_revenue || 0).toLocaleString()}`} />
-                <Row label="Registered" value={new Date(gymDetail.created_at).toLocaleDateString()} />
-              </Section>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Delete Gym Confirm Modal ── */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => !deleting && setDeleteConfirm(null)} />
-          <div className="relative bg-dark-100 border border-red-500/30 rounded-2xl w-full max-w-md p-6 shadow-2xl animate-scale-in">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center flex-shrink-0">
-                <Trash2 className="w-6 h-6 text-red-400" />
+        <Modal onClose={() => setGymDetail(null)} wide>
+          <div className="flex items-start justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-gym-500 to-purple-600 flex items-center justify-center text-2xl font-bold text-white">
+                {gymDetail.name?.charAt(0)}
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">Delete Gym</h3>
-                <p className="text-sm text-gray-400">This action cannot be undone</p>
+                <h3 className="text-xl font-bold text-white">{gymDetail.name}</h3>
+                <p className="text-gray-400 text-sm">{gymDetail.slug}</p>
               </div>
             </div>
+            <button onClick={() => setGymDetail(null)} className="p-1 text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+          </div>
+          <div className="space-y-4">
+            <Section title="Contact">
+              <Row label="Email"   value={gymDetail.email} />
+              <Row label="Phone"   value={gymDetail.phone || '—'} />
+              <Row label="Address" value={gymDetail.address || '—'} />
+            </Section>
+            <Section title="Subscription">
+              <Row label="Plan"        value={<PlanBadge plan={gymDetail.subscription_plan} />} />
+              <Row label="Status"      value={<StatusBadge status={gymDetail.subscription_status} />} />
+              <Row label="Started"     value={gymDetail.subscription_start || '—'} />
+              <Row label="Expires"     value={gymDetail.subscription_end || '—'} />
+              <Row label="Max Members" value={gymDetail.max_members === -1 ? 'Unlimited' : gymDetail.max_members} />
+            </Section>
+            <Section title="Activity">
+              <Row label="Total Members" value={gymDetail.member_count || 0} />
+              <Row label="Payments"      value={gymDetail.payment_count || 0} />
+              <Row label="Total Revenue" value={`ETB ${(gymDetail.total_revenue || 0).toLocaleString()}`} />
+              <Row label="Registered"    value={gymDetail.created_at ? new Date(gymDetail.created_at).toLocaleDateString() : '—'} />
+            </Section>
+          </div>
+          <div className="flex gap-3 mt-5">
+            <button onClick={() => { setGymDetail(null); setSetPlanModal(gymDetail); setPlanForm({ plan: gymDetail.subscription_plan || 'starter', months: 1, notes: '' }); }}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-xl text-sm font-medium transition-colors">
+              <Crown className="w-4 h-4" /> Change Plan
+            </button>
+            <button onClick={() => { setGymDetail(null); setExtendModal(gymDetail); setExtendDate(gymDetail.subscription_end?.slice(0,10) || ''); setExtendNotes(''); }}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-xl text-sm font-medium transition-colors">
+              <CalendarClock className="w-4 h-4" /> Extend
+            </button>
+          </div>
+        </Modal>
+      )}
 
-            <div className="p-4 bg-red-500/8 border border-red-500/20 rounded-xl mb-5">
-              <p className="text-white font-semibold">{deleteConfirm.name}</p>
-              <p className="text-sm text-gray-400 mt-0.5">{deleteConfirm.email}</p>
-              <div className="mt-2 flex gap-4 text-xs text-gray-500">
-                <span>{deleteConfirm.member_count || 0} members</span>
-                <span>ETB {(deleteConfirm.total_revenue || 0).toLocaleString()} revenue</span>
-              </div>
-            </div>
-
-            <p className="text-sm text-gray-400 mb-5">
-              All members, payments, attendance records, staff accounts, and subscription data for this gym will be permanently deleted.
-            </p>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setDeleteConfirm(null)}
-                disabled={deleting}
-                className="flex-1 px-4 py-2.5 bg-dark-200 text-white rounded-xl font-medium hover:bg-dark-300 transition-all disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteGym}
-                disabled={deleting}
-                className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {deleting ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <><Trash2 className="w-4 h-4" /> Delete Permanently</>
-                )}
-              </button>
+      {/* ══ SET PLAN MODAL ══════════════════════════════════════════════════════ */}
+      {setPlanModal && (
+        <Modal onClose={() => setSetPlanModal(null)}>
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center"><Crown className="w-6 h-6 text-blue-400" /></div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Change Plan</h3>
+              <p className="text-sm text-gray-400">{setPlanModal.name}</p>
             </div>
           </div>
-        </div>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">New Plan</label>
+              <div className="grid grid-cols-2 gap-2">
+                {['free', 'starter', 'pro', 'enterprise'].map(p => (
+                  <button key={p} type="button" onClick={() => setPlanForm(f => ({ ...f, plan: p }))}
+                    className={clsx('px-4 py-3 rounded-xl text-sm font-medium capitalize border-2 transition-all',
+                      planForm.plan === p ? 'border-gym-500 bg-gym-500/10 text-white' : 'border-gray-700 text-gray-400 hover:border-gray-600')}>
+                    {p}
+                    <span className="block text-xs text-gray-500 mt-0.5">
+                      {p === 'free' ? '10 members' : p === 'starter' ? '100 members' : 'Unlimited'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            {planForm.plan !== 'free' && (
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Duration (months)</label>
+                <input type="number" min={1} max={24} value={planForm.months}
+                  onChange={e => setPlanForm(f => ({ ...f, months: parseInt(e.target.value) || 1 }))}
+                  className="input-field" />
+              </div>
+            )}
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">Notes (optional)</label>
+              <input type="text" value={planForm.notes} onChange={e => setPlanForm(f => ({ ...f, notes: e.target.value }))}
+                placeholder="Reason for manual change…" className="input-field" />
+            </div>
+          </div>
+          <div className="flex gap-3 mt-5">
+            <button onClick={() => setSetPlanModal(null)} className="flex-1 px-4 py-2.5 bg-dark-200 text-white rounded-xl font-medium hover:bg-dark-300 transition-all">Cancel</button>
+            <button onClick={handleSetPlan} disabled={planSaving}
+              className="flex-1 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+              {planSaving ? <Spinner /> : <><Save className="w-4 h-4" /> Apply Change</>}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ══ EXTEND MODAL ════════════════════════════════════════════════════════ */}
+      {extendModal && (
+        <Modal onClose={() => setExtendModal(null)}>
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center"><CalendarClock className="w-6 h-6 text-green-400" /></div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Extend Subscription</h3>
+              <p className="text-sm text-gray-400">{extendModal.name}</p>
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">Current expiry</label>
+              <p className="text-white">{extendModal.subscription_end ? new Date(extendModal.subscription_end).toLocaleDateString() : 'Not set'}</p>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">New end date <span className="text-red-400">*</span></label>
+              <input type="date" value={extendDate} onChange={e => setExtendDate(e.target.value)} className="input-field" />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">Notes (optional)</label>
+              <input type="text" value={extendNotes} onChange={e => setExtendNotes(e.target.value)}
+                placeholder="Reason for extension…" className="input-field" />
+            </div>
+          </div>
+          <div className="flex gap-3 mt-5">
+            <button onClick={() => setExtendModal(null)} className="flex-1 px-4 py-2.5 bg-dark-200 text-white rounded-xl font-medium hover:bg-dark-300">Cancel</button>
+            <button onClick={handleExtend} disabled={extendSaving || !extendDate}
+              className="flex-1 px-4 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+              {extendSaving ? <Spinner /> : <><Save className="w-4 h-4" /> Save Date</>}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ══ BROADCAST MODAL ═════════════════════════════════════════════════════ */}
+      {broadcastModal && (
+        <Modal onClose={() => setBroadcastModal(false)}>
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center"><Megaphone className="w-6 h-6 text-yellow-400" /></div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Broadcast Announcement</h3>
+              <p className="text-sm text-gray-400">Shown as a banner to all gyms in their dashboard</p>
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">Type</label>
+              <div className="flex gap-2">
+                {[['info','blue','Info'],['warning','amber','Warning'],['success','green','Success']].map(([t, c, l]) => (
+                  <button key={t} type="button" onClick={() => setBroadcastType(t)}
+                    className={clsx('flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-all capitalize',
+                      broadcastType === t ? `border-${c}-500 bg-${c}-500/10 text-${c}-400` : 'border-gray-700 text-gray-400 hover:border-gray-600')}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">Message</label>
+              <textarea value={broadcastMsg} onChange={e => setBroadcastMsg(e.target.value)}
+                className="input-field h-24 resize-none" placeholder="e.g. Scheduled maintenance tonight at 11 PM…" />
+            </div>
+            {currentBroadcast && (
+              <div className="p-3 bg-dark-200 rounded-xl text-xs text-gray-400">
+                Current: "{currentBroadcast.message}"
+                <button onClick={() => { clearBroadcast(); setBroadcastModal(false); }} className="ml-2 text-red-400 hover:text-red-300">Clear it</button>
+              </div>
+            )}
+          </div>
+          <div className="flex gap-3 mt-5">
+            <button onClick={() => setBroadcastModal(false)} className="flex-1 px-4 py-2.5 bg-dark-200 text-white rounded-xl font-medium hover:bg-dark-300">Cancel</button>
+            <button onClick={handleBroadcast} disabled={broadcastSaving || !broadcastMsg.trim()}
+              className="flex-1 px-4 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-black rounded-xl font-medium transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+              {broadcastSaving ? <Spinner /> : <><Megaphone className="w-4 h-4" /> Send Broadcast</>}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ══ DELETE CONFIRM ══════════════════════════════════════════════════════ */}
+      {deleteConfirm && (
+        <Modal onClose={() => !deleting && setDeleteConfirm(null)} danger>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center flex-shrink-0"><Trash2 className="w-6 h-6 text-red-400" /></div>
+            <div><h3 className="text-lg font-semibold text-white">Delete Gym</h3><p className="text-sm text-gray-400">This action cannot be undone</p></div>
+          </div>
+          <div className="p-4 bg-red-500/8 border border-red-500/20 rounded-xl mb-4">
+            <p className="text-white font-semibold">{deleteConfirm.name}</p>
+            <p className="text-sm text-gray-400 mt-0.5">{deleteConfirm.email}</p>
+            <div className="mt-2 flex gap-4 text-xs text-gray-500">
+              <span>{deleteConfirm.member_count || 0} members</span>
+              <span>ETB {(deleteConfirm.total_revenue || 0).toLocaleString()} revenue</span>
+            </div>
+          </div>
+          <p className="text-sm text-gray-400 mb-5">All members, payments, attendance records, staff and subscription data will be permanently deleted.</p>
+          <div className="flex gap-3">
+            <button onClick={() => setDeleteConfirm(null)} disabled={deleting} className="flex-1 px-4 py-2.5 bg-dark-200 text-white rounded-xl font-medium hover:bg-dark-300 disabled:opacity-50">Cancel</button>
+            <button onClick={handleDeleteGym} disabled={deleting}
+              className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+              {deleting ? <Spinner /> : <><Trash2 className="w-4 h-4" /> Delete Permanently</>}
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );
+
+  function openReview(request, action) {
+    setReviewModal({ request, action });
+    setAdminNotes('');
+    setDeclineReason('');
+  }
 }
+
+// ── Reusable components ───────────────────────────────────────────────────────
+function Modal({ children, onClose, wide, danger }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className={clsx('relative bg-dark-100 border rounded-2xl shadow-2xl animate-scale-in max-h-[90vh] overflow-y-auto',
+        wide ? 'w-full max-w-lg' : 'w-full max-w-md',
+        danger ? 'border-red-500/30' : 'border-gray-800',
+        'p-6')}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Spinner() { return <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />; }
 
 function Section({ title, children }) {
   return (
@@ -819,47 +1120,23 @@ function Row({ label, value }) {
 }
 
 function PlanBadge({ plan, large }) {
-  const styles = {
-    free: 'bg-gray-500/20 text-gray-400',
-    starter: 'bg-blue-500/20 text-blue-400',
-    pro: 'bg-purple-500/20 text-purple-400',
-    enterprise: 'bg-amber-500/20 text-amber-400',
-  };
   return (
-    <span className={clsx(
-      'px-2 py-0.5 rounded font-medium capitalize',
-      large ? 'text-sm px-3 py-1' : 'text-xs',
-      styles[plan] || styles.free
-    )}>
+    <span className={clsx('px-2 py-0.5 rounded font-medium capitalize', large ? 'text-sm px-3 py-1' : 'text-xs', PLAN_COLORS[plan] || PLAN_COLORS.free)}>
       {plan}
     </span>
   );
 }
 
 function StatusBadge({ status }) {
-  const styles = {
-    active: 'bg-green-500/20 text-green-400',
-    trial: 'bg-yellow-500/20 text-yellow-400',
-    expired: 'bg-red-500/20 text-red-400',
-    pending: 'bg-yellow-500/20 text-yellow-400',
-    approved: 'bg-green-500/20 text-green-400',
-    declined: 'bg-red-500/20 text-red-400',
-    trial_expired: 'bg-red-500/20 text-red-400',
-  };
   return (
-    <span className={clsx('px-2 py-0.5 rounded text-xs font-medium capitalize', styles[status] || 'bg-gray-500/20 text-gray-400')}>
+    <span className={clsx('px-2 py-0.5 rounded text-xs font-medium capitalize', STATUS_COLORS[status] || 'bg-gray-500/20 text-gray-400')}>
       {status?.replace('_', ' ')}
     </span>
   );
 }
 
 function StatCard({ title, value, icon: Icon, color }) {
-  const colors = {
-    green: 'from-green-500 to-green-600',
-    blue: 'from-blue-500 to-blue-600',
-    yellow: 'from-yellow-500 to-yellow-600',
-    purple: 'from-purple-500 to-purple-600',
-  };
+  const colors = { green: 'from-green-500 to-green-600', blue: 'from-blue-500 to-blue-600', yellow: 'from-yellow-500 to-yellow-600', purple: 'from-purple-500 to-purple-600' };
   return (
     <div className="card p-5 flex items-center gap-4">
       <div className={clsx('w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center flex-shrink-0', colors[color])}>
