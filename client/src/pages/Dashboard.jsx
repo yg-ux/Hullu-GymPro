@@ -650,7 +650,7 @@ export default function Dashboard() {
         </div>
 
         {/* Activity Feed */}
-        <div className="glass-card p-6 flex flex-col">
+        <div className="glass-card p-6 flex flex-col max-h-[520px]">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
               <Activity className="w-5 h-5 text-gym-400" />
