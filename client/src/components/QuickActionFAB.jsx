@@ -47,9 +47,10 @@ export default function QuickActionFAB() {
 
   const userRole = user?.role || 'owner';
 
-  // Don't show on pages where the FAB would clutter key controls
+  // Don't show on pages where the FAB would clutter key controls or overlap form buttons
   const hiddenRoutes = ['/check-in', '/check-out', '/kiosk'];
-  if (hiddenRoutes.some(r => location.pathname.startsWith(r))) return null;
+  const isFormPage = location.pathname.endsWith('/new') || location.pathname.endsWith('/edit') || location.pathname.endsWith('/import');
+  if (hiddenRoutes.some(r => location.pathname.startsWith(r)) || isFormPage) return null;
 
   const visibleActions = ACTIONS.filter(a => a.roles.includes(userRole));
   if (visibleActions.length === 0) return null;
