@@ -7,6 +7,93 @@ const router = express.Router();
 
 const VALID_CATEGORIES = ['rent', 'utilities', 'salaries', 'equipment', 'marketing', 'maintenance', 'supplies', 'insurance', 'taxes', 'other'];
 
+// GET /monthly-history — monthly P&L: expenses + revenue for last 12 months
+router.get('/monthly-history', authenticateToken, async (req, res) => {
+  try {
+    const gymId = req.user.gym_id;
+
+    const expenseRows = await getAll(
+      `SELECT TO_CHAR(expense_date, 'YYYY-MM') as month, SUM(amount) as total_expenses
+       FROM expenses WHERE gym_id = ?
+         AND expense_date >= CURRENT_DATE - INTERVAL '12 months'
+       GROUP BY TO_CHAR(expense_date, 'YYYY-MM')`,
+      [gymId]
+    );
+
+    const revenueRows = await getAll(
+      `SELECT TO_CHAR(payment_date::date, 'YYYY-MM') as month, SUM(amount) as total_revenue
+       FROM payments WHERE gym_id = ?
+         AND payment_date::date >= CURRENT_DATE - INTERVAL '12 months'
+       GROUP BY TO_CHAR(payment_date::date, 'YYYY-MM')`,
+      [gymId]
+    );
+
+    // Merge into one map
+    const map = {};
+    for (const r of expenseRows) {
+      map[r.month] = { month: r.month, total_expenses: parseFloat(r.total_expenses) || 0, total_revenue: 0 };
+    }
+    for (const r of revenueRows) {
+      if (!map[r.month]) map[r.month] = { month: r.month, total_expenses: 0, total_revenue: 0 };
+      map[r.month].total_revenue = parseFloat(r.total_revenue) || 0;
+    }
+
+    const history = Object.values(map)
+      .map(r => ({ ...r, net_profit: r.total_revenue - r.total_expenses }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+
+    res.json(history);
+  } catch (err) {
+    console.error('GET /expenses/monthly-history error:', err);
+    res.status(500).json({ error: 'Failed to fetch monthly history' });
+  }
+});
+
+// GET /export — CSV download of expenses
+router.get('/export', authenticateToken, async (req, res) => {
+  try {
+    const gymId = req.user.gym_id;
+    const { month, year } = req.query;
+
+    const conditions = ['gym_id = ?'];
+    const params = [gymId];
+
+    if (month) {
+      conditions.push("TO_CHAR(expense_date, 'YYYY-MM') = ?");
+      params.push(month);
+    } else if (year) {
+      conditions.push("TO_CHAR(expense_date, 'YYYY') = ?");
+      params.push(year);
+    }
+
+    const rows = await getAll(
+      `SELECT expense_date, category, description, amount, payment_method, is_auto_generated
+       FROM expenses WHERE ${conditions.join(' AND ')}
+       ORDER BY expense_date DESC`,
+      params
+    );
+
+    const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const header = ['Date', 'Category', 'Description', 'Amount (ETB)', 'Payment Method', 'Recurring'].join(',');
+    const csvRows = rows.map(r => [
+      esc(r.expense_date?.toString().slice(0, 10) || ''),
+      esc(r.category),
+      esc(r.description),
+      esc(r.amount),
+      esc(r.payment_method),
+      esc(r.is_auto_generated ? 'Yes' : 'No'),
+    ].join(','));
+
+    const label = month || year || 'all';
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="expenses-${label}.csv"`);
+    res.send([header, ...csvRows].join('\n'));
+  } catch (err) {
+    console.error('GET /expenses/export error:', err);
+    res.status(500).json({ error: 'Failed to export expenses' });
+  }
+});
+
 // GET /summary — monthly totals for last 12 months (before / to avoid route conflict)
 router.get('/summary', authenticateToken, async (req, res) => {
   try {

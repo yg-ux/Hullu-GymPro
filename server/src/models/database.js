@@ -277,6 +277,33 @@ export async function initDatabase() {
     `CREATE INDEX IF NOT EXISTS idx_expenses_gym_id ON expenses(gym_id)`,
     `CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date)`,
 
+    // ── Recurring Expense Templates ────────────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS recurring_expenses (
+      id TEXT PRIMARY KEY,
+      gym_id TEXT NOT NULL,
+      category TEXT NOT NULL,
+      description TEXT NOT NULL,
+      amount REAL NOT NULL,
+      payment_method TEXT DEFAULT 'cash',
+      staff_id TEXT,
+      day_of_month INTEGER DEFAULT 1,
+      notes TEXT,
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_recurring_expenses_gym_id ON recurring_expenses(gym_id)`,
+
+    // Track which months have already had recurring expenses auto-generated
+    `CREATE TABLE IF NOT EXISTS recurring_expense_generations (
+      gym_id TEXT NOT NULL,
+      month TEXT NOT NULL,
+      generated_at TIMESTAMPTZ DEFAULT NOW(),
+      expense_count INTEGER DEFAULT 0,
+      PRIMARY KEY (gym_id, month)
+    )`,
+
     // ── Equipment / Asset Tracking ────────────────────────────────────────────
     `CREATE TABLE IF NOT EXISTS equipment (
       id TEXT PRIMARY KEY,
@@ -381,6 +408,11 @@ export async function initDatabase() {
   await p.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS branch_id TEXT');
   await p.query('ALTER TABLE payments ADD COLUMN IF NOT EXISTS branch_id TEXT');
   await p.query('ALTER TABLE attendance ADD COLUMN IF NOT EXISTS branch_id TEXT');
+
+  // Recurring expense tracking on expenses table
+  await p.query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS recurring_expense_id TEXT');
+  await p.query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS is_auto_generated BOOLEAN DEFAULT FALSE');
+  await p.query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS receipt_note TEXT');
 
   // Outstanding balance on customer
   await p.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS outstanding_balance REAL DEFAULT 0');

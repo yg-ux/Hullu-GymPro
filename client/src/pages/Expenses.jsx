@@ -27,7 +27,10 @@ import {
   Package,
   Shield,
   FileText,
-  MoreHorizontal
+  MoreHorizontal,
+  Download,
+  History,
+  Repeat
 } from 'lucide-react';
 import clsx from 'clsx';
 import PageHint from '../components/PageHint';
@@ -61,7 +64,7 @@ function getMonthOptions() {
   const now = new Date();
   for (let i = 0; i < 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '00')}`;
     const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     options.push({ value: val, label });
   }
@@ -71,6 +74,19 @@ function getMonthOptions() {
 function currentMonth() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function getMonthLabel(ym) {
+  if (!ym) return '';
+  const [year, month] = ym.split('-');
+  const d = new Date(Number(year), Number(month) - 1, 1);
+  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+function ordinal(n) {
+  const s = ['th','st','nd','rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
 // ── Mini bar chart (CSS bars) ─────────────────────────────────────────────────
@@ -332,6 +348,199 @@ function ExpenseForm({ form, onChange, onSubmit, onClose, saving, staffList = []
   );
 }
 
+// ── Recurring Expense Form ────────────────────────────────────────────────────
+const EMPTY_RECURRING_FORM = {
+  id: null,
+  category: '',
+  description: '',
+  amount: '',
+  payment_method: 'cash',
+  day_of_month: 1,
+  notes: '',
+  staff_id: '',
+};
+
+function RecurringForm({ form, onChange, onSubmit, onClose, saving, staffList = [] }) {
+  const isSalary = form.category === 'salaries';
+
+  const handleStaffSelect = (staffId) => {
+    const staff = staffList.find(s => String(s.id) === String(staffId));
+    onChange('staff_id', staffId);
+    if (staff) onChange('description', `Salary — ${staff.name}`);
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40" onClick={onClose} />
+      <div className="fixed inset-y-0 right-0 w-full sm:w-[480px] bg-dark-200 border-l border-gray-800/60 z-50 flex flex-col shadow-2xl animate-slide-up">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-800/60">
+          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+            <Repeat className="w-5 h-5 text-gym-400" />
+            {form.id ? 'Edit Recurring Expense' : 'Add Recurring Expense'}
+          </h2>
+          <button onClick={onClose} className="p-2 text-gray-400 hover:text-white hover:bg-dark-300 rounded-xl transition-all">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          {/* Category */}
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1.5">Category</label>
+            <div className="relative">
+              <select
+                value={form.category}
+                onChange={e => onChange('category', e.target.value)}
+                className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm appearance-none focus:outline-none focus:border-gym-500/60 transition-colors pr-9"
+              >
+                <option value="">Select category</option>
+                {CATEGORIES.map(c => (
+                  <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Staff picker — only shown when category = salaries */}
+          {isSalary && (
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1.5">
+                Staff Member <span className="text-red-400">*</span>
+              </label>
+              {staffList.length === 0 ? (
+                <div className="flex items-center gap-2 px-4 py-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-sm text-yellow-400">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  No staff found. Add staff members first.
+                </div>
+              ) : (
+                <div className="relative">
+                  <select
+                    value={form.staff_id || ''}
+                    onChange={e => handleStaffSelect(e.target.value)}
+                    className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm appearance-none focus:outline-none focus:border-gym-500/60 transition-colors pr-9"
+                  >
+                    <option value="">Select staff member</option>
+                    {staffList.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} — {s.role ? s.role.charAt(0).toUpperCase() + s.role.slice(1) : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1.5">Description</label>
+            <input
+              type="text"
+              value={form.description}
+              onChange={e => onChange('description', e.target.value)}
+              placeholder="e.g. Monthly rent payment"
+              className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gym-500/60 transition-colors"
+            />
+          </div>
+
+          {/* Amount */}
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1.5">Amount (ETB)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.amount}
+              onChange={e => onChange('amount', e.target.value)}
+              placeholder="0.00"
+              className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gym-500/60 transition-colors"
+            />
+          </div>
+
+          {/* Payment Method */}
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1.5">Payment Method</label>
+            <div className="flex gap-2">
+              {PAYMENT_METHODS.map(m => (
+                <button
+                  key={m.value}
+                  type="button"
+                  onClick={() => onChange('payment_method', m.value)}
+                  className={clsx(
+                    'flex-1 px-3 py-2.5 rounded-xl text-sm font-medium border transition-all',
+                    form.payment_method === m.value
+                      ? 'bg-gym-500/20 border-gym-500/50 text-gym-400'
+                      : 'bg-dark-300 border-gray-700 text-gray-400 hover:bg-dark-400 hover:text-gray-200'
+                  )}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Day of month */}
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1.5">Day of month to generate</label>
+            <input
+              type="number"
+              min="1"
+              max="28"
+              value={form.day_of_month}
+              onChange={e => onChange('day_of_month', Math.min(28, Math.max(1, Number(e.target.value))))}
+              className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gym-500/60 transition-colors"
+            />
+            {form.day_of_month >= 1 && form.day_of_month <= 28 && (
+              <p className="text-xs text-gray-500 mt-1">Due on the {ordinal(Number(form.day_of_month))} of each month</p>
+            )}
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1.5">Notes <span className="text-gray-600">(optional)</span></label>
+            <textarea
+              value={form.notes}
+              onChange={e => onChange('notes', e.target.value)}
+              placeholder="Additional notes..."
+              rows={3}
+              className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gym-500/60 transition-colors resize-none"
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-800/60 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2.5 bg-dark-300 text-white rounded-xl font-medium hover:bg-dark-400 transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onSubmit}
+            disabled={saving}
+            className="flex-1 px-4 py-2.5 bg-gym-500 hover:bg-gym-400 text-white rounded-xl font-semibold transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+          >
+            {saving ? (
+              <>
+                <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Saving...
+              </>
+            ) : (form.id ? 'Save Changes' : 'Add Recurring')}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── Delete Confirm ────────────────────────────────────────────────────────────
 function DeleteConfirm({ expense, onConfirm, onCancel, deleting }) {
   return (
@@ -396,23 +605,42 @@ const EMPTY_FORM = {
 export default function Expenses() {
   const toast = useToast();
 
-  const [expenses, setExpenses]       = useState([]);
-  const [loading, setLoading]         = useState(true);
-  const [summaryData, setSummaryData] = useState(null);
+  // ── Core expense state ────────────────────────────────────────────────────
+  const [activeTab, setActiveTab]       = useState('list');
+  const [expenses, setExpenses]         = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [summaryData, setSummaryData]   = useState(null);
   const [monthlyChart, setMonthlyChart] = useState([]);
-  const [revenue, setRevenue]         = useState(0);
-  const [showForm, setShowForm]       = useState(false);
-  const [form, setForm]               = useState(EMPTY_FORM);
-  const [saving, setSaving]           = useState(false);
+  const [revenue, setRevenue]           = useState(0);
+  const [showForm, setShowForm]         = useState(false);
+  const [form, setForm]                 = useState(EMPTY_FORM);
+  const [saving, setSaving]             = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting]       = useState(false);
-  const [filter, setFilter]           = useState({ month: currentMonth(), category: '' });
-  const [search, setSearch]           = useState('');
-  const [staffList, setStaffList]     = useState([]);
+  const [deleting, setDeleting]         = useState(false);
+  const [filter, setFilter]             = useState({ month: currentMonth(), category: '' });
+  const [search, setSearch]             = useState('');
+  const [staffList, setStaffList]       = useState([]);
+
+  // ── Recurring state ───────────────────────────────────────────────────────
+  const [recurringTemplates, setRecurringTemplates]   = useState([]);
+  const [recurringLoading, setRecurringLoading]       = useState(false);
+  const [showRecurringForm, setShowRecurringForm]     = useState(false);
+  const [recurringForm, setRecurringForm]             = useState(EMPTY_RECURRING_FORM);
+  const [savingRecurring, setSavingRecurring]         = useState(false);
+  const [deleteRecurringTarget, setDeleteRecurringTarget] = useState(null);
+  const [deletingRecurring, setDeletingRecurring]     = useState(false);
+  const [recurringStatus, setRecurringStatus]         = useState(null); // { template_count, generated }
+  const [generatingRecurring, setGeneratingRecurring] = useState(false);
+  const [bannerDismissed, setBannerDismissed]         = useState(false);
+
+  // ── History state ─────────────────────────────────────────────────────────
+  const [monthlyHistory, setMonthlyHistory]   = useState([]);
+  const [historyLoading, setHistoryLoading]   = useState(false);
 
   const monthOptions = getMonthOptions();
+  const cm = currentMonth();
 
-  // Load expenses
+  // ── Load expenses ─────────────────────────────────────────────────────────
   const loadExpenses = useCallback(async () => {
     setLoading(true);
     try {
@@ -429,18 +657,17 @@ export default function Expenses() {
     }
   }, [filter]);
 
-  // Load staff list once on mount (used for salary expense picker)
+  // ── Load staff list once on mount ─────────────────────────────────────────
   useEffect(() => {
     api.get('/staff')
       .then(d => setStaffList(Array.isArray(d) ? d : (d.staff || d.data || [])))
       .catch(() => {});
   }, []);
 
-  // Load monthly chart (last 12 months) & revenue
+  // ── Load monthly chart & revenue ──────────────────────────────────────────
   useEffect(() => {
     api.get('/expenses/summary')
       .then(d => {
-        // summary endpoint returns array of {month, total, byCategory}
         const last6 = Array.isArray(d) ? d.slice(-6) : [];
         setMonthlyChart(last6);
       })
@@ -454,7 +681,48 @@ export default function Expenses() {
     loadExpenses();
   }, [loadExpenses]);
 
-  // Form helpers
+  // ── Load recurring status on mount ───────────────────────────────────────
+  useEffect(() => {
+    api.get(`/recurring-expenses/status/${cm}`)
+      .then(d => setRecurringStatus(d))
+      .catch(() => {});
+  }, []);
+
+  // ── Load recurring templates when tab becomes active ──────────────────────
+  const loadRecurringTemplates = useCallback(async () => {
+    setRecurringLoading(true);
+    try {
+      const data = await api.get('/recurring-expenses');
+      setRecurringTemplates(Array.isArray(data) ? data : (data.data || []));
+    } catch (err) {
+      toast.error(err.message || 'Failed to load recurring expenses');
+    } finally {
+      setRecurringLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'recurring') loadRecurringTemplates();
+  }, [activeTab]);
+
+  // ── Load monthly history when tab becomes active ──────────────────────────
+  const loadMonthlyHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      const data = await api.get('/expenses/monthly-history');
+      setMonthlyHistory(Array.isArray(data) ? data : (data.data || []));
+    } catch (err) {
+      toast.error(err.message || 'Failed to load monthly history');
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'history') loadMonthlyHistory();
+  }, [activeTab]);
+
+  // ── Expense form helpers ──────────────────────────────────────────────────
   const openAddForm = () => {
     setForm(EMPTY_FORM);
     setShowForm(true);
@@ -477,7 +745,6 @@ export default function Expenses() {
   const handleFormChange = (key, val) => setForm(prev => ({
     ...prev,
     [key]: val,
-    // clear staff_id when category changes away from salaries
     ...(key === 'category' && val !== 'salaries' ? { staff_id: '' } : {}),
   }));
 
@@ -508,7 +775,7 @@ export default function Expenses() {
         toast.success('Expense added');
       }
       setShowForm(false);
-      loadExpenses(); // refresh summary
+      loadExpenses();
     } catch (err) {
       toast.error(err.message || 'Failed to save expense');
     } finally {
@@ -532,7 +799,146 @@ export default function Expenses() {
     }
   };
 
-  // Filtered list
+  // ── Recurring form helpers ────────────────────────────────────────────────
+  const openAddRecurringForm = () => {
+    setRecurringForm(EMPTY_RECURRING_FORM);
+    setShowRecurringForm(true);
+  };
+
+  const openEditRecurringForm = (tpl) => {
+    setRecurringForm({
+      id:             tpl.id,
+      category:       tpl.category || '',
+      description:    tpl.description || '',
+      amount:         tpl.amount || '',
+      payment_method: tpl.payment_method || 'cash',
+      day_of_month:   tpl.day_of_month || 1,
+      notes:          tpl.notes || '',
+      staff_id:       '',
+    });
+    setShowRecurringForm(true);
+  };
+
+  const handleRecurringFormChange = (key, val) => setRecurringForm(prev => ({
+    ...prev,
+    [key]: val,
+    ...(key === 'category' && val !== 'salaries' ? { staff_id: '' } : {}),
+  }));
+
+  const handleRecurringSubmit = async () => {
+    if (!recurringForm.category) return toast.error('Please select a category');
+    if (recurringForm.category === 'salaries' && !recurringForm.staff_id) return toast.error('Please select a staff member for salary');
+    if (!recurringForm.amount || Number(recurringForm.amount) <= 0) return toast.error('Please enter a valid amount');
+    if (!recurringForm.description.trim()) return toast.error('Please enter a description');
+    if (!recurringForm.day_of_month || recurringForm.day_of_month < 1 || recurringForm.day_of_month > 28) return toast.error('Day of month must be between 1 and 28');
+
+    setSavingRecurring(true);
+    try {
+      const payload = {
+        category:       recurringForm.category,
+        description:    recurringForm.description.trim(),
+        amount:         Number(recurringForm.amount),
+        payment_method: recurringForm.payment_method,
+        day_of_month:   Number(recurringForm.day_of_month),
+        notes:          recurringForm.notes.trim() || undefined,
+      };
+
+      if (recurringForm.id) {
+        await api.put(`/recurring-expenses/${recurringForm.id}`, payload);
+        toast.success('Recurring expense updated');
+      } else {
+        await api.post('/recurring-expenses', payload);
+        toast.success('Recurring expense added');
+      }
+      setShowRecurringForm(false);
+      loadRecurringTemplates();
+      // Refresh status banner
+      api.get(`/recurring-expenses/status/${cm}`)
+        .then(d => setRecurringStatus(d))
+        .catch(() => {});
+    } catch (err) {
+      toast.error(err.message || 'Failed to save recurring expense');
+    } finally {
+      setSavingRecurring(false);
+    }
+  };
+
+  const handleDeleteRecurring = async () => {
+    if (!deleteRecurringTarget) return;
+    setDeletingRecurring(true);
+    try {
+      await api.delete(`/recurring-expenses/${deleteRecurringTarget.id}`);
+      setRecurringTemplates(prev => prev.filter(t => t.id !== deleteRecurringTarget.id));
+      toast.success('Recurring expense deleted');
+      setDeleteRecurringTarget(null);
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete recurring expense');
+    } finally {
+      setDeletingRecurring(false);
+    }
+  };
+
+  // ── Generate recurring ────────────────────────────────────────────────────
+  const handleGenerateRecurring = async () => {
+    setGeneratingRecurring(true);
+    try {
+      const result = await api.post('/recurring-expenses/generate', { month: cm });
+      const count = result.generated || result.count || 0;
+      toast.success(`${count} recurring expense${count !== 1 ? 's' : ''} generated for ${getMonthLabel(cm)}`);
+      setBannerDismissed(true);
+      setRecurringStatus(prev => prev ? { ...prev, generated: true } : prev);
+      loadExpenses();
+    } catch (err) {
+      toast.error(err.message || 'Failed to generate recurring expenses');
+    } finally {
+      setGeneratingRecurring(false);
+    }
+  };
+
+  // ── CSV Export ────────────────────────────────────────────────────────────
+  const handleExportCsv = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const month = filter.month || cm;
+      const apiBase = import.meta.env.VITE_API_URL || '/api';
+      const res = await fetch(`${apiBase}/expenses/export?month=${month}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Export failed');
+      const csvText = await res.text();
+      const url = URL.createObjectURL(new Blob([csvText], { type: 'text/csv' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `expenses-${month}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(err.message || 'Failed to export CSV');
+    }
+  };
+
+  // ── History CSV Export ────────────────────────────────────────────────────
+  const handleExportHistoryCsv = () => {
+    if (!monthlyHistory.length) return;
+    const rows = [
+      ['Month', 'Revenue', 'Expenses', 'Net Profit'],
+      ...monthlyHistory.map(r => [
+        r.month,
+        r.revenue ?? 0,
+        r.expenses ?? 0,
+        (r.revenue ?? 0) - (r.expenses ?? 0),
+      ]),
+    ];
+    const csvText = rows.map(r => r.join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csvText], { type: 'text/csv' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'monthly-history.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // ── Filtered list ─────────────────────────────────────────────────────────
   const filtered = expenses.filter(e => {
     if (!search) return true;
     const q = search.toLowerCase();
@@ -542,13 +948,26 @@ export default function Expenses() {
     );
   });
 
-  // Stats
-  const totalSpent   = summaryData?.total || 0;
-  const byCategory   = summaryData?.byCategory || [];
+  // ── Stats ─────────────────────────────────────────────────────────────────
+  const totalSpent = summaryData?.total || 0;
+  const byCategory = summaryData?.byCategory || [];
+
+  // ── Banner visibility ─────────────────────────────────────────────────────
+  const showGenerateBanner =
+    !bannerDismissed &&
+    recurringStatus &&
+    recurringStatus.template_count > 0 &&
+    !recurringStatus.generated;
+
+  const showGeneratedBadge =
+    recurringStatus &&
+    recurringStatus.template_count > 0 &&
+    recurringStatus.generated;
 
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHint id="expenses">Log everything your gym spends money on — rent, utilities, salaries, equipment, and more. Select a month to see a breakdown by category. The Profit & Loss section compares your revenue against expenses for the month.</PageHint>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -561,223 +980,481 @@ export default function Expenses() {
           <button onClick={loadExpenses} className="p-2.5 bg-dark-300 text-gray-400 hover:text-white rounded-xl border border-gray-700 hover:bg-dark-400 transition-all">
             <RefreshCw className="w-4 h-4" />
           </button>
-          <button
-            onClick={openAddForm}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-gym-500 hover:bg-gym-400 text-white rounded-xl font-semibold transition-all shadow-lg shadow-gym-500/30"
-          >
-            <Plus className="w-5 h-5" />
-            Add Expense
-          </button>
-        </div>
-      </div>
-
-      {/* Stats Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Spent */}
-        <div className="bg-dark-300 rounded-2xl p-5 border border-gray-800/50 col-span-2 lg:col-span-1">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center">
-              <TrendingDown className="w-5 h-5 text-red-400" />
-            </div>
-            <span className="text-sm text-gray-400">Total Spent</span>
-          </div>
-          <p className="text-2xl font-bold text-white">{formatCurrency(totalSpent)}</p>
-          <p className="text-xs text-gray-500 mt-1">
-            {filter.month ? monthOptions.find(m => m.value === filter.month)?.label : 'This Month'}
-          </p>
-        </div>
-
-        {/* Top categories */}
-        {byCategory.slice(0, 3).map(cat => {
-          const c = getCat(cat.category);
-          return (
-            <div key={cat.category} className="bg-dark-300 rounded-2xl p-5 border border-gray-800/50">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xl">{c.emoji}</span>
-                <span className="text-sm text-gray-400">{c.label}</span>
-              </div>
-              <p className="text-xl font-bold text-white">{formatCurrency(cat.total)}</p>
-              <p className="text-xs text-gray-500 mt-1">{cat.count} expense{cat.count !== 1 ? 's' : ''}</p>
-            </div>
-          );
-        })}
-
-        {/* Fill remaining slots if < 3 categories */}
-        {byCategory.length < 3 && Array.from({ length: 3 - byCategory.length }).map((_, i) => (
-          <div key={`empty-${i}`} className="bg-dark-300/40 rounded-2xl p-5 border border-dashed border-gray-800/40 hidden lg:block" />
-        ))}
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <MonthlyBarChart data={monthlyChart} />
-        <ProfitLoss revenue={revenue} expenses={totalSpent} />
-      </div>
-
-      {/* Filter Bar */}
-      <div className="bg-dark-300 rounded-2xl p-4 border border-gray-800/50 flex flex-col sm:flex-row gap-3">
-        {/* Search */}
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-          <input
-            type="text"
-            placeholder="Search expenses..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full bg-dark-400 border border-gray-700 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gym-500/50 transition-colors"
-          />
-          {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white">
-              <X className="w-4 h-4" />
+          {activeTab === 'list' && (
+            <>
+              <button
+                onClick={handleExportCsv}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-dark-300 hover:bg-dark-400 text-gray-300 hover:text-white rounded-xl font-medium border border-gray-700 transition-all"
+              >
+                <Download className="w-4 h-4" />
+                Export CSV
+              </button>
+              <button
+                onClick={openAddForm}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gym-500 hover:bg-gym-400 text-white rounded-xl font-semibold transition-all shadow-lg shadow-gym-500/30"
+              >
+                <Plus className="w-5 h-5" />
+                Add Expense
+              </button>
+            </>
+          )}
+          {activeTab === 'recurring' && (
+            <button
+              onClick={openAddRecurringForm}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gym-500 hover:bg-gym-400 text-white rounded-xl font-semibold transition-all shadow-lg shadow-gym-500/30"
+            >
+              <Plus className="w-5 h-5" />
+              Add Recurring
+            </button>
+          )}
+          {activeTab === 'history' && (
+            <button
+              onClick={handleExportHistoryCsv}
+              disabled={!monthlyHistory.length}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-dark-300 hover:bg-dark-400 text-gray-300 hover:text-white rounded-xl font-medium border border-gray-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Download className="w-4 h-4" />
+              Export All (CSV)
             </button>
           )}
         </div>
-
-        {/* Month picker */}
-        <div className="relative">
-          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-          <select
-            value={filter.month}
-            onChange={e => setFilter(prev => ({ ...prev, month: e.target.value }))}
-            className="bg-dark-400 border border-gray-700 rounded-xl pl-9 pr-8 py-2 text-sm text-white appearance-none focus:outline-none focus:border-gym-500/50 transition-colors"
-          >
-            <option value="">All months</option>
-            {monthOptions.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-          </select>
-          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-        </div>
-
-        {/* Category */}
-        <div className="relative">
-          <select
-            value={filter.category}
-            onChange={e => setFilter(prev => ({ ...prev, category: e.target.value }))}
-            className="bg-dark-400 border border-gray-700 rounded-xl px-3 pr-8 py-2 text-sm text-white appearance-none focus:outline-none focus:border-gym-500/50 transition-colors"
-          >
-            <option value="">All categories</option>
-            {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>)}
-          </select>
-          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-        </div>
       </div>
 
-      {/* Expense List */}
-      <div className="bg-dark-300 rounded-2xl border border-gray-800/50 overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="relative">
-              <div className="w-12 h-12 rounded-full border-4 border-gym-600/30 animate-pulse" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-6 h-6 rounded-full border-4 border-gym-500 border-t-transparent animate-spin" />
-              </div>
-            </div>
+      {/* Auto-generation banner */}
+      {showGenerateBanner && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 bg-yellow-500/10 border border-yellow-500/30 rounded-2xl">
+          <p className="text-sm text-yellow-300 flex items-center gap-2">
+            <span>⚡</span>
+            You have {recurringStatus.template_count} recurring expense{recurringStatus.template_count !== 1 ? 's' : ''} set up. Generate them for {getMonthLabel(cm)}?
+          </p>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={handleGenerateRecurring}
+              disabled={generatingRecurring}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black rounded-xl text-sm font-semibold transition-all disabled:opacity-60"
+            >
+              {generatingRecurring ? (
+                <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : null}
+              Generate Now
+            </button>
+            <button
+              onClick={() => setBannerDismissed(true)}
+              className="p-1.5 text-yellow-400/60 hover:text-yellow-300 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-        ) : filtered.length === 0 ? (
-          <div className="py-16 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-dark-400 flex items-center justify-center mx-auto mb-4">
-              <Receipt className="w-8 h-8 text-gray-600" />
-            </div>
-            <h3 className="text-lg font-medium text-white mb-2">No expenses found</h3>
-            <p className="text-gray-500 text-sm mb-6">
-              {search || filter.category
-                ? 'Try adjusting your filters'
-                : 'Start by adding your first expense'}
-            </p>
-            {!search && !filter.category && (
-              <button
-                onClick={openAddForm}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gym-500 hover:bg-gym-400 text-white rounded-xl font-medium transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                Add Expense
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-800/50">
-            {/* Table header */}
-            <div className="grid grid-cols-12 gap-3 px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div className="col-span-2">Date</div>
-              <div className="col-span-3">Category</div>
-              <div className="col-span-3">Description</div>
-              <div className="col-span-2 text-right">Amount</div>
-              <div className="col-span-1">Method</div>
-              <div className="col-span-1" />
-            </div>
-
-            {filtered.map(expense => {
-              const cat = getCat(expense.category);
-              return (
-                <div
-                  key={expense.id}
-                  className="grid grid-cols-12 gap-3 px-5 py-4 items-center hover:bg-dark-400/50 transition-colors group"
-                >
-                  {/* Date */}
-                  <div className="col-span-2">
-                    <span className="text-sm text-gray-400">{formatDate(expense.expense_date)}</span>
-                  </div>
-
-                  {/* Category */}
-                  <div className="col-span-3 flex items-center gap-2">
-                    <span className="text-lg">{cat.emoji}</span>
-                    <span className={clsx('text-xs font-medium px-2 py-0.5 rounded-lg border', cat.bg, cat.color, cat.border)}>
-                      {cat.label}
-                    </span>
-                  </div>
-
-                  {/* Description */}
-                  <div className="col-span-3">
-                    <p className="text-sm text-gray-200 truncate">{expense.description}</p>
-                    {expense.receipt_note && (
-                      <p className="text-xs text-gray-500 truncate mt-0.5">{expense.receipt_note}</p>
-                    )}
-                  </div>
-
-                  {/* Amount */}
-                  <div className="col-span-2 text-right">
-                    <span className="text-sm font-semibold text-red-400">{formatCurrency(expense.amount)}</span>
-                  </div>
-
-                  {/* Method */}
-                  <div className="col-span-1">
-                    <span className="text-xs text-gray-500 capitalize">{(expense.payment_method || 'cash').replace('_', ' ')}</span>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="col-span-1 flex justify-end gap-1">
-                    <button
-                      onClick={() => openEditForm(expense)}
-                      className="p-1.5 text-gray-600 hover:text-gym-400 hover:bg-gym-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                      title="Edit expense"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setDeleteTarget(expense)}
-                      className="p-1.5 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                      title="Delete expense"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Total row */}
-      {!loading && filtered.length > 0 && (
-        <div className="flex items-center justify-between px-5 py-3 bg-dark-300 rounded-2xl border border-gray-800/50">
-          <span className="text-sm text-gray-400">{filtered.length} expense{filtered.length !== 1 ? 's' : ''}</span>
-          <span className="text-sm font-bold text-white">
-            Total: <span className="text-red-400">{formatCurrency(filtered.reduce((s, e) => s + (e.amount || 0), 0))}</span>
-          </span>
         </div>
       )}
 
-      {/* Form panel */}
+      {/* Generated badge */}
+      {showGeneratedBadge && (
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-sm text-emerald-400 w-fit">
+          <span>✓</span>
+          Recurring expenses generated for {getMonthLabel(cm)}
+        </div>
+      )}
+
+      {/* Tab bar */}
+      <div className="flex items-center gap-1 bg-dark-300 rounded-2xl p-1 border border-gray-800/50 w-fit">
+        {[
+          { id: 'list',      label: 'List',      icon: <Receipt className="w-4 h-4" /> },
+          { id: 'recurring', label: 'Recurring',  icon: <Repeat className="w-4 h-4" /> },
+          { id: 'history',   label: 'History',   icon: <History className="w-4 h-4" /> },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={clsx(
+              'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all',
+              activeTab === tab.id
+                ? 'bg-gym-500 text-white shadow-sm'
+                : 'text-gray-400 hover:text-gray-200 hover:bg-dark-400'
+            )}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── LIST TAB ──────────────────────────────────────────────────────── */}
+      {activeTab === 'list' && (
+        <>
+          {/* Stats Row */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-dark-300 rounded-2xl p-5 border border-gray-800/50 col-span-2 lg:col-span-1">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center">
+                  <TrendingDown className="w-5 h-5 text-red-400" />
+                </div>
+                <span className="text-sm text-gray-400">Total Spent</span>
+              </div>
+              <p className="text-2xl font-bold text-white">{formatCurrency(totalSpent)}</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {filter.month ? monthOptions.find(m => m.value === filter.month)?.label : 'This Month'}
+              </p>
+            </div>
+
+            {byCategory.slice(0, 3).map(cat => {
+              const c = getCat(cat.category);
+              return (
+                <div key={cat.category} className="bg-dark-300 rounded-2xl p-5 border border-gray-800/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xl">{c.emoji}</span>
+                    <span className="text-sm text-gray-400">{c.label}</span>
+                  </div>
+                  <p className="text-xl font-bold text-white">{formatCurrency(cat.total)}</p>
+                  <p className="text-xs text-gray-500 mt-1">{cat.count} expense{cat.count !== 1 ? 's' : ''}</p>
+                </div>
+              );
+            })}
+
+            {byCategory.length < 3 && Array.from({ length: 3 - byCategory.length }).map((_, i) => (
+              <div key={`empty-${i}`} className="bg-dark-300/40 rounded-2xl p-5 border border-dashed border-gray-800/40 hidden lg:block" />
+            ))}
+          </div>
+
+          {/* Charts Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <MonthlyBarChart data={monthlyChart} />
+            <ProfitLoss revenue={revenue} expenses={totalSpent} />
+          </div>
+
+          {/* Filter Bar */}
+          <div className="bg-dark-300 rounded-2xl p-4 border border-gray-800/50 flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <input
+                type="text"
+                placeholder="Search expenses..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full bg-dark-400 border border-gray-700 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gym-500/50 transition-colors"
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+              <select
+                value={filter.month}
+                onChange={e => setFilter(prev => ({ ...prev, month: e.target.value }))}
+                className="bg-dark-400 border border-gray-700 rounded-xl pl-9 pr-8 py-2 text-sm text-white appearance-none focus:outline-none focus:border-gym-500/50 transition-colors"
+              >
+                <option value="">All months</option>
+                {monthOptions.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+            </div>
+
+            <div className="relative">
+              <select
+                value={filter.category}
+                onChange={e => setFilter(prev => ({ ...prev, category: e.target.value }))}
+                className="bg-dark-400 border border-gray-700 rounded-xl px-3 pr-8 py-2 text-sm text-white appearance-none focus:outline-none focus:border-gym-500/50 transition-colors"
+              >
+                <option value="">All categories</option>
+                {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>)}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Expense List */}
+          <div className="bg-dark-300 rounded-2xl border border-gray-800/50 overflow-hidden">
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-full border-4 border-gym-600/30 animate-pulse" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-6 h-6 rounded-full border-4 border-gym-500 border-t-transparent animate-spin" />
+                  </div>
+                </div>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="py-16 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-dark-400 flex items-center justify-center mx-auto mb-4">
+                  <Receipt className="w-8 h-8 text-gray-600" />
+                </div>
+                <h3 className="text-lg font-medium text-white mb-2">No expenses found</h3>
+                <p className="text-gray-500 text-sm mb-6">
+                  {search || filter.category
+                    ? 'Try adjusting your filters'
+                    : 'Start by adding your first expense'}
+                </p>
+                {!search && !filter.category && (
+                  <button
+                    onClick={openAddForm}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-gym-500 hover:bg-gym-400 text-white rounded-xl font-medium transition-all"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Expense
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-800/50">
+                <div className="grid grid-cols-12 gap-3 px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="col-span-2">Date</div>
+                  <div className="col-span-3">Category</div>
+                  <div className="col-span-3">Description</div>
+                  <div className="col-span-2 text-right">Amount</div>
+                  <div className="col-span-1">Method</div>
+                  <div className="col-span-1" />
+                </div>
+
+                {filtered.map(expense => {
+                  const cat = getCat(expense.category);
+                  return (
+                    <div
+                      key={expense.id}
+                      className="grid grid-cols-12 gap-3 px-5 py-4 items-center hover:bg-dark-400/50 transition-colors group"
+                    >
+                      <div className="col-span-2">
+                        <span className="text-sm text-gray-400">{formatDate(expense.expense_date)}</span>
+                      </div>
+
+                      <div className="col-span-3 flex items-center gap-2">
+                        <span className="text-lg">{cat.emoji}</span>
+                        <span className={clsx('text-xs font-medium px-2 py-0.5 rounded-lg border', cat.bg, cat.color, cat.border)}>
+                          {cat.label}
+                        </span>
+                      </div>
+
+                      <div className="col-span-3">
+                        <p className="text-sm text-gray-200 truncate">{expense.description}</p>
+                        {expense.is_recurring ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-gym-400 mt-0.5">
+                            🔄 Recurring
+                          </span>
+                        ) : expense.receipt_note ? (
+                          <p className="text-xs text-gray-500 truncate mt-0.5">{expense.receipt_note}</p>
+                        ) : null}
+                      </div>
+
+                      <div className="col-span-2 text-right">
+                        <span className="text-sm font-semibold text-red-400">{formatCurrency(expense.amount)}</span>
+                      </div>
+
+                      <div className="col-span-1">
+                        <span className="text-xs text-gray-500 capitalize">{(expense.payment_method || 'cash').replace('_', ' ')}</span>
+                      </div>
+
+                      <div className="col-span-1 flex justify-end gap-1">
+                        <button
+                          onClick={() => openEditForm(expense)}
+                          className="p-1.5 text-gray-600 hover:text-gym-400 hover:bg-gym-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                          title="Edit expense"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget(expense)}
+                          className="p-1.5 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                          title="Delete expense"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Total row */}
+          {!loading && filtered.length > 0 && (
+            <div className="flex items-center justify-between px-5 py-3 bg-dark-300 rounded-2xl border border-gray-800/50">
+              <span className="text-sm text-gray-400">{filtered.length} expense{filtered.length !== 1 ? 's' : ''}</span>
+              <span className="text-sm font-bold text-white">
+                Total: <span className="text-red-400">{formatCurrency(filtered.reduce((s, e) => s + (e.amount || 0), 0))}</span>
+              </span>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── RECURRING TAB ─────────────────────────────────────────────────── */}
+      {activeTab === 'recurring' && (
+        <div className="space-y-4">
+          {/* Generate for current month */}
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-400">
+              {recurringTemplates.length} recurring template{recurringTemplates.length !== 1 ? 's' : ''} configured
+            </p>
+            <button
+              onClick={handleGenerateRecurring}
+              disabled={generatingRecurring}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black rounded-xl font-semibold transition-all disabled:opacity-60 shadow-lg shadow-yellow-500/20"
+            >
+              {generatingRecurring ? (
+                <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : (
+                <Zap className="w-4 h-4" />
+              )}
+              Generate for {getMonthLabel(cm)}
+            </button>
+          </div>
+
+          <div className="bg-dark-300 rounded-2xl border border-gray-800/50 overflow-hidden">
+            {recurringLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-full border-4 border-gym-600/30 animate-pulse" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-6 h-6 rounded-full border-4 border-gym-500 border-t-transparent animate-spin" />
+                  </div>
+                </div>
+              </div>
+            ) : recurringTemplates.length === 0 ? (
+              <div className="py-16 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-dark-400 flex items-center justify-center mx-auto mb-4">
+                  <Repeat className="w-8 h-8 text-gray-600" />
+                </div>
+                <h3 className="text-lg font-medium text-white mb-2">No recurring expenses</h3>
+                <p className="text-gray-500 text-sm mb-6">Set up recurring templates for rent, utilities, salaries, and more</p>
+                <button
+                  onClick={openAddRecurringForm}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-gym-500 hover:bg-gym-400 text-white rounded-xl font-medium transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Recurring
+                </button>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-800/50">
+                {/* Header */}
+                <div className="grid grid-cols-12 gap-3 px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="col-span-3">Category</div>
+                  <div className="col-span-3">Description</div>
+                  <div className="col-span-2 text-right">Amount</div>
+                  <div className="col-span-2">Method</div>
+                  <div className="col-span-1">Day</div>
+                  <div className="col-span-1" />
+                </div>
+
+                {recurringTemplates.map(tpl => {
+                  const cat = getCat(tpl.category);
+                  return (
+                    <div
+                      key={tpl.id}
+                      className="grid grid-cols-12 gap-3 px-5 py-4 items-center hover:bg-dark-400/50 transition-colors group"
+                    >
+                      <div className="col-span-3 flex items-center gap-2">
+                        <span className="text-lg">{cat.emoji}</span>
+                        <span className={clsx('text-xs font-medium px-2 py-0.5 rounded-lg border', cat.bg, cat.color, cat.border)}>
+                          {cat.label}
+                        </span>
+                      </div>
+
+                      <div className="col-span-3">
+                        <p className="text-sm text-gray-200 truncate">{tpl.description}</p>
+                        {tpl.notes && <p className="text-xs text-gray-500 truncate mt-0.5">{tpl.notes}</p>}
+                      </div>
+
+                      <div className="col-span-2 text-right">
+                        <span className="text-sm font-semibold text-red-400">{formatCurrency(tpl.amount)}</span>
+                      </div>
+
+                      <div className="col-span-2">
+                        <span className="text-xs text-gray-500 capitalize">{(tpl.payment_method || 'cash').replace('_', ' ')}</span>
+                      </div>
+
+                      <div className="col-span-1">
+                        <span className="text-xs text-gray-400">{ordinal(tpl.day_of_month)}</span>
+                      </div>
+
+                      <div className="col-span-1 flex justify-end gap-1">
+                        <button
+                          onClick={() => openEditRecurringForm(tpl)}
+                          className="p-1.5 text-gray-600 hover:text-gym-400 hover:bg-gym-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                          title="Edit"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteRecurringTarget(tpl)}
+                          className="p-1.5 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── HISTORY TAB ───────────────────────────────────────────────────── */}
+      {activeTab === 'history' && (
+        <div className="bg-dark-300 rounded-2xl border border-gray-800/50 overflow-hidden">
+          {historyLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="relative">
+                <div className="w-12 h-12 rounded-full border-4 border-gym-600/30 animate-pulse" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-6 h-6 rounded-full border-4 border-gym-500 border-t-transparent animate-spin" />
+                </div>
+              </div>
+            </div>
+          ) : monthlyHistory.length === 0 ? (
+            <div className="py-16 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-dark-400 flex items-center justify-center mx-auto mb-4">
+                <History className="w-8 h-8 text-gray-600" />
+              </div>
+              <h3 className="text-lg font-medium text-white mb-2">No history yet</h3>
+              <p className="text-gray-500 text-sm">Monthly history will appear here once you have expenses recorded.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-800/50">
+              {/* Header */}
+              <div className="grid grid-cols-4 gap-3 px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div>Month</div>
+                <div className="text-right">Revenue</div>
+                <div className="text-right">Expenses</div>
+                <div className="text-right">Net Profit</div>
+              </div>
+
+              {monthlyHistory.map((row, i) => {
+                const net = (row.revenue ?? 0) - (row.expenses ?? 0);
+                const isProfit = net >= 0;
+                return (
+                  <div
+                    key={row.month || i}
+                    className="grid grid-cols-4 gap-3 px-5 py-4 items-center hover:bg-dark-400/50 transition-colors"
+                  >
+                    <div className="text-sm font-medium text-white">{getMonthLabel(row.month)}</div>
+                    <div className="text-right text-sm font-semibold text-emerald-400">{formatCurrency(row.revenue ?? 0)}</div>
+                    <div className="text-right text-sm font-semibold text-red-400">{formatCurrency(row.expenses ?? 0)}</div>
+                    <div className={clsx('text-right text-sm font-bold', isProfit ? 'text-emerald-400' : 'text-red-400')}>
+                      {isProfit ? '+' : ''}{formatCurrency(net)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Form panel — expense */}
       {showForm && (
         <ExpenseForm
           form={form}
@@ -789,13 +1466,35 @@ export default function Expenses() {
         />
       )}
 
-      {/* Delete confirm */}
+      {/* Form panel — recurring */}
+      {showRecurringForm && (
+        <RecurringForm
+          form={recurringForm}
+          onChange={handleRecurringFormChange}
+          onSubmit={handleRecurringSubmit}
+          onClose={() => setShowRecurringForm(false)}
+          saving={savingRecurring}
+          staffList={staffList}
+        />
+      )}
+
+      {/* Delete confirm — expense */}
       {deleteTarget && (
         <DeleteConfirm
           expense={deleteTarget}
           onConfirm={handleDelete}
           onCancel={() => setDeleteTarget(null)}
           deleting={deleting}
+        />
+      )}
+
+      {/* Delete confirm — recurring */}
+      {deleteRecurringTarget && (
+        <DeleteConfirm
+          expense={deleteRecurringTarget}
+          onConfirm={handleDeleteRecurring}
+          onCancel={() => setDeleteRecurringTarget(null)}
+          deleting={deletingRecurring}
         />
       )}
     </div>
