@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -11,12 +11,21 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [wakingUp, setWakingUp] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  // Listen for the server-waking event emitted by api.js during retries
+  useEffect(() => {
+    const handler = () => setWakingUp(true);
+    window.addEventListener('server-waking', handler);
+    return () => window.removeEventListener('server-waking', handler);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setWakingUp(false);
     setLoading(true);
 
     try {
@@ -25,6 +34,7 @@ export default function Login() {
     } catch (err) {
       setError(err.message || t('login.invalidCredentials'));
       setLoading(false);
+      setWakingUp(false);
     }
   };
 
@@ -114,6 +124,19 @@ export default function Login() {
                 t('login.signIn')
               )}
             </button>
+
+            {/* Server cold-start notice */}
+            {wakingUp && (
+              <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-lg text-amber-700 dark:text-amber-300">
+                <svg className="animate-spin w-4 h-4 flex-shrink-0 mt-0.5" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                <p className="text-sm">
+                  <span className="font-semibold">Server is starting up.</span> This happens after a period of inactivity and takes about 30 seconds. Please wait — we'll log you in automatically.
+                </p>
+              </div>
+            )}
 
             <div className="text-center">
               <Link to="/forgot-password" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">
