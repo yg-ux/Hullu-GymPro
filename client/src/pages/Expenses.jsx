@@ -906,16 +906,16 @@ export default function Expenses() {
   };
 
   // ── Generate recurring ────────────────────────────────────────────────────
-  const handleGenerateRecurring = async () => {
+  const handleGenerateRecurring = async (force = false) => {
     setGeneratingRecurring(true);
     try {
-      const result = await api.post('/recurring-expenses/generate', { month: cm });
-      const count = result.generated || result.count || 0;
+      const result = await api.post('/recurring-expenses/generate', { month: cm, force });
+      const count = result.expense_count ?? result.count ?? 0;
       toast.success(`${count} monthly bill${count !== 1 ? 's' : ''} logged for ${getMonthLabel(cm)}`);
-      setRecurringStatus(prev => prev ? { ...prev, generated: true } : prev);
+      setRecurringStatus(prev => ({ ...(prev || {}), generated: true, expense_count: count }));
       loadExpenses();
     } catch (err) {
-      toast.error(err.message || 'Failed to generate recurring expenses');
+      toast.error(err.message || 'Failed to log monthly bills');
     } finally {
       setGeneratingRecurring(false);
     }
@@ -1005,13 +1005,28 @@ export default function Expenses() {
               </button>
               {/* Monthly bills button — always visible on list tab */}
               {recurringStatus?.generated ? (
-                <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 rounded-xl text-sm font-medium">
-                  <span>✓</span>
-                  Bills logged for {getMonthLabel(cm)}
+                <div className="inline-flex items-center gap-1 rounded-xl overflow-hidden border border-emerald-500/30">
+                  <span className="inline-flex items-center gap-2 px-3 py-2.5 bg-emerald-500/15 text-emerald-400 text-sm font-medium">
+                    <span>✓</span>
+                    Bills logged
+                  </span>
+                  <button
+                    onClick={() => handleGenerateRecurring(true)}
+                    disabled={generatingRecurring}
+                    title="Re-log this month's bills"
+                    className="px-3 py-2.5 bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-500 hover:text-emerald-300 text-xs font-medium transition-all disabled:opacity-50 border-l border-emerald-500/30"
+                  >
+                    {generatingRecurring ? (
+                      <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    ) : 'Re-log'}
+                  </button>
                 </div>
               ) : (
                 <button
-                  onClick={() => recurringTemplates.length > 0 ? handleGenerateRecurring() : setActiveTab('recurring')}
+                  onClick={() => recurringTemplates.length > 0 ? handleGenerateRecurring(false) : setActiveTab('recurring')}
                   disabled={generatingRecurring}
                   className="inline-flex items-center gap-2 px-4 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black rounded-xl font-semibold transition-all disabled:opacity-60"
                 >

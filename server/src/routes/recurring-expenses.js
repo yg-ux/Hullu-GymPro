@@ -109,11 +109,11 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /generate — generate this month's expenses from active recurring templates (idempotent)
+// POST /generate — generate this month's expenses from active recurring templates
 router.post('/generate', authenticateToken, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
-    const { month } = req.body; // YYYY-MM, defaults to current month
+    const { month, force } = req.body; // YYYY-MM, defaults to current month; force=true re-logs
     const targetMonth = month || new Date().toISOString().slice(0, 7);
 
     // Check if already generated for this month
@@ -121,12 +121,24 @@ router.post('/generate', authenticateToken, async (req, res) => {
       'SELECT * FROM recurring_expense_generations WHERE gym_id = ? AND month = ?',
       [gymId, targetMonth]
     );
-    if (already) {
+    if (already && !force) {
       return res.json({
         message: `Already generated for ${targetMonth}`,
         already_generated: true,
         expense_count: already.expense_count,
       });
+    }
+
+    // force=true: delete previous auto-generated expenses for this month and reset the record
+    if (already && force) {
+      await runQuery(
+        `DELETE FROM expenses WHERE gym_id = ? AND is_auto_generated = TRUE AND TO_CHAR(expense_date, 'YYYY-MM') = ?`,
+        [gymId, targetMonth]
+      );
+      await runQuery(
+        'DELETE FROM recurring_expense_generations WHERE gym_id = ? AND month = ?',
+        [gymId, targetMonth]
+      );
     }
 
     // Get all active recurring templates
