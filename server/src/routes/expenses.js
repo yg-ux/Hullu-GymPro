@@ -75,16 +75,16 @@ router.get('/', authenticateToken, async (req, res) => {
     );
 
     const summaryRows = await getAll(
-      `SELECT category, SUM(amount) as total FROM expenses WHERE ${where} GROUP BY category`,
+      `SELECT category, SUM(amount) as total, COUNT(*) as count FROM expenses WHERE ${where} GROUP BY category ORDER BY total DESC`,
       params
     );
 
-    const byCategory = {};
     let grandTotal = 0;
-    for (const row of summaryRows) {
-      byCategory[row.category] = parseFloat(row.total) || 0;
-      grandTotal += parseFloat(row.total) || 0;
-    }
+    const byCategory = summaryRows.map(row => {
+      const t = parseFloat(row.total) || 0;
+      grandTotal += t;
+      return { category: row.category, total: t, count: parseInt(row.count) || 0 };
+    });
 
     res.json({
       data,

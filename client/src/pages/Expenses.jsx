@@ -371,10 +371,14 @@ export default function Expenses() {
     }
   }, [filter]);
 
-  // Load monthly chart (last 6 months) & revenue
+  // Load monthly chart (last 12 months) & revenue
   useEffect(() => {
-    api.get('/expenses?limit=6months')
-      .then(d => setMonthlyChart(d.monthly_breakdown || []))
+    api.get('/expenses/summary')
+      .then(d => {
+        // summary endpoint returns array of {month, total, byCategory}
+        const last6 = Array.isArray(d) ? d.slice(-6) : [];
+        setMonthlyChart(last6);
+      })
       .catch(() => {});
     api.get('/stats/revenue')
       .then(d => setRevenue(d.this_month || 0))
@@ -401,7 +405,7 @@ export default function Expenses() {
     setSaving(true);
     try {
       const payload = {
-        date: form.date,
+        expense_date: form.date,
         category: form.category,
         amount: Number(form.amount),
         description: form.description.trim(),
