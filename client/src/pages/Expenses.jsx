@@ -980,7 +980,15 @@ export default function Expenses() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <PageHint id="expenses">Log everything your gym spends money on — rent, utilities, salaries, equipment, and more. Select a month to see a breakdown by category. The Profit & Loss section compares your revenue against expenses for the month.</PageHint>
+      <PageHint id="expenses">
+        <p className="font-semibold text-white mb-2">How the Expense Tracker works</p>
+        <ul className="space-y-1.5 text-sm text-gray-300 leading-relaxed">
+          <li><span className="text-yellow-400 font-medium">Monthly Bills tab</span> — Set up your fixed monthly costs (rent, salaries, utilities) <span className="text-white">once</span>. At the start of each month, click the yellow <span className="text-white font-medium">"Log [Month] Bills"</span> button and all of them are added to your expense list automatically.</li>
+          <li><span className="text-gym-400 font-medium">Re-log</span> — If you clicked "Log" but the expenses didn't appear, click the <span className="text-white font-medium">"Re-log"</span> button next to the green badge. It clears the previous attempt and logs everything fresh.</li>
+          <li><span className="text-gray-400 font-medium">Add Expense button</span> — For one-off or irregular expenses that only happen this month (a repair, a one-time purchase, etc.). Not for recurring costs.</li>
+          <li><span className="text-purple-400 font-medium">History tab</span> — Shows your monthly revenue vs expenses and net profit for the past 12 months.</li>
+        </ul>
+      </PageHint>
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -1041,9 +1049,9 @@ export default function Expenses() {
               )}
               <button
                 onClick={openAddForm}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gym-500 hover:bg-gym-400 text-white rounded-xl font-semibold transition-all shadow-lg shadow-gym-500/30"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-dark-300 hover:bg-dark-400 text-gray-300 hover:text-white rounded-xl font-medium border border-gray-700 transition-all"
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-4 h-4" />
                 Add Expense
               </button>
             </>
