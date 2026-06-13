@@ -29,7 +29,6 @@ import {
   CheckCircle,
   Dumbbell,
   Radio,
-  LogIn as KioskIcon
 } from 'lucide-react';
 import clsx from 'clsx';
 import PageHint from '../components/PageHint';
@@ -318,13 +317,6 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-          <Link
-            to="/kiosk"
-            className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-gym-500/15 border border-gym-500/30 rounded-xl text-gym-400 text-sm font-medium hover:bg-gym-500/25 transition-all"
-          >
-            <KioskIcon className="w-4 h-4" />
-            {t('dashboard.kiosk')}
-          </Link>
         </div>
       )}
 
