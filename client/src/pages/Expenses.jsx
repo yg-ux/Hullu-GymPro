@@ -697,7 +697,7 @@ export default function Expenses() {
                 >
                   {/* Date */}
                   <div className="col-span-2">
-                    <span className="text-sm text-gray-400">{formatDate(expense.date)}</span>
+                    <span className="text-sm text-gray-400">{formatDate(expense.expense_date)}</span>
                   </div>
 
                   {/* Category */}
