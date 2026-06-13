@@ -1,6 +1,5 @@
 ﻿import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import QuickActionFAB from './QuickActionFAB';
 import SubscriptionExpiredModal from './SubscriptionExpiredModal';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -835,14 +834,11 @@ export default function Layout() {
           </div>
         )}
 
-        {/* Page content — pb-24 ensures the FAB never overlaps bottom buttons */}
-        <main className="p-4 sm:p-6 lg:p-8 pb-24">
+        {/* Page content */}
+        <main className="p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>
-
-      {/* Floating Quick-Action Button */}
-      <QuickActionFAB />
 
       {/* Subscription expired soft-lock modal (global) */}
       <SubscriptionExpiredModal />
