@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { api, formatCurrency, formatDate } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import {
@@ -201,9 +202,18 @@ function ExpenseForm({ form, onChange, onSubmit, onClose, saving, staffList = []
                 Staff Member <span className="text-red-400">*</span>
               </label>
               {staffList.length === 0 ? (
-                <div className="flex items-center gap-3 px-4 py-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-sm text-yellow-400">
-                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                  No staff found. Add staff members first before recording salaries.
+                <div className="flex items-center justify-between gap-3 px-4 py-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-sm text-yellow-400">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                    No staff found. Add staff members first.
+                  </div>
+                  <Link
+                    to="/staff"
+                    onClick={onClose}
+                    className="flex-shrink-0 px-3 py-1.5 bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/40 text-yellow-300 text-xs font-semibold rounded-lg transition-all"
+                  >
+                    Go to Staff →
+                  </Link>
                 </div>
               ) : (
                 <div className="relative">
