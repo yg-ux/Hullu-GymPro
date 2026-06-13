@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
+import ServerWakeBanner from './components/ServerWakeBanner';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
@@ -98,6 +99,7 @@ function App() {
   // If user is logged in, show dashboard. Otherwise show landing
   return (
     <ToastProvider>
+    <ServerWakeBanner />
     <Routes>
       {/* Public routes */}
       <Route path="/" element={user ? <Navigate to={ROLE_HOME[user.role] || '/dashboard'} replace /> : <Landing />} />
