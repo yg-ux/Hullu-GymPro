@@ -41,9 +41,20 @@ const CONDITIONS = [
 ];
 
 const EQUIPMENT_CATEGORIES = [
-  'Cardio', 'Strength', 'Free Weights', 'Machines', 'Functional',
-  'Stretching', 'Boxing', 'Accessories', 'Other',
+  { value: 'cardio',       label: 'Cardio' },
+  { value: 'strength',     label: 'Strength' },
+  { value: 'free_weights', label: 'Free Weights' },
+  { value: 'machines',     label: 'Machines' },
+  { value: 'functional',   label: 'Functional' },
+  { value: 'stretching',   label: 'Stretching' },
+  { value: 'boxing',       label: 'Boxing' },
+  { value: 'accessories',  label: 'Accessories' },
+  { value: 'recovery',     label: 'Recovery' },
+  { value: 'other',        label: 'Other' },
 ];
+
+// Helper to get display label from stored value
+const getCategoryLabel = (val) => EQUIPMENT_CATEGORIES.find(c => c.value === val)?.label || val || 'Uncategorized';
 
 function getStatus(value) {
   return STATUSES.find(s => s.value === value) || STATUSES[0];
@@ -108,7 +119,7 @@ function EquipmentCard({ item, onEdit, onDelete, onSelect }) {
 
       <p className="text-xs text-gray-500 mb-3 flex items-center gap-1">
         <Tag className="w-3 h-3" />
-        {item.category || 'Uncategorized'}
+        {getCategoryLabel(item.category)}
       </p>
 
       {item.purchase_price && (
@@ -170,7 +181,7 @@ function EquipmentDetail({ item, onClose, onLogService, onEdit }) {
                 <span className={clsx('w-2.5 h-2.5 rounded-full', st.dot)} />
                 <h2 className="text-xl font-semibold text-white">{item.name}</h2>
               </div>
-              <p className="text-sm text-gray-400">{item.category}</p>
+              <p className="text-sm text-gray-400">{getCategoryLabel(item.category)}</p>
             </div>
             <button onClick={onClose} className="p-2 text-gray-400 hover:text-white hover:bg-dark-300 rounded-xl transition-all">
               <X className="w-5 h-5" />
@@ -410,7 +421,7 @@ function EquipmentForm({ form, onChange, onSubmit, onClose, saving }) {
                 className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm appearance-none focus:outline-none focus:border-gym-500/60 transition-colors pr-9"
               >
                 <option value="">Select category</option>
-                {EQUIPMENT_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                {EQUIPMENT_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             </div>
@@ -785,7 +796,7 @@ export default function Equipment() {
             className="bg-dark-400 border border-gray-700 rounded-xl px-3 pr-8 py-2 text-sm text-white appearance-none focus:outline-none focus:border-gym-500/50 transition-colors"
           >
             <option value="">All categories</option>
-            {EQUIPMENT_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            {EQUIPMENT_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
           <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
         </div>

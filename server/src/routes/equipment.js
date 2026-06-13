@@ -7,7 +7,7 @@ const router = express.Router();
 
 const VALID_STATUSES    = ['operational', 'maintenance', 'broken', 'retired'];
 const VALID_CONDITIONS  = ['excellent', 'good', 'fair', 'poor'];
-const VALID_CATEGORIES  = ['cardio', 'strength', 'free_weights', 'functional', 'recovery', 'other'];
+const VALID_CATEGORIES  = ['cardio', 'strength', 'free_weights', 'machines', 'functional', 'stretching', 'boxing', 'accessories', 'recovery', 'other'];
 
 // GET / — list equipment with summary
 router.get('/', authenticateToken, async (req, res) => {
