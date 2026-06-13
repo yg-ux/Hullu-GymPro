@@ -168,13 +168,18 @@ function ExpenseForm({ form, onChange, onSubmit, onClose, saving, staffList = []
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
           {/* Date */}
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1.5">Date</label>
-            <input
-              type="date"
-              value={form.date}
-              onChange={e => onChange('date', e.target.value)}
-              className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gym-500/60 transition-colors"
-            />
+            <label className="block text-sm font-medium text-gray-400 mb-1.5">
+              Expense Date <span className="text-gray-500 font-normal">(pick any past or future date)</span>
+            </label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gym-400 pointer-events-none z-10" />
+              <input
+                type="date"
+                value={form.date}
+                onChange={e => onChange('date', e.target.value)}
+                className="w-full bg-dark-300 border border-gray-700 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm focus:outline-none focus:border-gym-500/60 transition-colors [color-scheme:dark]"
+              />
+            </div>
           </div>
 
           {/* Category */}
