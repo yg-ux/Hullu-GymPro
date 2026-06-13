@@ -709,19 +709,16 @@ export default function Expenses() {
     loadExpenses();
   }, [loadExpenses]);
 
-  // ── Load recurring status on mount ───────────────────────────────────────
-  useEffect(() => {
-    api.get(`/recurring-expenses/status/${cm}`)
-      .then(d => setRecurringStatus(d))
-      .catch(() => {});
-  }, []);
-
-  // ── Load recurring templates when tab becomes active ──────────────────────
+  // ── Load recurring templates + status on mount and when tab is active ───────
   const loadRecurringTemplates = useCallback(async () => {
     setRecurringLoading(true);
     try {
-      const data = await api.get('/recurring-expenses');
+      const [data, status] = await Promise.all([
+        api.get('/recurring-expenses'),
+        api.get(`/recurring-expenses/status/${cm}`).catch(() => null),
+      ]);
       setRecurringTemplates(Array.isArray(data) ? data : (data.data || []));
+      if (status) setRecurringStatus(status);
     } catch (err) {
       toast.error(err.message || 'Failed to load recurring expenses');
     } finally {
@@ -729,6 +726,8 @@ export default function Expenses() {
     }
   }, []);
 
+  // Load on mount (so the List tab button shows immediately) and when tab opens
+  useEffect(() => { loadRecurringTemplates(); }, []);
   useEffect(() => {
     if (activeTab === 'recurring') loadRecurringTemplates();
   }, [activeTab]);
@@ -1005,7 +1004,7 @@ export default function Expenses() {
                 Export CSV
               </button>
               {/* Log monthly bills shortcut — always visible when bills exist and not yet logged */}
-              {recurringStatus?.template_count > 0 && !recurringStatus?.generated && (
+              {recurringTemplates.length > 0 && !recurringStatus?.generated && (
                 <button
                   onClick={handleGenerateRecurring}
                   disabled={generatingRecurring}
@@ -1052,7 +1051,7 @@ export default function Expenses() {
       </div>
 
       {/* Already-logged badge — shown after logging this month's bills */}
-      {recurringStatus?.template_count > 0 && recurringStatus?.generated && (
+      {recurringTemplates.length > 0 && recurringStatus?.generated && (
         <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-sm text-emerald-400 w-fit">
           <span>✓</span>
           Monthly bills already logged for {getMonthLabel(cm)}
