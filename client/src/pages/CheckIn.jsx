@@ -289,46 +289,44 @@ export default function CheckIn() {
               const isActive = customer.status === 'active' || customer.status === 'expiring';
               
               return (
-                <div 
+                <div
                   key={customer.id}
-                  className="flex items-center gap-4 p-4 bg-dark-200 rounded-xl border border-gray-700 hover:border-gym-500/50 transition-colors"
+                  className="flex flex-col gap-3 p-4 bg-dark-200 rounded-xl border border-gray-700 hover:border-gym-500/50 transition-colors"
                 >
-                  {/* Avatar */}
-                  <div className="w-14 h-14 rounded-xl overflow-hidden bg-gradient-to-br from-gym-500 to-gym-700 flex-shrink-0 flex items-center justify-center text-xl font-bold text-white">
-                    {customer.photo ? (
-                      <img src={customer.photo} alt={customer.name} className="w-full h-full object-cover" />
-                    ) : (
-                      customer.name.charAt(0).toUpperCase()
-                    )}
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-semibold truncate">{customer.name}</p>
-                    <p className="text-gray-400 text-sm">{customer.phone}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={clsx(
-                        'status-badge',
-                        customer.status === 'active' && 'status-active',
-                        customer.status === 'expiring' && 'status-expiring',
-                        customer.status === 'expired' && 'status-expired'
-                      )}>
-                        {customer.status === 'expiring' ? t('status.expiring') : customer.status}
-                      </span>
-                      {customer.days_until_expiry > 0 && (
-                        <span className="text-xs text-gray-500">
-                          {customer.days_until_expiry} days left
-                        </span>
+                  {/* Top row: avatar + info */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-gym-500 to-gym-700 flex-shrink-0 flex items-center justify-center text-lg font-bold text-white">
+                      {customer.photo ? (
+                        <img src={customer.photo} alt={customer.name} className="w-full h-full object-cover" />
+                      ) : (
+                        customer.name.charAt(0).toUpperCase()
                       )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-semibold leading-tight">{customer.name}</p>
+                      <p className="text-gray-400 text-sm mt-0.5">{customer.phone}</p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className={clsx(
+                          'status-badge',
+                          customer.status === 'active' && 'status-active',
+                          customer.status === 'expiring' && 'status-expiring',
+                          customer.status === 'expired' && 'status-expired'
+                        )}>
+                          {customer.status === 'expiring' ? t('status.expiring') : customer.status}
+                        </span>
+                        {customer.days_until_expiry > 0 && (
+                          <span className="text-xs text-gray-500">{customer.days_until_expiry} days left</span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Check-in Button */}
+                  {/* Full-width check-in button */}
                   <button
                     onClick={() => handleCheckIn(customer.id)}
                     disabled={actionLoading === customer.id || !isActive || !subscription?.valid}
                     className={clsx(
-                      "flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all",
+                      "w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold transition-all text-sm",
                       isActive && subscription?.valid
                         ? "bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/20"
                         : "bg-gray-700 text-gray-400 cursor-not-allowed"
@@ -338,7 +336,7 @@ export default function CheckIn() {
                       <span className="animate-spin">⏳</span>
                     ) : (
                       <>
-                        <LogIn className="w-5 h-5" />
+                        <LogIn className="w-4 h-4" />
                         {t('checkIn.button')}
                       </>
                     )}

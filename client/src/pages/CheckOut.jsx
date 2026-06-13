@@ -209,51 +209,45 @@ export default function CheckOut() {
                 
                 <div className="space-y-2">
                   {customers.map((log) => (
-                    <div 
+                    <div
                       key={log.id}
-                      className="card p-4 flex items-center gap-4"
+                      className="card p-4 flex flex-col gap-3"
                     >
-                      {/* Avatar */}
-                      <div className="w-14 h-14 rounded-xl overflow-hidden bg-gradient-to-br from-gym-500 to-gym-700 flex-shrink-0 flex items-center justify-center text-xl font-bold text-white">
-                        {log.photo ? (
-                          <img src={log.photo} alt={log.customer_name || log.customer?.name} className="w-full h-full object-cover" />
-                        ) : (
-                          (log.customer_name || log.customer?.name || '?').charAt(0).toUpperCase()
-                        )}
-                      </div>
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white font-semibold truncate">{log.customer_name || log.customer?.name || t('checkOut.unknown')}</p>
-                        <div className="flex items-center gap-3 text-sm text-gray-400">
-                          <span className="flex items-center gap-1">
-                            <Phone className="w-4 h-4" />
-                            {log.customer_phone || log.customer?.phone || t('checkOut.noPhone')}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            {t('checkOut.checkedInAt').replace('{time}', new Date(log.check_in).toLocaleTimeString('en-US', {
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            }))}
-                          </span>
+                      {/* Top row: avatar + info + duration */}
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-gym-500 to-gym-700 flex-shrink-0 flex items-center justify-center text-lg font-bold text-white">
+                          {log.photo ? (
+                            <img src={log.photo} alt={log.customer_name || log.customer?.name} className="w-full h-full object-cover" />
+                          ) : (
+                            (log.customer_name || log.customer?.name || '?').charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-semibold leading-tight">{log.customer_name || log.customer?.name || t('checkOut.unknown')}</p>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-sm text-gray-400">
+                            <span className="flex items-center gap-1">
+                              <Phone className="w-3.5 h-3.5 flex-shrink-0" />
+                              {log.customer_phone || log.customer?.phone || t('checkOut.noPhone')}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5 flex-shrink-0" />
+                              {t('checkOut.checkedInAt').replace('{time}', new Date(log.check_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }))}
+                            </span>
+                          </div>
+                        </div>
+                        {/* Duration badge */}
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-xs text-gray-500">{t('checkOut.duration')}</p>
+                          <p className="text-base font-bold text-white">{formatDuration(new Date(log.check_in))}</p>
                         </div>
                       </div>
 
-                      {/* Duration */}
-                      <div className="text-right px-4">
-                        <p className="text-xs text-gray-500">{t('checkOut.duration')}</p>
-                        <p className="text-lg font-bold text-white">
-                          {formatDuration(new Date(log.check_in))}
-                        </p>
-                      </div>
-
-                      {/* Check Out Button */}
+                      {/* Full-width check-out button */}
                       <button
                         onClick={() => handleCheckOut(log.customer_id)}
                         disabled={actionLoading === log.customer_id || !subscription?.valid}
                         className={clsx(
-                          "flex items-center gap-2 px-6 py-3 font-semibold rounded-xl transition-colors shadow-lg",
+                          "w-full flex items-center justify-center gap-2 py-3 font-semibold rounded-xl transition-colors shadow-lg text-sm",
                           subscription?.valid
                             ? "bg-red-500 hover:bg-red-600 text-white shadow-red-500/20"
                             : "bg-gray-700 text-gray-400 cursor-not-allowed"
@@ -263,7 +257,7 @@ export default function CheckOut() {
                           <span className="animate-spin">⏳</span>
                         ) : (
                           <>
-                            <LogOut className="w-5 h-5" />
+                            <LogOut className="w-4 h-4" />
                             {t('checkOut.checkOut')}
                           </>
                         )}
