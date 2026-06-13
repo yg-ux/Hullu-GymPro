@@ -8,7 +8,7 @@
 
     <!-- PWA manifest -->
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#0ea5e9" />
+    <meta name="theme-color" content="#1e293b" />
 
     <!-- iOS / Safari home screen support -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -46,11 +46,6 @@
           el.style.setProperty('--gym-500-rgb', s.r500);
           el.style.setProperty('--gym-600-rgb', s.r600);
           el.style.setProperty('--gym-700-rgb', s.r700);
-          // Set browser/PWA theme-color bar to match the selected theme
-          var rgb = s.r500.split(' ').map(Number);
-          var hex = '#' + rgb.map(function(n){ return n.toString(16).padStart(2,'0'); }).join('');
-          var metaTheme = document.querySelector('meta[name="theme-color"]');
-          if (metaTheme) metaTheme.setAttribute('content', hex);
         } catch (e) {}
       })();
     </script>

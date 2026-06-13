@@ -111,11 +111,6 @@ export default function Layout() {
     document.documentElement.style.setProperty('--gym-600-rgb', s.r600);
     document.documentElement.style.setProperty('--gym-700-rgb', s.r700);
 
-    // Update browser/PWA theme-color bar to match the selected theme
-    const [r, g, b] = s.r500.split(' ').map(Number);
-    const hex = '#' + [r, g, b].map(n => n.toString(16).padStart(2, '0')).join('');
-    const metaTheme = document.querySelector('meta[name="theme-color"]');
-    if (metaTheme) metaTheme.setAttribute('content', hex);
   }, [gym?.color_theme]);
 
   const handleLogout = () => {
