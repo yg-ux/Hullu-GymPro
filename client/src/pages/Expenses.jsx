@@ -348,7 +348,7 @@ function ExpenseForm({ form, onChange, onSubmit, onClose, saving, staffList = []
   );
 }
 
-// ── Recurring Expense Form ────────────────────────────────────────────────────
+// ── Monthly Bill Form (centered dialog) ──────────────────────────────────────
 const EMPTY_RECURRING_FORM = {
   id: null,
   category: '',
@@ -360,8 +360,12 @@ const EMPTY_RECURRING_FORM = {
   staff_id: '',
 };
 
+// Day options 1-28
+const DAY_OPTIONS = Array.from({ length: 28 }, (_, i) => i + 1);
+
 function RecurringForm({ form, onChange, onSubmit, onClose, saving, staffList = [] }) {
   const isSalary = form.category === 'salaries';
+  const selectedCat = CATEGORIES.find(c => c.value === form.category);
 
   const handleStaffSelect = (staffId) => {
     const staff = staffList.find(s => String(s.id) === String(staffId));
@@ -371,170 +375,195 @@ function RecurringForm({ form, onChange, onSubmit, onClose, saving, staffList = 
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 w-full sm:w-[480px] bg-dark-200 border-l border-gray-800/60 z-50 flex flex-col shadow-2xl animate-slide-up">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-800/60">
-          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-            <Repeat className="w-5 h-5 text-gym-400" />
-            {form.id ? 'Edit Recurring Expense' : 'Add Recurring Expense'}
-          </h2>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-white hover:bg-dark-300 rounded-xl transition-all">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50" onClick={onClose} />
+      <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+        <div className="bg-dark-200 border border-gray-800/60 rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-          {/* Category */}
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1.5">Category</label>
-            <div className="relative">
-              <select
-                value={form.category}
-                onChange={e => onChange('category', e.target.value)}
-                className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm appearance-none focus:outline-none focus:border-gym-500/60 transition-colors pr-9"
-              >
-                <option value="">Select category</option>
-                {CATEGORIES.map(c => (
-                  <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-5 border-b border-gray-800/60 flex-shrink-0">
+            <div>
+              <h2 className="text-base font-semibold text-white">
+                {form.id ? 'Edit Monthly Bill' : 'Add Monthly Bill'}
+              </h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                This expense will be logged automatically each month
+              </p>
             </div>
+            <button onClick={onClose} className="p-2 text-gray-400 hover:text-white hover:bg-dark-300 rounded-xl transition-all ml-4">
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
-          {/* Staff picker — only shown when category = salaries */}
-          {isSalary && (
+          {/* Body */}
+          <div className="overflow-y-auto px-6 py-5 space-y-4">
+
+            {/* Bill name */}
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1.5">
-                Staff Member <span className="text-red-400">*</span>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                Bill name <span className="text-red-400">*</span>
               </label>
-              {staffList.length === 0 ? (
-                <div className="flex items-center gap-2 px-4 py-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-sm text-yellow-400">
-                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                  No staff found. Add staff members first.
-                </div>
-              ) : (
+              <input
+                type="text"
+                value={form.description}
+                onChange={e => onChange('description', e.target.value)}
+                placeholder="e.g. Monthly rent, Electricity bill, Internet..."
+                autoFocus
+                className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gym-500/60 transition-colors placeholder-gray-600"
+              />
+            </div>
+
+            {/* Category */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                Category <span className="text-red-400">*</span>
+              </label>
+              <div className="grid grid-cols-5 gap-2">
+                {CATEGORIES.map(c => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    onClick={() => onChange('category', c.value)}
+                    title={c.label}
+                    className={clsx(
+                      'flex flex-col items-center gap-1 py-2.5 px-1 rounded-xl border text-xs font-medium transition-all',
+                      form.category === c.value
+                        ? `${c.bg} ${c.border} ${c.color}`
+                        : 'bg-dark-300 border-gray-700/60 text-gray-500 hover:border-gray-600 hover:text-gray-300'
+                    )}
+                  >
+                    <span className="text-base leading-none">{c.emoji}</span>
+                    <span className="leading-tight text-center" style={{ fontSize: '10px' }}>{c.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Staff picker — only shown when category = salaries */}
+            {isSalary && (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                  Which staff member? <span className="text-red-400">*</span>
+                </label>
+                {staffList.length === 0 ? (
+                  <div className="flex items-center gap-2 px-4 py-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-sm text-yellow-400">
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                    No staff found. Add staff members first.
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <select
+                      value={form.staff_id || ''}
+                      onChange={e => handleStaffSelect(e.target.value)}
+                      className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm appearance-none focus:outline-none focus:border-gym-500/60 transition-colors pr-9"
+                    >
+                      <option value="">Select staff member</option>
+                      {staffList.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}{s.role ? ` — ${s.role.charAt(0).toUpperCase() + s.role.slice(1)}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Amount + Day side by side */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                  Monthly amount (ETB) <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={form.amount}
+                  onChange={e => onChange('amount', e.target.value)}
+                  placeholder="0"
+                  className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gym-500/60 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                  Paid on which day?
+                </label>
                 <div className="relative">
                   <select
-                    value={form.staff_id || ''}
-                    onChange={e => handleStaffSelect(e.target.value)}
+                    value={form.day_of_month}
+                    onChange={e => onChange('day_of_month', Number(e.target.value))}
                     className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm appearance-none focus:outline-none focus:border-gym-500/60 transition-colors pr-9"
                   >
-                    <option value="">Select staff member</option>
-                    {staffList.map(s => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} — {s.role ? s.role.charAt(0).toUpperCase() + s.role.slice(1) : ''}
-                      </option>
+                    {DAY_OPTIONS.map(d => (
+                      <option key={d} value={d}>{ordinal(d)} of the month</option>
                     ))}
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 </div>
-              )}
+              </div>
             </div>
-          )}
 
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1.5">Description</label>
-            <input
-              type="text"
-              value={form.description}
-              onChange={e => onChange('description', e.target.value)}
-              placeholder="e.g. Monthly rent payment"
-              className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gym-500/60 transition-colors"
-            />
-          </div>
-
-          {/* Amount */}
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1.5">Amount (ETB)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.amount}
-              onChange={e => onChange('amount', e.target.value)}
-              placeholder="0.00"
-              className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gym-500/60 transition-colors"
-            />
-          </div>
-
-          {/* Payment Method */}
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1.5">Payment Method</label>
-            <div className="flex gap-2">
-              {PAYMENT_METHODS.map(m => (
-                <button
-                  key={m.value}
-                  type="button"
-                  onClick={() => onChange('payment_method', m.value)}
-                  className={clsx(
-                    'flex-1 px-3 py-2.5 rounded-xl text-sm font-medium border transition-all',
-                    form.payment_method === m.value
-                      ? 'bg-gym-500/20 border-gym-500/50 text-gym-400'
-                      : 'bg-dark-300 border-gray-700 text-gray-400 hover:bg-dark-400 hover:text-gray-200'
-                  )}
-                >
-                  {m.label}
-                </button>
-              ))}
+            {/* Payment Method */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">How is it paid?</label>
+              <div className="flex gap-2">
+                {PAYMENT_METHODS.map(m => (
+                  <button
+                    key={m.value}
+                    type="button"
+                    onClick={() => onChange('payment_method', m.value)}
+                    className={clsx(
+                      'flex-1 px-3 py-2.5 rounded-xl text-sm font-medium border transition-all',
+                      form.payment_method === m.value
+                        ? 'bg-gym-500/20 border-gym-500/50 text-gym-400'
+                        : 'bg-dark-300 border-gray-700 text-gray-400 hover:bg-dark-400 hover:text-gray-200'
+                    )}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Day of month */}
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1.5">Day of month to generate</label>
-            <input
-              type="number"
-              min="1"
-              max="28"
-              value={form.day_of_month}
-              onChange={e => onChange('day_of_month', Math.min(28, Math.max(1, Number(e.target.value))))}
-              className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gym-500/60 transition-colors"
-            />
-            {form.day_of_month >= 1 && form.day_of_month <= 28 && (
-              <p className="text-xs text-gray-500 mt-1">Due on the {ordinal(Number(form.day_of_month))} of each month</p>
+            {/* Preview */}
+            {form.description && form.amount && form.category && (
+              <div className={clsx('flex items-center gap-3 px-4 py-3 rounded-xl border', selectedCat?.bg, selectedCat?.border)}>
+                <span className="text-2xl">{selectedCat?.emoji}</span>
+                <div className="flex-1 min-w-0">
+                  <p className={clsx('text-sm font-semibold truncate', selectedCat?.color)}>{form.description}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {formatCurrency(Number(form.amount))} every month · due {ordinal(Number(form.day_of_month))}
+                  </p>
+                </div>
+              </div>
             )}
           </div>
 
-          {/* Notes */}
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1.5">Notes <span className="text-gray-600">(optional)</span></label>
-            <textarea
-              value={form.notes}
-              onChange={e => onChange('notes', e.target.value)}
-              placeholder="Additional notes..."
-              rows={3}
-              className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gym-500/60 transition-colors resize-none"
-            />
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-gray-800/60 flex gap-3 flex-shrink-0">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 bg-dark-300 text-white rounded-xl font-medium hover:bg-dark-400 transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onSubmit}
+              disabled={saving}
+              className="flex-1 px-4 py-2.5 bg-gym-500 hover:bg-gym-400 text-white rounded-xl font-semibold transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+            >
+              {saving ? (
+                <>
+                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Saving...
+                </>
+              ) : (form.id ? 'Save Changes' : 'Save Monthly Bill')}
+            </button>
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-800/60 flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2.5 bg-dark-300 text-white rounded-xl font-medium hover:bg-dark-400 transition-all"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onSubmit}
-            disabled={saving}
-            className="flex-1 px-4 py-2.5 bg-gym-500 hover:bg-gym-400 text-white rounded-xl font-semibold transition-all disabled:opacity-60 flex items-center justify-center gap-2"
-          >
-            {saving ? (
-              <>
-                <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Saving...
-              </>
-            ) : (form.id ? 'Save Changes' : 'Add Recurring')}
-          </button>
         </div>
       </div>
     </>
@@ -1004,7 +1033,7 @@ export default function Expenses() {
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-gym-500 hover:bg-gym-400 text-white rounded-xl font-semibold transition-all shadow-lg shadow-gym-500/30"
             >
               <Plus className="w-5 h-5" />
-              Add Recurring
+              Add Monthly Bill
             </button>
           )}
           {activeTab === 'history' && (
@@ -1063,7 +1092,7 @@ export default function Expenses() {
       <div className="flex items-center gap-1 bg-dark-300 rounded-2xl p-1 border border-gray-800/50 w-fit">
         {[
           { id: 'list',      label: 'List',      icon: <Receipt className="w-4 h-4" /> },
-          { id: 'recurring', label: 'Recurring',  icon: <Repeat className="w-4 h-4" /> },
+          { id: 'recurring', label: 'Monthly Bills', icon: <Repeat className="w-4 h-4" /> },
           { id: 'history',   label: 'History',   icon: <History className="w-4 h-4" /> },
         ].map(tab => (
           <button
@@ -1286,119 +1315,156 @@ export default function Expenses() {
 
       {/* ── RECURRING TAB ─────────────────────────────────────────────────── */}
       {activeTab === 'recurring' && (
-        <div className="space-y-4">
-          {/* Generate for current month */}
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-400">
-              {recurringTemplates.length} recurring template{recurringTemplates.length !== 1 ? 's' : ''} configured
-            </p>
-            <button
-              onClick={handleGenerateRecurring}
-              disabled={generatingRecurring}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black rounded-xl font-semibold transition-all disabled:opacity-60 shadow-lg shadow-yellow-500/20"
-            >
-              {generatingRecurring ? (
-                <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-              ) : (
-                <Zap className="w-4 h-4" />
-              )}
-              Generate for {getMonthLabel(cm)}
-            </button>
+        <div className="space-y-5">
+
+          {/* Explainer */}
+          <div className="bg-dark-300 rounded-2xl p-5 border border-gray-800/50">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl bg-gym-500/15 flex items-center justify-center flex-shrink-0">
+                <Repeat className="w-5 h-5 text-gym-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-white mb-1">How Monthly Bills work</h3>
+                <p className="text-sm text-gray-400 leading-relaxed">
+                  Add expenses that repeat every month — like rent, salaries, and utilities.
+                  You set them up <span className="text-white font-medium">once</span>, then at the start of each month
+                  click <span className="text-white font-medium">"Log to this month"</span> and they all get added to your expense list automatically.
+                </p>
+              </div>
+            </div>
           </div>
 
-          <div className="bg-dark-300 rounded-2xl border border-gray-800/50 overflow-hidden">
-            {recurringLoading ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-full border-4 border-gym-600/30 animate-pulse" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-6 h-6 rounded-full border-4 border-gym-500 border-t-transparent animate-spin" />
-                  </div>
+          {/* Log-to-month action card */}
+          {recurringTemplates.length > 0 && (
+            recurringStatus?.generated ? (
+              <div className="flex items-center gap-3 px-5 py-4 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-emerald-400 text-base">✓</span>
                 </div>
-              </div>
-            ) : recurringTemplates.length === 0 ? (
-              <div className="py-16 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-dark-400 flex items-center justify-center mx-auto mb-4">
-                  <Repeat className="w-8 h-8 text-gray-600" />
+                <div>
+                  <p className="text-sm font-semibold text-emerald-400">Already logged for {getMonthLabel(cm)}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    All {recurringStatus.expense_count} monthly bills were added to your {getMonthLabel(cm)} expenses.
+                  </p>
                 </div>
-                <h3 className="text-lg font-medium text-white mb-2">No recurring expenses</h3>
-                <p className="text-gray-500 text-sm mb-6">Set up recurring templates for rent, utilities, salaries, and more</p>
-                <button
-                  onClick={openAddRecurringForm}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-gym-500 hover:bg-gym-400 text-white rounded-xl font-medium transition-all"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Recurring
-                </button>
               </div>
             ) : (
-              <div className="divide-y divide-gray-800/50">
-                {/* Header */}
-                <div className="grid grid-cols-12 gap-3 px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <div className="col-span-3">Category</div>
-                  <div className="col-span-3">Description</div>
-                  <div className="col-span-2 text-right">Amount</div>
-                  <div className="col-span-2">Method</div>
-                  <div className="col-span-1">Day</div>
-                  <div className="col-span-1" />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-5 py-4 bg-yellow-500/8 border border-yellow-500/25 rounded-2xl">
+                <div>
+                  <p className="text-sm font-semibold text-yellow-300">
+                    {recurringTemplates.length} bill{recurringTemplates.length !== 1 ? 's' : ''} not yet logged for {getMonthLabel(cm)}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Total: {formatCurrency(recurringTemplates.reduce((s, t) => s + Number(t.amount || 0), 0))} · Click to add them all to this month's expenses
+                  </p>
                 </div>
+                <button
+                  onClick={handleGenerateRecurring}
+                  disabled={generatingRecurring}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black rounded-xl text-sm font-semibold transition-all disabled:opacity-60 whitespace-nowrap flex-shrink-0"
+                >
+                  {generatingRecurring ? (
+                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  ) : <Zap className="w-4 h-4" />}
+                  Log to {getMonthLabel(cm)}
+                </button>
+              </div>
+            )
+          )}
 
-                {recurringTemplates.map(tpl => {
-                  const cat = getCat(tpl.category);
-                  return (
-                    <div
-                      key={tpl.id}
-                      className="grid grid-cols-12 gap-3 px-5 py-4 items-center hover:bg-dark-400/50 transition-colors group"
-                    >
-                      <div className="col-span-3 flex items-center gap-2">
-                        <span className="text-lg">{cat.emoji}</span>
+          {/* Bills list */}
+          {recurringLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="relative">
+                <div className="w-12 h-12 rounded-full border-4 border-gym-600/30 animate-pulse" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-6 h-6 rounded-full border-4 border-gym-500 border-t-transparent animate-spin" />
+                </div>
+              </div>
+            </div>
+          ) : recurringTemplates.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="w-20 h-20 rounded-2xl bg-dark-300 border border-dashed border-gray-700 flex items-center justify-center mb-5">
+                <Repeat className="w-9 h-9 text-gray-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-white mb-2">No monthly bills yet</h3>
+              <p className="text-gray-500 text-sm mb-1 max-w-xs">Add your fixed monthly costs — rent, salaries, utilities, internet — and log them all in one click each month.</p>
+              <button
+                onClick={openAddRecurringForm}
+                className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 bg-gym-500 hover:bg-gym-400 text-white rounded-xl font-medium transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                Add First Monthly Bill
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {recurringTemplates.map(tpl => {
+                const cat = getCat(tpl.category);
+                return (
+                  <div
+                    key={tpl.id}
+                    className="bg-dark-300 rounded-2xl border border-gray-800/50 p-4 flex flex-col gap-3 group hover:border-gray-700 transition-colors"
+                  >
+                    {/* Top row: emoji + category badge + amount */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className={clsx('w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0', cat.bg)}>
+                          {cat.emoji}
+                        </div>
                         <span className={clsx('text-xs font-medium px-2 py-0.5 rounded-lg border', cat.bg, cat.color, cat.border)}>
                           {cat.label}
                         </span>
                       </div>
-
-                      <div className="col-span-3">
-                        <p className="text-sm text-gray-200 truncate">{tpl.description}</p>
-                        {tpl.notes && <p className="text-xs text-gray-500 truncate mt-0.5">{tpl.notes}</p>}
-                      </div>
-
-                      <div className="col-span-2 text-right">
-                        <span className="text-sm font-semibold text-red-400">{formatCurrency(tpl.amount)}</span>
-                      </div>
-
-                      <div className="col-span-2">
-                        <span className="text-xs text-gray-500 capitalize">{(tpl.payment_method || 'cash').replace('_', ' ')}</span>
-                      </div>
-
-                      <div className="col-span-1">
-                        <span className="text-xs text-gray-400">{ordinal(tpl.day_of_month)}</span>
-                      </div>
-
-                      <div className="col-span-1 flex justify-end gap-1">
-                        <button
-                          onClick={() => openEditRecurringForm(tpl)}
-                          className="p-1.5 text-gray-600 hover:text-gym-400 hover:bg-gym-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteRecurringTarget(tpl)}
-                          className="p-1.5 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                      <span className="text-base font-bold text-red-400 flex-shrink-0">{formatCurrency(tpl.amount)}</span>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+
+                    {/* Bill name */}
+                    <div>
+                      <p className="text-sm font-semibold text-white leading-snug">{tpl.description}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Every month on the <span className="text-gray-400">{ordinal(tpl.day_of_month)}</span>
+                        {' · '}
+                        <span className="capitalize">{(tpl.payment_method || 'cash').replace('_', ' ')}</span>
+                      </p>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2 pt-1 border-t border-gray-800/60">
+                      <button
+                        onClick={() => openEditRecurringForm(tpl)}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-dark-400 rounded-lg transition-all"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => setDeleteRecurringTarget(tpl)}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Add new card */}
+              <button
+                onClick={openAddRecurringForm}
+                className="bg-dark-300/50 rounded-2xl border border-dashed border-gray-700/60 p-4 flex flex-col items-center justify-center gap-2 hover:border-gym-500/40 hover:bg-dark-300 transition-all min-h-[140px] group"
+              >
+                <div className="w-9 h-9 rounded-xl bg-gym-500/10 group-hover:bg-gym-500/20 flex items-center justify-center transition-colors">
+                  <Plus className="w-5 h-5 text-gym-400" />
+                </div>
+                <span className="text-sm font-medium text-gray-500 group-hover:text-gray-300 transition-colors">Add Monthly Bill</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 
