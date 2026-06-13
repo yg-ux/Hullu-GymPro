@@ -46,6 +46,11 @@
           el.style.setProperty('--gym-500-rgb', s.r500);
           el.style.setProperty('--gym-600-rgb', s.r600);
           el.style.setProperty('--gym-700-rgb', s.r700);
+          // Set browser/PWA theme-color bar to match the selected theme
+          var rgb = s.r500.split(' ').map(Number);
+          var hex = '#' + rgb.map(function(n){ return n.toString(16).padStart(2,'0'); }).join('');
+          var metaTheme = document.querySelector('meta[name="theme-color"]');
+          if (metaTheme) metaTheme.setAttribute('content', hex);
         } catch (e) {}
       })();
     </script>
