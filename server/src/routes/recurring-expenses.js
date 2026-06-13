@@ -14,7 +14,7 @@ router.get('/', authenticateToken, async (req, res) => {
     const rows = await getAll(
       `SELECT r.*, u.name as staff_name
        FROM recurring_expenses r
-       LEFT JOIN users u ON u.id = r.staff_id
+       LEFT JOIN gym_users u ON u.id = r.staff_id
        WHERE r.gym_id = ? AND r.is_active = TRUE
        ORDER BY r.category ASC, r.description ASC`,
       [gymId]
