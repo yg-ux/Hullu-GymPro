@@ -139,7 +139,15 @@ function ProfitLoss({ revenue, expenses }) {
 }
 
 // ── Add/Edit Form ─────────────────────────────────────────────────────────────
-function ExpenseForm({ form, onChange, onSubmit, onClose, saving }) {
+function ExpenseForm({ form, onChange, onSubmit, onClose, saving, staffList = [] }) {
+  const isSalary = form.category === 'salaries';
+
+  const handleStaffSelect = (staffId) => {
+    const staff = staffList.find(s => String(s.id) === String(staffId));
+    onChange('staff_id', staffId);
+    if (staff) onChange('description', `Salary — ${staff.name}`);
+  };
+
   return (
     <>
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40" onClick={onClose} />
@@ -185,6 +193,37 @@ function ExpenseForm({ form, onChange, onSubmit, onClose, saving }) {
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             </div>
           </div>
+
+          {/* Staff picker — only shown when category = salaries */}
+          {isSalary && (
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1.5">
+                Staff Member <span className="text-red-400">*</span>
+              </label>
+              {staffList.length === 0 ? (
+                <div className="flex items-center gap-3 px-4 py-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-sm text-yellow-400">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  No staff found. Add staff members first before recording salaries.
+                </div>
+              ) : (
+                <div className="relative">
+                  <select
+                    value={form.staff_id || ''}
+                    onChange={e => handleStaffSelect(e.target.value)}
+                    className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm appearance-none focus:outline-none focus:border-gym-500/60 transition-colors pr-9"
+                  >
+                    <option value="">Select staff member</option>
+                    {staffList.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} — {s.role ? s.role.charAt(0).toUpperCase() + s.role.slice(1) : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Amount */}
           <div>
@@ -334,6 +373,7 @@ const EMPTY_FORM = {
   description: '',
   payment_method: 'cash',
   receipt_note: '',
+  staff_id: '',
 };
 
 export default function Expenses() {
@@ -351,6 +391,7 @@ export default function Expenses() {
   const [deleting, setDeleting]       = useState(false);
   const [filter, setFilter]           = useState({ month: currentMonth(), category: '' });
   const [search, setSearch]           = useState('');
+  const [staffList, setStaffList]     = useState([]);
 
   const monthOptions = getMonthOptions();
 
@@ -370,6 +411,13 @@ export default function Expenses() {
       setLoading(false);
     }
   }, [filter]);
+
+  // Load staff list once on mount (used for salary expense picker)
+  useEffect(() => {
+    api.get('/staff')
+      .then(d => setStaffList(Array.isArray(d) ? d : (d.staff || d.data || [])))
+      .catch(() => {});
+  }, []);
 
   // Load monthly chart (last 12 months) & revenue
   useEffect(() => {
@@ -395,10 +443,16 @@ export default function Expenses() {
     setShowForm(true);
   };
 
-  const handleFormChange = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
+  const handleFormChange = (key, val) => setForm(prev => ({
+    ...prev,
+    [key]: val,
+    // clear staff_id when category changes away from salaries
+    ...(key === 'category' && val !== 'salaries' ? { staff_id: '' } : {}),
+  }));
 
   const handleSubmit = async () => {
     if (!form.category)  return toast.error('Please select a category');
+    if (form.category === 'salaries' && !form.staff_id) return toast.error('Please select a staff member for salary');
     if (!form.amount || Number(form.amount) <= 0) return toast.error('Please enter a valid amount');
     if (!form.description.trim()) return toast.error('Please enter a description');
 
@@ -692,6 +746,7 @@ export default function Expenses() {
           onSubmit={handleSubmit}
           onClose={() => setShowForm(false)}
           saving={saving}
+          staffList={staffList}
         />
       )}
 
