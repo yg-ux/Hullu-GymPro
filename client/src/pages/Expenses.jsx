@@ -660,7 +660,6 @@ export default function Expenses() {
   const [deletingRecurring, setDeletingRecurring]     = useState(false);
   const [recurringStatus, setRecurringStatus]         = useState(null); // { template_count, generated }
   const [generatingRecurring, setGeneratingRecurring] = useState(false);
-  const [bannerDismissed, setBannerDismissed]         = useState(false);
 
   // ── History state ─────────────────────────────────────────────────────────
   const [monthlyHistory, setMonthlyHistory]   = useState([]);
@@ -913,8 +912,7 @@ export default function Expenses() {
     try {
       const result = await api.post('/recurring-expenses/generate', { month: cm });
       const count = result.generated || result.count || 0;
-      toast.success(`${count} recurring expense${count !== 1 ? 's' : ''} generated for ${getMonthLabel(cm)}`);
-      setBannerDismissed(true);
+      toast.success(`${count} monthly bill${count !== 1 ? 's' : ''} logged for ${getMonthLabel(cm)}`);
       setRecurringStatus(prev => prev ? { ...prev, generated: true } : prev);
       loadExpenses();
     } catch (err) {
@@ -981,18 +979,6 @@ export default function Expenses() {
   const totalSpent = summaryData?.total || 0;
   const byCategory = summaryData?.byCategory || [];
 
-  // ── Banner visibility ─────────────────────────────────────────────────────
-  const showGenerateBanner =
-    !bannerDismissed &&
-    recurringStatus &&
-    recurringStatus.template_count > 0 &&
-    !recurringStatus.generated;
-
-  const showGeneratedBadge =
-    recurringStatus &&
-    recurringStatus.template_count > 0 &&
-    recurringStatus.generated;
-
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHint id="expenses">Log everything your gym spends money on — rent, utilities, salaries, equipment, and more. Select a month to see a breakdown by category. The Profit & Loss section compares your revenue against expenses for the month.</PageHint>
@@ -1018,6 +1004,22 @@ export default function Expenses() {
                 <Download className="w-4 h-4" />
                 Export CSV
               </button>
+              {/* Log monthly bills shortcut — always visible when bills exist and not yet logged */}
+              {recurringStatus?.template_count > 0 && !recurringStatus?.generated && (
+                <button
+                  onClick={handleGenerateRecurring}
+                  disabled={generatingRecurring}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black rounded-xl font-semibold transition-all disabled:opacity-60"
+                >
+                  {generatingRecurring ? (
+                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  ) : <Zap className="w-4 h-4" />}
+                  Log {getMonthLabel(cm)} Bills
+                </button>
+              )}
               <button
                 onClick={openAddForm}
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-gym-500 hover:bg-gym-400 text-white rounded-xl font-semibold transition-all shadow-lg shadow-gym-500/30"
@@ -1049,42 +1051,11 @@ export default function Expenses() {
         </div>
       </div>
 
-      {/* Auto-generation banner */}
-      {showGenerateBanner && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 bg-yellow-500/10 border border-yellow-500/30 rounded-2xl">
-          <p className="text-sm text-yellow-300 flex items-center gap-2">
-            <span>⚡</span>
-            You have {recurringStatus.template_count} recurring expense{recurringStatus.template_count !== 1 ? 's' : ''} set up. Generate them for {getMonthLabel(cm)}?
-          </p>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              onClick={handleGenerateRecurring}
-              disabled={generatingRecurring}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black rounded-xl text-sm font-semibold transition-all disabled:opacity-60"
-            >
-              {generatingRecurring ? (
-                <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-              ) : null}
-              Generate Now
-            </button>
-            <button
-              onClick={() => setBannerDismissed(true)}
-              className="p-1.5 text-yellow-400/60 hover:text-yellow-300 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Generated badge */}
-      {showGeneratedBadge && (
+      {/* Already-logged badge — shown after logging this month's bills */}
+      {recurringStatus?.template_count > 0 && recurringStatus?.generated && (
         <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-sm text-emerald-400 w-fit">
           <span>✓</span>
-          Recurring expenses generated for {getMonthLabel(cm)}
+          Monthly bills already logged for {getMonthLabel(cm)}
         </div>
       )}
 
