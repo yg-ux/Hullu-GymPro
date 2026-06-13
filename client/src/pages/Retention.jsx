@@ -243,7 +243,16 @@ export default function Retention() {
 
   return (
     <div className="space-y-6">
-      <PageHint id="retention">Spot members who are about to leave before they do. The Inactive tab shows members who haven't visited in 14+ days. Win-Back shows expired members. Use the Send Reminder button to reach out and bring them back.</PageHint>
+      <PageHint id="retention">
+        <p className="font-semibold text-white mb-2">Keeping members from leaving</p>
+        <ul className="space-y-1.5 text-sm text-gray-300 leading-relaxed">
+          <li><span className="text-yellow-400 font-medium">Inactive tab</span> — Members who haven't checked in for 14+ days. They're still paying members but drifting away. Send them a reminder SMS to bring them back before they cancel.</li>
+          <li><span className="text-orange-400 font-medium">Expiring Soon tab</span> — Members whose membership expires within 7 days. The best time to reach out for renewal is before it expires, not after. Send a renewal reminder now.</li>
+          <li><span className="text-red-400 font-medium">Win-Back tab</span> — Members who have already expired. Use the "Offer Deal" button to send them a special comeback message encouraging them to rejoin.</li>
+          <li><span className="text-gym-400 font-medium">Send Reminder button</span> — Sends a real SMS to the member's phone number. Requires SMS to be enabled in your Settings. The message is pre-written but personalised with the member's name.</li>
+          <li><span className="text-blue-400 font-medium">Member name link</span> — Click any member's name to open their full profile where you can record a payment or see their history.</li>
+        </ul>
+      </PageHint>
       {/* Page Header */}
       <div className="flex items-start justify-between gap-4">
         <div>

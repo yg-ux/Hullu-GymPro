@@ -239,7 +239,16 @@ export default function Customers() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <PageHint id="customers">This is your full member list. Use the search bar to find members by name or phone. Click any member to view their profile, payment history, and attendance. Use 'Add Member' to register a new member.</PageHint>
+      <PageHint id="customers">
+        <p className="font-semibold text-white mb-2">Managing your members</p>
+        <ul className="space-y-1.5 text-sm text-gray-300 leading-relaxed">
+          <li><span className="text-gym-400 font-medium">Finding a member</span> — Use the search bar to look up by name or phone number. You can also filter by status (active, expiring, expired) using the dropdown.</li>
+          <li><span className="text-blue-400 font-medium">Member profile</span> — Click any member card to open their full profile: membership dates, all past payments, check-in history, and QR code for the door.</li>
+          <li><span className="text-green-400 font-medium">Add Member</span> — Register a new member by entering their name, phone, and choosing a membership plan. You can record their first payment on the same screen.</li>
+          <li><span className="text-yellow-400 font-medium">Renewing a membership</span> — Open the member's profile and click "Record Payment". Choose the new plan and it extends their membership end date automatically.</li>
+          <li><span className="text-purple-400 font-medium">Status colors</span> — Green = active, yellow = expiring within 7 days, red = expired. Expired members can still be found here and renewed.</li>
+        </ul>
+      </PageHint>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

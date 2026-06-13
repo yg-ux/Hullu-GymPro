@@ -69,7 +69,16 @@ export default function AttendanceAnalytics() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <PageHint id="attendance-analytics">Deep-dive into your gym's foot traffic. See which days and hours are busiest, track peak times, and spot trends over weeks or months. Use this to plan staff schedules and class times.</PageHint>
+      <PageHint id="attendance-analytics">
+        <p className="font-semibold text-white mb-2">Understanding your foot traffic</p>
+        <ul className="space-y-1.5 text-sm text-gray-300 leading-relaxed">
+          <li><span className="text-gym-400 font-medium">Peak hours chart</span> — Shows which hours of the day get the most check-ins. Use this to decide when to have more staff on the floor and when you can run with fewer.</li>
+          <li><span className="text-blue-400 font-medium">Busiest days heatmap</span> — A grid of days and times. Darker cells = more members present. Great for scheduling classes at high-traffic times.</li>
+          <li><span className="text-yellow-400 font-medium">Trend over time</span> — The line chart shows daily or weekly check-in totals. Look for drops that coincide with holidays or local events, and spikes after promotions.</li>
+          <li><span className="text-purple-400 font-medium">Practical use</span> — If Monday mornings are always packed, consider adding staff. If Sunday afternoons are empty, that might be a good time for maintenance or equipment cleaning.</li>
+          <li><span className="text-gray-400 font-medium">Data comes from</span> — Every check-in recorded on the Check-In page feeds into these charts. The more consistently you use check-in, the more accurate these numbers are.</li>
+        </ul>
+      </PageHint>
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-white flex items-center gap-3">

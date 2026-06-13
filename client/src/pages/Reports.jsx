@@ -240,7 +240,16 @@ function ReportsContent() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <PageHint id="reports">Detailed reports on your gym's performance. View membership growth, payment summaries, and attendance trends by date range. Use the Export button to download data as a CSV for spreadsheets.</PageHint>
+      <PageHint id="reports">
+        <p className="font-semibold text-white mb-2">Understanding your reports</p>
+        <ul className="space-y-1.5 text-sm text-gray-300 leading-relaxed">
+          <li><span className="text-gym-400 font-medium">Members report</span> — Shows membership growth over time: how many new members joined, how many expired, and your overall active count. Change the date range at the top to zoom in or out.</li>
+          <li><span className="text-blue-400 font-medium">Payments report</span> — Revenue broken down by membership type (1 month, 3 months, etc.). Useful for seeing which plans are most popular and which bring in the most income.</li>
+          <li><span className="text-yellow-400 font-medium">Attendance report</span> — Check-in frequency per member and total daily foot traffic. See which members visit most and which are fading away.</li>
+          <li><span className="text-green-400 font-medium">Export CSV</span> — Any report section can be downloaded as a spreadsheet-ready CSV file. Use this to share data with your accountant or do your own analysis in Excel or Google Sheets.</li>
+          <li><span className="text-purple-400 font-medium">Date range</span> — All reports respond to the date range picker at the top of the page. Set it to "This month", "Last 3 months", or a custom range.</li>
+        </ul>
+      </PageHint>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

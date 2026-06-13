@@ -168,7 +168,15 @@ export default function CheckIn() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
-      <PageHint id="check-in">Record member arrivals here. Search by name or phone number and click Check In. You can also scan a member's QR code if they have one. Active members check in instantly — expired members will be flagged.</PageHint>
+      <PageHint id="check-in">
+        <p className="font-semibold text-white mb-2">Recording member arrivals</p>
+        <ul className="space-y-1.5 text-sm text-gray-300 leading-relaxed">
+          <li><span className="text-gym-400 font-medium">Search check-in</span> — Type the member's name or phone number in the search box and click the <span className="text-white font-medium">Check In</span> button next to their name. Takes 2 seconds.</li>
+          <li><span className="text-blue-400 font-medium">QR code check-in</span> — Members can show their QR code from the Member Portal app on their phone. Switch to the QR tab and scan it for instant check-in without searching.</li>
+          <li><span className="text-yellow-400 font-medium">Expired members</span> — If a member's membership has expired they'll be flagged with a red badge. You can still check them in, but it's a prompt to collect a renewal payment.</li>
+          <li><span className="text-purple-400 font-medium">Why it matters</span> — Every check-in here feeds into Attendance Analytics, the member's profile history, and the Retention page. Consistent check-ins give you accurate data.</li>
+        </ul>
+      </PageHint>
       {/* Header */}
       <div className="text-center">
         <h1 className="text-3xl font-bold text-white mb-2">{t('checkIn.title')}</h1>

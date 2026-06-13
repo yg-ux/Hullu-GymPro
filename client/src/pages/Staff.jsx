@@ -212,7 +212,15 @@ export default function Staff() {
 
   return (
       <div className="space-y-6 animate-fade-in">
-        <PageHint id="staff">Manage your gym's team here. Add trainers, receptionists, and managers. Each staff member gets their own login with role-based access — for example, receptionists can only access check-in/out and member lookup.</PageHint>
+        <PageHint id="staff">
+          <p className="font-semibold text-white mb-2">Managing your team</p>
+          <ul className="space-y-1.5 text-sm text-gray-300 leading-relaxed">
+            <li><span className="text-gym-400 font-medium">Adding staff</span> — Click "Add Staff" and fill in their name, phone, and role. They'll get their own login using their username and the password you set.</li>
+            <li><span className="text-blue-400 font-medium">Roles & access</span> — <span className="text-white">Receptionist</span>: check-in/out and member lookup only. <span className="text-white">Trainer</span>: same as receptionist plus attendance view. <span className="text-white">Manager</span>: everything except billing settings. <span className="text-white">Owner</span>: full access.</li>
+            <li><span className="text-yellow-400 font-medium">Reset password</span> — If a staff member forgets their password, click the key icon next to their name to set a new one for them.</li>
+            <li><span className="text-purple-400 font-medium">Staff salaries</span> — To track salary as an expense, go to the <span className="text-white font-medium">Expenses → Monthly Bills</span> tab and add a recurring bill with category "Salaries". You can pick the staff member directly from the form.</li>
+          </ul>
+        </PageHint>
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
