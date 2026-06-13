@@ -28,12 +28,11 @@ import MemberPortal from './pages/MemberPortal';
 import Retention from './pages/Retention';
 import Expenses from './pages/Expenses';
 import Equipment from './pages/Equipment';
-import Branches from './pages/Branches';
 
 // Pages each role can access (must match Layout.jsx nav roles)
 const ROLE_PAGES = {
-  owner:        ['/dashboard', '/check-in', '/check-out', '/customers', '/staff', '/reports', '/revenue', '/settings', '/subscription', '/attendance-analytics', '/retention', '/expenses', '/equipment', '/branches'],
-  admin:        ['/dashboard', '/check-in', '/check-out', '/customers', '/staff', '/reports', '/revenue', '/settings', '/attendance-analytics', '/retention', '/expenses', '/equipment', '/branches'],
+  owner:        ['/dashboard', '/check-in', '/check-out', '/customers', '/staff', '/reports', '/revenue', '/settings', '/subscription', '/attendance-analytics', '/retention', '/expenses', '/equipment'],
+  admin:        ['/dashboard', '/check-in', '/check-out', '/customers', '/staff', '/reports', '/revenue', '/settings', '/attendance-analytics', '/retention', '/expenses', '/equipment'],
   manager:      ['/dashboard', '/check-in', '/check-out', '/customers', '/staff', '/reports', '/revenue', '/attendance-analytics', '/retention', '/expenses', '/equipment'],
   trainer:      ['/dashboard', '/check-in', '/check-out', '/customers'],
   receptionist: ['/dashboard', '/check-in', '/check-out', '/customers'],
@@ -134,7 +133,6 @@ function App() {
 <Route path="retention"               element={<RoleRoute path="/retention">            <Retention />             </RoleRoute>} />
         <Route path="expenses"                element={<RoleRoute path="/expenses">             <Expenses />              </RoleRoute>} />
         <Route path="equipment"               element={<RoleRoute path="/equipment">            <Equipment />             </RoleRoute>} />
-        <Route path="branches"                element={<RoleRoute path="/branches">             <Branches />              </RoleRoute>} />
       </Route>
     </Routes>
     </ToastProvider>

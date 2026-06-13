@@ -31,7 +31,6 @@ import {
   Search,
   Receipt,
   Wrench,
-  GitBranch,
   UserMinus,
 } from 'lucide-react';
 import clsx from 'clsx';
@@ -52,7 +51,6 @@ const navigation = [
   { name: 'Retention',  i18n: 'nav.retention', href: '/retention',    icon: UserMinus,       roles: ['owner','admin','manager'] },
   { name: 'Expenses',   i18n: 'nav.expenses',  href: '/expenses',     icon: Receipt,         roles: ['owner','admin','manager'] },
   { name: 'Equipment',  i18n: 'nav.equipment', href: '/equipment',    icon: Wrench,          roles: ['owner','admin','manager'] },
-  { name: 'Branches',   i18n: 'nav.branches',  href: '/branches',     icon: GitBranch,       roles: ['owner','admin'] },
   { name: 'Analytics',  i18n: 'nav.analytics', href: '/attendance-analytics', icon: Activity, roles: ['owner','admin','manager'] },
   { name: 'Settings',   i18n: 'nav.settings',  href: '/settings',     icon: Settings,        roles: ['owner','admin'] },
 ];
