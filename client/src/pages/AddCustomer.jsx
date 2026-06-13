@@ -465,25 +465,35 @@ export default function AddCustomer() {
                     placeholder={t('customers.enterAmountPaid')}
                     min="1"
                   />
-                  {/* Pricing hint from packages */}
-                  {(() => {
-                    const matchingPkgs = pricingPackages.filter(p => p.is_active && p.membership_type === formData.membership_type);
-                    if (!matchingPkgs.length) return null;
-                    return (
-                      <div className="mt-1 flex flex-wrap gap-1.5">
-                        {matchingPkgs.map(pkg => (
-                          <button
-                            key={pkg.id}
-                            type="button"
-                            onClick={() => handleChange({ target: { name: 'amount', value: String(pkg.price) } })}
-                            className="text-xs px-2 py-0.5 bg-gym-500/10 border border-gym-500/20 text-gym-400 rounded-full hover:bg-gym-500/20 transition-colors"
-                          >
-                            {pkg.name}: ETB {pkg.price.toLocaleString()}
-                          </button>
-                        ))}
+                  {/* Pricing packages — show all active, clicking sets price + membership type */}
+                  {pricingPackages.filter(p => p.is_active).length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-xs text-gray-500 mb-1.5">Quick-select a pricing package:</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {pricingPackages.filter(p => p.is_active).map(pkg => {
+                          const isMatch = pkg.membership_type === formData.membership_type;
+                          return (
+                            <button
+                              key={pkg.id}
+                              type="button"
+                              onClick={() => {
+                                handleChange({ target: { name: 'membership_type', value: pkg.membership_type } });
+                                handleChange({ target: { name: 'amount', value: String(pkg.price) } });
+                              }}
+                              className={clsx(
+                                'text-xs px-2.5 py-1 rounded-full border transition-colors',
+                                isMatch
+                                  ? 'bg-gym-500/20 border-gym-500/40 text-gym-300'
+                                  : 'bg-dark-200 border-gray-700 text-gray-400 hover:border-gym-500/30 hover:text-gym-400'
+                              )}
+                            >
+                              {pkg.name} · ETB {pkg.price.toLocaleString()}
+                            </button>
+                          );
+                        })}
                       </div>
-                    );
-                  })()}
+                    </div>
+                  )}
                 </div>
                 {fieldErrors.amount && (
                   <p className="mt-1 text-xs text-red-400 flex items-center gap-1">

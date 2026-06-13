@@ -659,12 +659,26 @@ function PricingPackagesPanel({ toast }) {
           </div>
           <div>
             <h2 className="text-lg font-semibold text-white">Pricing Packages</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Set membership prices shown when adding members</p>
+            <p className="text-xs text-gray-500 mt-0.5">Preset prices for your membership plans</p>
           </div>
         </div>
         <button onClick={openAdd} className="btn-primary flex items-center gap-2 text-sm">
           <Plus className="w-4 h-4" /> Add Package
         </button>
+      </div>
+
+      {/* Explanation box */}
+      <div className="p-4 bg-amber-500/8 border border-amber-500/20 rounded-xl space-y-2">
+        <p className="text-sm font-medium text-amber-300">💡 What are pricing packages?</p>
+        <p className="text-sm text-gray-400 leading-relaxed">
+          Pricing packages are <span className="text-white font-medium">quick-select buttons</span> that appear on the Add Member form. Instead of typing a price every time, staff can click a package to instantly fill in the membership type and amount.
+        </p>
+        <ul className="space-y-1 text-xs text-gray-500 mt-1">
+          <li className="flex items-start gap-1.5"><span className="text-amber-400 mt-0.5">•</span> Create one package per plan you offer (e.g. "Monthly Basic — 1,500 ETB", "3 Months — 4,000 ETB")</li>
+          <li className="flex items-start gap-1.5"><span className="text-amber-400 mt-0.5">•</span> All active packages show up as buttons when adding or renewing a member</li>
+          <li className="flex items-start gap-1.5"><span className="text-amber-400 mt-0.5">•</span> Clicking a package auto-selects the membership type and fills the price — no typing needed</li>
+          <li className="flex items-start gap-1.5"><span className="text-amber-400 mt-0.5">•</span> Use the toggle on each package to hide it temporarily without deleting it</li>
+        </ul>
       </div>
 
       {loading ? (
