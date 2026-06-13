@@ -304,7 +304,7 @@ async function startServer() {
     console.log('📅 Daily SMS reminder cron scheduled (08:00 EAT / 05:00 UTC)');
 
     app.listen(PORT, () => {
-      console.log(`🏋️ Hullu Gym Server running on http://localhost:${PORT}`);
+      console.log(`🏋️ Hullu Gyms Server running on http://localhost:${PORT}`);
       console.log(`📊 API available at http://localhost:${PORT}/api`);
     });
   } catch (error) {

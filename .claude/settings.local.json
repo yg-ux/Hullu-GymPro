@@ -31,7 +31,17 @@
       "Bash(findstr \":3000 \\\\|:5173 \")",
       "Bash(grep -v \"//\")",
       "Bash(del \"client\\\\src\\\\pages\\\\Forecast.jsx\")",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(node --input-type=module)",
+      "Bash(npx --yes acorn --ecma2020 --module src/pages/Expenses.jsx)",
+      "Bash(echo \"Exit code: $?\")",
+      "Bash(sed -i 's/Hullu Gym - Customer Management/Hullu Gyms - Customer Management/g' \"D:/Hullu Ceramics/Gym/client/index.html\")",
+      "Bash(sed -i 's/content=\"Hullu Gym\"/content=\"Hullu Gyms\"/g' \"D:/Hullu Ceramics/Gym/client/index.html\")",
+      "Bash(sed -i \"s/title: 'Hullu Gym', body/title: 'Hullu Gyms', body/g\" \"D:/Hullu Ceramics/Gym/client/public/sw.js\")",
+      "Bash(sed -i 's|/\\\\* Hullu Gym —|/* Hullu Gyms —|g' \"D:/Hullu Ceramics/Gym/client/public/sw.js\")",
+      "Bash(sed -i \"s/'Hullu Gym Report'/'Hullu Gyms Report'/g\" \"D:/Hullu Ceramics/Gym/client/src/i18n/keys/dashboard.js\")",
+      "Bash(sed -i 's|<span className=\"font-semibold text-gray-500\">Hullu Gym</span>|<span className=\"font-semibold text-gray-500\">Hullu Gyms</span>|g' \"D:/Hullu Ceramics/Gym/client/src/pages/MemberPortal.jsx\")",
+      "Bash(sed -i 's/Hullu Gym Customer Management System/Hullu Gyms Customer Management System/g' \"D:/Hullu Ceramics/Gym/server/package.json\")"
     ]
   }
 }

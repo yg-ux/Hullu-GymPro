@@ -185,7 +185,7 @@ router.get('/monthly', authenticateToken, async (req, res) => {
     doc.moveDown(2);
     doc.fontSize(10).font('Helvetica');
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, { align: 'center' });
-    doc.text('Powered by Hullu Gym Management System', { align: 'center' });
+    doc.text('Powered by Hullu Gyms Management System', { align: 'center' });
 
     doc.end();
   } catch (error) {

@@ -187,7 +187,7 @@ function ErrorScreen({ message }) {
         </div>
         <h2 className="text-xl font-bold text-white">Link Expired or Invalid</h2>
         <p className="text-gray-400 text-sm">{message || 'This member portal link is no longer valid. Please ask your gym for a new link.'}</p>
-        <div className="pt-2 text-xs text-gray-600">Powered by Hullu Gym</div>
+        <div className="pt-2 text-xs text-gray-600">Powered by Hullu Gyms</div>
       </div>
     </div>
   );
@@ -414,7 +414,7 @@ export default function MemberPortal() {
         <div className="pt-4 pb-8 text-center">
           <div className="inline-flex items-center gap-2 text-xs text-gray-600">
             <Dumbbell className="w-3.5 h-3.5" />
-            <span>Powered by <span className="font-semibold text-gray-500">Hullu Gym</span></span>
+            <span>Powered by <span className="font-semibold text-gray-500">Hullu Gyms</span></span>
           </div>
         </div>
       </div>

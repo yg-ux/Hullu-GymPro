@@ -1,7 +1,7 @@
 {
   "name": "hullu-gym-server",
   "version": "1.0.0",
-  "description": "Hullu Gym Customer Management System - Backend",
+  "description": "Hullu Gyms Customer Management System - Backend",
   "main": "src/server.js",
   "type": "module",
   "engines": {

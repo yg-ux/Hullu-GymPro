@@ -1,12 +1,12 @@
 {
-  "name": "Hullu Gym",
-  "short_name": "Hullu Gym",
+  "name": "Hullu Gyms",
+  "short_name": "Hullu Gyms",
   "description": "Gym management — members, payments, attendance, and expenses",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#0f172a",
-  "theme_color": "#0ea5e9",
+  "theme_color": "#1e293b",
   "icons": [
     {
       "src": "/logo.svg",

@@ -72,7 +72,7 @@ router.post('/send-test', authenticateToken, async (req, res) => {
     if (!subs.length) return res.status(404).json({ error: 'No push subscriptions found for this user' });
 
     const payload = JSON.stringify({
-      title: 'Hullu Gym 🏋️',
+      title: 'Hullu Gyms 🏋️',
       body: 'Push notifications are working!',
       icon: '/logo.svg',
     });

@@ -1,4 +1,4 @@
-/* Hullu Gym — Service Worker v1 */
+/* Hullu Gyms — Service Worker v1 */
 const CACHE_NAME = 'hullu-gym-v1';
 const STATIC_ASSETS = ['/', '/index.html', '/logo.svg'];
 
@@ -41,7 +41,7 @@ self.addEventListener('fetch', (event) => {
 
 // ── Push notification handler ──────────────────────────────────────────────
 self.addEventListener('push', (event) => {
-  let data = { title: 'Hullu Gym', body: 'New notification', icon: '/logo.svg' };
+  let data = { title: 'Hullu Gyms', body: 'New notification', icon: '/logo.svg' };
   try { data = { ...data, ...event.data.json() }; } catch {}
 
   event.waitUntil(

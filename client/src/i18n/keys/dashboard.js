@@ -175,7 +175,7 @@ export const dashboard = {
     'reports.fullReport':             'Full Report',
     'reports.printablePDF':           'Printable PDF',
     'reports.checkInsCount':          '{count} check-ins',
-    'reports.pdfTitle':               'Hullu Gym Report',
+    'reports.pdfTitle':               'Hullu Gyms Report',
     'reports.generatedOn':            'Generated on',
     'reports.gymLabel':               'Gym:',
     'reports.totalCustomers':         'Total Customers',
@@ -184,7 +184,7 @@ export const dashboard = {
     'reports.colMethod':              'Method',
     'reports.colExpires':             'Expires',
     'reports.na':                     'N/A',
-    'reports.pdfFooter':              'Hullu Gym Management System',
+    'reports.pdfFooter':              'Hullu Gyms Management System',
 
     // Revenue
     'revenue.title':                  'Revenue Analytics',
