@@ -1003,10 +1003,15 @@ export default function Expenses() {
                 <Download className="w-4 h-4" />
                 Export CSV
               </button>
-              {/* Log monthly bills shortcut — always visible when bills exist and not yet logged */}
-              {recurringTemplates.length > 0 && !recurringStatus?.generated && (
+              {/* Monthly bills button — always visible on list tab */}
+              {recurringStatus?.generated ? (
+                <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 rounded-xl text-sm font-medium">
+                  <span>✓</span>
+                  Bills logged for {getMonthLabel(cm)}
+                </div>
+              ) : (
                 <button
-                  onClick={handleGenerateRecurring}
+                  onClick={() => recurringTemplates.length > 0 ? handleGenerateRecurring() : setActiveTab('recurring')}
                   disabled={generatingRecurring}
                   className="inline-flex items-center gap-2 px-4 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black rounded-xl font-semibold transition-all disabled:opacity-60"
                 >
@@ -1016,7 +1021,7 @@ export default function Expenses() {
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
                   ) : <Zap className="w-4 h-4" />}
-                  Log {getMonthLabel(cm)} Bills
+                  {recurringTemplates.length > 0 ? `Log ${getMonthLabel(cm)} Bills` : 'Set Up Monthly Bills'}
                 </button>
               )}
               <button
@@ -1050,13 +1055,6 @@ export default function Expenses() {
         </div>
       </div>
 
-      {/* Already-logged badge — shown after logging this month's bills */}
-      {recurringTemplates.length > 0 && recurringStatus?.generated && (
-        <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-sm text-emerald-400 w-fit">
-          <span>✓</span>
-          Monthly bills already logged for {getMonthLabel(cm)}
-        </div>
-      )}
 
       {/* Tab bar */}
       <div className="flex items-center gap-1 bg-dark-300 rounded-2xl p-1 border border-gray-800/50 w-fit">
