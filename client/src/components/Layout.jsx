@@ -835,8 +835,8 @@ export default function Layout() {
           </div>
         )}
 
-        {/* Page content */}
-        <main className="p-4 sm:p-6 lg:p-8">
+        {/* Page content — pb-24 ensures the FAB never overlaps bottom buttons */}
+        <main className="p-4 sm:p-6 lg:p-8 pb-24">
           <Outlet />
         </main>
       </div>
