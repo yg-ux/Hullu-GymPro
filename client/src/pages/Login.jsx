@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -14,13 +14,7 @@ export default function Login() {
   const [wakingUp, setWakingUp] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
-
-  // Listen for the server-waking event emitted by api.js during retries
-  useEffect(() => {
-    const handler = () => setWakingUp(true);
-    window.addEventListener('server-waking', handler);
-    return () => window.removeEventListener('server-waking', handler);
-  }, []);
+  const wakeTimerRef = useRef(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,11 +22,16 @@ export default function Login() {
     setWakingUp(false);
     setLoading(true);
 
+    // After 4 seconds with no response, show the cold-start notice
+    wakeTimerRef.current = setTimeout(() => setWakingUp(true), 4000);
+
     try {
       await login({ email, password });
       navigate('/');
     } catch (err) {
       setError(err.message || t('login.invalidCredentials'));
+    } finally {
+      clearTimeout(wakeTimerRef.current);
       setLoading(false);
       setWakingUp(false);
     }

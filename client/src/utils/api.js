@@ -1,20 +1,5 @@
 const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
 
-// Retry a fetch up to `retries` times on network failure (server cold start, etc.)
-// HTTP errors (4xx/5xx) are NOT retried — only true network failures.
-async function fetchWithRetry(url, config, retries = 3, delayMs = 5000) {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      return await fetch(url, config);
-    } catch (err) {
-      if (attempt === retries) throw err;
-      // Dispatch an event so the UI can show a "waking up" message
-      window.dispatchEvent(new CustomEvent('server-waking', { detail: { attempt } }));
-      await new Promise(res => setTimeout(res, delayMs));
-    }
-  }
-}
-
 async function request(endpoint, options = {}) {
   const token = localStorage.getItem('token');
 
@@ -36,7 +21,7 @@ async function request(endpoint, options = {}) {
 
   const url = `${API_BASE}${endpoint}`;
 
-  const response = await fetchWithRetry(url, config);
+  const response = await fetch(url, config);
   
   // Check response type first
   const contentType = response.headers.get('content-type') || '';
