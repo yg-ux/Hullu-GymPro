@@ -3,7 +3,6 @@ import { api, formatCurrency } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
-import { usePushNotifications } from '../hooks/usePushNotifications';
 import {
   Building,
   MapPin,
@@ -26,9 +25,6 @@ import {
   Tag,
   Plus,
   Trash2,
-  Bell,
-  BellOff,
-  BellRing,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -503,8 +499,6 @@ export default function Settings() {
       {/* ── Membership Pricing Packages ── */}
       <PricingPackagesPanel toast={toast} />
 
-      {/* ── Push Notifications ── */}
-      <PushNotificationsPanel toast={toast} />
 
       {/* ── Data & Privacy ── */}
       <div className="card p-6 space-y-5 border border-blue-500/20 bg-blue-500/5">
@@ -746,82 +740,6 @@ function PricingPackagesPanel({ toast }) {
   );
 }
 
-function PushNotificationsPanel({ toast }) {
-  const { supported, permission, subscribed, loading, error, subscribe, unsubscribe, sendTest } = usePushNotifications();
-
-  const handleTest = async () => {
-    try {
-      const result = await sendTest();
-      toast.success(result?.message || 'Test notification sent!');
-    } catch (err) {
-      toast.error(err.message || 'Failed to send test notification');
-    }
-  };
-
-  return (
-    <div className="card p-6 space-y-4">
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-lg bg-violet-600/20 flex items-center justify-center">
-          <BellRing className="w-5 h-5 text-violet-400" />
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold text-white">Push Notifications</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Get browser notifications for gym activity</p>
-        </div>
-      </div>
-
-      {!supported ? (
-        <div className="p-4 bg-gray-700/30 rounded-xl text-sm text-gray-400 flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          Push notifications are not supported in this browser.
-        </div>
-      ) : (
-        <>
-          <div className="flex items-center justify-between p-4 bg-dark-200 rounded-xl border border-gray-700">
-            <div className="flex items-center gap-3">
-              {subscribed ? <Bell className="w-5 h-5 text-green-400" /> : <BellOff className="w-5 h-5 text-gray-500" />}
-              <div>
-                <p className="text-sm font-medium text-white">{subscribed ? 'Notifications enabled' : 'Notifications disabled'}</p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {permission === 'denied' ? '⚠️ Blocked in browser — change in browser settings' : subscribed ? 'You\'ll receive alerts on this device' : 'Click to enable browser notifications'}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={subscribed ? unsubscribe : subscribe}
-              disabled={loading || permission === 'denied'}
-              className={clsx('btn-secondary text-sm flex items-center gap-2 flex-shrink-0',
-                subscribed && 'border-red-500/40 text-red-400 hover:bg-red-500/10'
-              )}
-            >
-              {loading ? '...' : subscribed ? <><BellOff className="w-4 h-4" /> Disable</> : <><Bell className="w-4 h-4" /> Enable</>}
-            </button>
-          </div>
-
-          {error && <p className="text-xs text-red-400 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{error}</p>}
-
-          {subscribed && (
-            <div className="flex items-center gap-3">
-              <button onClick={handleTest} disabled={loading} className="btn-secondary text-sm flex items-center gap-2">
-                <BellRing className="w-4 h-4" /> Send Test Notification
-              </button>
-              <p className="text-xs text-gray-500">Sends a test push to verify it's working</p>
-            </div>
-          )}
-
-          <div className="space-y-2 px-1">
-            {['Member check-in alerts', 'Membership expiry reminders', 'New payment notifications'].map(f => (
-              <div key={f} className="flex items-center gap-2 text-sm text-gray-400">
-                <CheckCircle className="w-4 h-4 flex-shrink-0 text-violet-400" />
-                {f}
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
 
 function ChangePasswordForm({ toast, t }) {
   const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
