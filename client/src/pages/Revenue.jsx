@@ -26,6 +26,7 @@ import {
   BarChart3
 } from 'lucide-react';
 import clsx from 'clsx';
+import PageHint from '../components/PageHint';
 
 // Animated Counter Hook
 function useAnimatedCounter(endValue, duration = 1000, delay = 0) {
@@ -843,6 +844,7 @@ export default function Revenue() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <PageHint id="revenue">Track all income coming into your gym. Every payment recorded against a member appears here. Filter by date range or membership type. Use this alongside Expenses to understand your gym's profitability.</PageHint>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

@@ -17,6 +17,7 @@ import {
   Activity,
 } from 'lucide-react';
 import clsx from 'clsx';
+import PageHint from '../components/PageHint';
 
 function timeAgoLabel(days) {
   if (days === undefined || days === null) return '—';
@@ -201,6 +202,7 @@ export default function Retention() {
 
   return (
     <div className="space-y-6">
+      <PageHint id="retention">Spot members who are about to leave before they do. The Inactive tab shows members who haven't visited in 14+ days. Win-Back shows expired members. Use the Send Reminder button to reach out and bring them back.</PageHint>
       {/* Page Header */}
       <div className="flex items-start justify-between gap-4">
         <div>

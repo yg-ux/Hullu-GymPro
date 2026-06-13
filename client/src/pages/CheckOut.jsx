@@ -16,6 +16,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import clsx from 'clsx';
+import PageHint from '../components/PageHint';
 
 export default function CheckOut() {
   const { subscription } = useAuth();
@@ -132,6 +133,7 @@ export default function CheckOut() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
+      <PageHint id="check-out">Record when members leave. This shows everyone currently inside the gym. Click Check Out next to a member's name when they exit. This keeps your attendance records accurate.</PageHint>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

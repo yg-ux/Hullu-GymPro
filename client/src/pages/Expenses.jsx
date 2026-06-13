@@ -29,6 +29,7 @@ import {
   MoreHorizontal
 } from 'lucide-react';
 import clsx from 'clsx';
+import PageHint from '../components/PageHint';
 
 // ── Category config ───────────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -532,6 +533,7 @@ export default function Expenses() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <PageHint id="expenses">Log everything your gym spends money on — rent, utilities, salaries, equipment, and more. Select a month to see a breakdown by category. The Profit & Loss section compares your revenue against expenses for the month.</PageHint>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

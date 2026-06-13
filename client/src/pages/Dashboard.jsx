@@ -32,6 +32,7 @@ import {
   LogIn as KioskIcon
 } from 'lucide-react';
 import clsx from 'clsx';
+import PageHint from '../components/PageHint';
 
 // Color theme mapping
 const COLOR_THEMES = {
@@ -232,6 +233,7 @@ export default function Dashboard() {
   
   return (
     <div className="space-y-6 animate-fade-in">
+      <PageHint id="dashboard">Your gym at a glance. The cards show today's check-ins, active members, expiring memberships, and monthly revenue. Use this page to get a quick daily health check of your gym.</PageHint>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">

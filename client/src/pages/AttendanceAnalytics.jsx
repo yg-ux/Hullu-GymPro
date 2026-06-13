@@ -6,6 +6,7 @@ import {
   Activity, Clock, Users, TrendingUp, BarChart3, Calendar, LogIn
 } from 'lucide-react';
 import clsx from 'clsx';
+import PageHint from '../components/PageHint';
 
 export default function AttendanceAnalytics() {
   const { t, lang } = useLanguage();
@@ -68,6 +69,7 @@ export default function AttendanceAnalytics() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <PageHint id="attendance-analytics">Deep-dive into your gym's foot traffic. See which days and hours are busiest, track peak times, and spot trends over weeks or months. Use this to plan staff schedules and class times.</PageHint>
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-white flex items-center gap-3">

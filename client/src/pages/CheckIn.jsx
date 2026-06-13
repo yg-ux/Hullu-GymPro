@@ -17,6 +17,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import clsx from 'clsx';
+import PageHint from '../components/PageHint';
 
 // QR Code generation using a simple approach
 const QRCodeSVG = ({ value, size = 200 }) => {
@@ -167,6 +168,7 @@ export default function CheckIn() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
+      <PageHint id="check-in">Record member arrivals here. Search by name or phone number and click Check In. You can also scan a member's QR code if they have one. Active members check in instantly — expired members will be flagged.</PageHint>
       {/* Header */}
       <div className="text-center">
         <h1 className="text-3xl font-bold text-white mb-2">{t('checkIn.title')}</h1>

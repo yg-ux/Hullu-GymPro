@@ -32,6 +32,7 @@ import {
   Download
 } from 'lucide-react';
 import clsx from 'clsx';
+import PageHint from '../components/PageHint';
 
 // Custom hook for view mode persistence
 function useLocalStorage(key, initialValue) {
@@ -238,6 +239,7 @@ export default function Customers() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <PageHint id="customers">This is your full member list. Use the search bar to find members by name or phone. Click any member to view their profile, payment history, and attendance. Use 'Add Member' to register a new member.</PageHint>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

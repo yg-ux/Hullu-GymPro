@@ -19,6 +19,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import clsx from 'clsx';
+import PageHint from '../components/PageHint';
 
 // Role configuration
 const ROLES = {
@@ -211,6 +212,7 @@ export default function Staff() {
 
   return (
       <div className="space-y-6 animate-fade-in">
+        <PageHint id="staff">Manage your gym's team here. Add trainers, receptionists, and managers. Each staff member gets their own login with role-based access — for example, receptionists can only access check-in/out and member lookup.</PageHint>
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>

@@ -30,6 +30,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import clsx from 'clsx';
+import PageHint from '../components/PageHint';
 
 export default function Reports() {
   return <ReportsContent />;
@@ -239,6 +240,7 @@ function ReportsContent() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <PageHint id="reports">Detailed reports on your gym's performance. View membership growth, payment summaries, and attendance trends by date range. Use the Export button to download data as a CSV for spreadsheets.</PageHint>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

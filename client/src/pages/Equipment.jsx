@@ -24,6 +24,7 @@ import {
   Activity
 } from 'lucide-react';
 import clsx from 'clsx';
+import PageHint from '../components/PageHint';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const STATUSES = [
@@ -721,6 +722,7 @@ export default function Equipment() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <PageHint id="equipment">Keep track of all your gym equipment and maintenance schedule. Add each machine or asset with its purchase date and next service date. You'll get alerts when equipment is due for service so nothing breaks down unexpectedly.</PageHint>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
