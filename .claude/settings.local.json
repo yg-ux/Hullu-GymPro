@@ -29,7 +29,9 @@
       "Bash(findstr /i \"depend\\\\|postgres\\\\|pg\\\\|neon\\\\|db\")",
       "Bash(netstat -ano)",
       "Bash(findstr \":3000 \\\\|:5173 \")",
-      "Bash(grep -v \"//\")"
+      "Bash(grep -v \"//\")",
+      "Bash(del \"client\\\\src\\\\pages\\\\Forecast.jsx\")",
+      "Bash(git rm *)"
     ]
   }
 }
