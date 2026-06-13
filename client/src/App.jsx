@@ -57,9 +57,12 @@ function ProtectedRoute({ children }) {
 
 const PLAN_ORDER = ['free', 'starter', 'pro', 'enterprise'];
 const PLAN_REQUIRED = {
-  '/staff':   'starter',
-  '/reports': 'pro',
-  '/revenue': 'pro',
+  '/staff':     'starter',
+  '/reports':   'pro',
+  '/revenue':   'pro',
+  '/retention': 'pro',
+  '/expenses':  'pro',
+  '/equipment': 'pro',
 };
 
 function PlanRoute({ path, children }) {
@@ -130,9 +133,9 @@ function App() {
         <Route path="settings"                element={<RoleRoute path="/settings">             <Settings />             </RoleRoute>} />
         <Route path="customers/import"        element={<RoleRoute path="/customers">            <ImportCustomers />       </RoleRoute>} />
         <Route path="attendance-analytics"    element={<RoleRoute path="/attendance-analytics"> <AttendanceAnalytics />   </RoleRoute>} />
-<Route path="retention"               element={<RoleRoute path="/retention">            <Retention />             </RoleRoute>} />
-        <Route path="expenses"                element={<RoleRoute path="/expenses">             <Expenses />              </RoleRoute>} />
-        <Route path="equipment"               element={<RoleRoute path="/equipment">            <Equipment />             </RoleRoute>} />
+        <Route path="retention"  element={<RoleRoute path="/retention"> <PlanRoute path="/retention"> <Retention />  </PlanRoute></RoleRoute>} />
+        <Route path="expenses"   element={<RoleRoute path="/expenses">  <PlanRoute path="/expenses">  <Expenses />   </PlanRoute></RoleRoute>} />
+        <Route path="equipment"  element={<RoleRoute path="/equipment"> <PlanRoute path="/equipment"> <Equipment />  </PlanRoute></RoleRoute>} />
       </Route>
     </Routes>
     </ToastProvider>
