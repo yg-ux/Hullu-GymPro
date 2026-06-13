@@ -717,9 +717,26 @@ router.get('/retention', authenticateToken, async (req, res) => {
 
     const totalActive = await getOne(`SELECT COUNT(*) as count FROM customers WHERE gym_id = ? AND status IN ('active', 'expiring')`, [gymId]);
 
+    // Members expiring in the next 7 days
+    const expiringSoon = await getAll(`
+      SELECT c.id, c.name, c.phone, c.membership_type, c.membership_end,
+        FLOOR(EXTRACT(EPOCH FROM (c.membership_end::timestamp - NOW())) / 86400)::integer as days_until_expiry,
+        MAX(a.check_in) as last_visit,
+        FLOOR(EXTRACT(EPOCH FROM (NOW() - MAX(a.check_in))) / 86400)::integer as days_since_visit
+      FROM customers c
+      LEFT JOIN attendance a ON a.customer_id = c.id AND a.gym_id = c.gym_id
+      WHERE c.gym_id = ?
+        AND c.membership_end::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'
+        AND c.status IN ('active', 'expiring')
+      GROUP BY c.id, c.name, c.phone, c.membership_type, c.membership_end
+      ORDER BY c.membership_end ASC
+      LIMIT 20
+    `, [gymId]);
+
     res.json({
       inactive: { members: inactive14, count: inactive14.length },
       win_back: { members: winBack, count: winBack.length },
+      expiring_soon: { members: expiringSoon, count: expiringSoon.length },
       churn: {
         this_month: parseInt(thisMonthExpired?.count || 0),
         last_month: parseInt(lastMonthExpired?.count || 0),

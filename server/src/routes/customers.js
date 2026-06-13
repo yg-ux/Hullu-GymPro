@@ -632,4 +632,45 @@ router.post('/bulk-import', authenticateToken, requireActiveSubscription, async 
   }
 });
 
+// ── POST /:id/send-reminder — send a retention SMS to a member ─────────────────
+router.post('/:id/send-reminder', authenticateToken, async (req, res) => {
+  try {
+    const gymId = req.user.gym_id;
+    const { id } = req.params;
+    const { type = 'inactive' } = req.body; // 'inactive' | 'winback' | 'expiring'
+
+    const customer = await getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [id, gymId]);
+    if (!customer) return res.status(404).json({ error: 'Member not found' });
+    if (!customer.phone) return res.status(400).json({ error: 'Member has no phone number on file' });
+
+    const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
+
+    let message;
+    if (type === 'winback') {
+      message = `Hi ${customer.name}, we miss you at ${gym.name}! 💪 Your membership has expired but it's not too late to come back. Renew now and get back on track!`;
+      if (gym.phone) message += ` Call us at ${gym.phone}.`;
+    } else if (type === 'expiring') {
+      const daysLeft = customer.membership_end
+        ? Math.ceil((new Date(customer.membership_end) - new Date()) / 86400000)
+        : 0;
+      message = `Hi ${customer.name}, your membership at ${gym.name} expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}. Renew soon to keep your streak going! 🔥`;
+      if (gym.phone) message += ` Call ${gym.phone} to renew.`;
+    } else {
+      // inactive
+      message = `Hi ${customer.name}, we haven't seen you at ${gym.name} lately! 👋 Your membership is still active — come back and keep the momentum going! 💪`;
+      if (gym.phone) message += ` Questions? Call ${gym.phone}.`;
+    }
+
+    const result = await smsService.sendSms(customer.phone, message);
+    if (result.success) {
+      res.json({ success: true, message: `Reminder sent to ${customer.name}` });
+    } else {
+      res.status(500).json({ error: result.message || 'SMS failed to send' });
+    }
+  } catch (err) {
+    console.error('POST /customers/:id/send-reminder error:', err);
+    res.status(500).json({ error: 'Failed to send reminder' });
+  }
+});
+
 export default router;

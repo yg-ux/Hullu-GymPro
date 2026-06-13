@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, getMembershipLabel, formatDate } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import {
@@ -15,6 +16,8 @@ import {
   ArrowDown,
   Minus,
   Activity,
+  Bell,
+  ExternalLink,
 } from 'lucide-react';
 import clsx from 'clsx';
 import PageHint from '../components/PageHint';
@@ -26,26 +29,39 @@ function timeAgoLabel(days) {
   return `${days} days ago`;
 }
 
-function MemberCard({ member, actionLabel, actionColor = 'gym', badge, onAction }) {
+function MemberCard({ member, actionLabel, actionColor = 'gym', badge, onAction, sending }) {
+  const navigate = useNavigate();
   const colorMap = {
     gym:   { btn: 'bg-gym-500/15 text-gym-400 hover:bg-gym-500/25 border-gym-500/30' },
     amber: { btn: 'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 border-amber-500/30' },
     green: { btn: 'bg-green-500/15 text-green-400 hover:bg-green-500/25 border-green-500/30' },
+    blue:  { btn: 'bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 border-blue-500/30' },
   };
   const btnCls = (colorMap[actionColor] || colorMap.gym).btn;
+  const isSending = sending === member.id;
 
   return (
     <div className="bg-dark-300 rounded-xl border border-gray-800/60 p-4 flex items-start gap-3 hover:border-gray-700/60 transition-colors">
-      {/* Avatar */}
-      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gym-500 to-gym-700 flex items-center justify-center text-white text-base font-bold flex-shrink-0">
+      {/* Avatar — clickable to profile */}
+      <button
+        onClick={() => navigate(`/customers/${member.id}`)}
+        className="w-10 h-10 rounded-xl bg-gradient-to-br from-gym-500 to-gym-700 flex items-center justify-center text-white text-base font-bold flex-shrink-0 hover:scale-105 transition-transform"
+        title="View profile"
+      >
         {member.name?.charAt(0).toUpperCase() || '?'}
-      </div>
+      </button>
 
       {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-white truncate">{member.name}</p>
+            <button
+              onClick={() => navigate(`/customers/${member.id}`)}
+              className="text-sm font-semibold text-white truncate hover:text-gym-400 transition-colors flex items-center gap-1"
+            >
+              {member.name}
+              <ExternalLink className="w-3 h-3 opacity-50" />
+            </button>
             {member.phone && (
               <p className="text-xs text-gray-500 mt-0.5">{member.phone}</p>
             )}
@@ -74,10 +90,19 @@ function MemberCard({ member, actionLabel, actionColor = 'gym', badge, onAction 
       {/* Action */}
       <button
         onClick={() => onAction(member)}
-        className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${btnCls}`}
+        disabled={isSending || !member.phone}
+        title={!member.phone ? 'No phone number on file' : actionLabel}
+        className={clsx(
+          'flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all',
+          btnCls,
+          (isSending || !member.phone) && 'opacity-50 cursor-not-allowed'
+        )}
       >
-        <Send className="w-3 h-3" />
-        <span className="hidden sm:inline">{actionLabel}</span>
+        {isSending
+          ? <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          : <Send className="w-3 h-3" />
+        }
+        <span className="hidden sm:inline">{isSending ? 'Sending…' : actionLabel}</span>
       </button>
     </div>
   );
@@ -124,6 +149,7 @@ export default function Retention() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('inactive');
+  const [sendingId, setSendingId] = useState(null);
   const toast = useToast();
 
   useEffect(() => {
@@ -143,13 +169,22 @@ export default function Retention() {
     }
   }
 
-  function handleSendSMS(member) {
-    toast.info(`SMS queued for ${member.name}`);
+  async function sendReminder(member, type) {
+    if (!member.phone) return toast.error(`${member.name} has no phone number on file`);
+    setSendingId(member.id);
+    try {
+      await api.post(`/customers/${member.id}/send-reminder`, { type });
+      toast.success(`Reminder sent to ${member.name}`);
+    } catch (err) {
+      toast.error(err.message || 'Failed to send SMS');
+    } finally {
+      setSendingId(null);
+    }
   }
 
-  function handleOfferRenewal(member) {
-    toast.success(`Renewal offer queued for ${member.name}`);
-  }
+  const handleSendSMS      = (member) => sendReminder(member, 'inactive');
+  const handleOfferRenewal = (member) => sendReminder(member, 'winback');
+  const handleExpiringSMS  = (member) => sendReminder(member, 'expiring');
 
   if (loading) {
     return (
@@ -181,17 +216,23 @@ export default function Retention() {
     );
   }
 
-  const inactive = data?.inactive || { members: [], count: 0 };
-  const winBack = data?.win_back || { members: [], count: 0 };
-  const churn = data?.churn || { this_month: 0, last_month: 0, total_active: 0 };
+  const inactive     = data?.inactive      || { members: [], count: 0 };
+  const winBack      = data?.win_back      || { members: [], count: 0 };
+  const expiringSoon = data?.expiring_soon || { members: [], count: 0 };
+  const churn        = data?.churn         || { this_month: 0, last_month: 0, total_active: 0 };
 
   // Sort inactive by longest inactive first
   const sortedInactive = [...(inactive.members || [])].sort(
     (a, b) => (b.days_since_visit ?? 0) - (a.days_since_visit ?? 0)
   );
 
-  // Sort win-back by most recently expired first
+  // Sort win-back by most recently expired first (server returns days_expired)
   const sortedWinBack = [...(winBack.members || [])].sort(
+    (a, b) => (a.days_expired ?? 0) - (b.days_expired ?? 0)
+  );
+
+  // Sort expiring soon by soonest first
+  const sortedExpiring = [...(expiringSoon.members || [])].sort(
     (a, b) => (a.days_until_expiry ?? 0) - (b.days_until_expiry ?? 0)
   );
 
@@ -226,13 +267,22 @@ export default function Retention() {
         <TabButton active={activeTab === 'inactive'} onClick={() => setActiveTab('inactive')}>
           <span className="flex items-center gap-2">
             <UserX className="w-3.5 h-3.5" />
-            Inactive Members
+            Inactive
             {inactive.count > 0 && (
-              <span className={clsx(
-                'px-1.5 py-0.5 rounded-full text-xs font-bold',
-                activeTab === 'inactive' ? 'bg-gym-500/30 text-gym-300' : 'bg-amber-500/20 text-amber-400'
-              )}>
+              <span className={clsx('px-1.5 py-0.5 rounded-full text-xs font-bold', activeTab === 'inactive' ? 'bg-gym-500/30 text-gym-300' : 'bg-amber-500/20 text-amber-400')}>
                 {inactive.count}
+              </span>
+            )}
+          </span>
+        </TabButton>
+
+        <TabButton active={activeTab === 'expiring'} onClick={() => setActiveTab('expiring')}>
+          <span className="flex items-center gap-2">
+            <Bell className="w-3.5 h-3.5" />
+            Expiring Soon
+            {expiringSoon.count > 0 && (
+              <span className={clsx('px-1.5 py-0.5 rounded-full text-xs font-bold', activeTab === 'expiring' ? 'bg-gym-500/30 text-gym-300' : 'bg-orange-500/20 text-orange-400')}>
+                {expiringSoon.count}
               </span>
             )}
           </span>
@@ -243,10 +293,7 @@ export default function Retention() {
             <Gift className="w-3.5 h-3.5" />
             Win-Back
             {winBack.count > 0 && (
-              <span className={clsx(
-                'px-1.5 py-0.5 rounded-full text-xs font-bold',
-                activeTab === 'winback' ? 'bg-gym-500/30 text-gym-300' : 'bg-red-500/20 text-red-400'
-              )}>
+              <span className={clsx('px-1.5 py-0.5 rounded-full text-xs font-bold', activeTab === 'winback' ? 'bg-gym-500/30 text-gym-300' : 'bg-red-500/20 text-red-400')}>
                 {winBack.count}
               </span>
             )}
@@ -264,14 +311,12 @@ export default function Retention() {
       {/* Tab: Inactive Members */}
       {activeTab === 'inactive' && (
         <div className="space-y-4">
-          {/* Summary Banner */}
           <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
             <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0" />
             <p className="text-sm text-amber-200">
               <span className="font-bold">{inactive.count}</span> active member{inactive.count !== 1 ? 's' : ''} haven't visited in <span className="font-bold">14+ days</span>. Reach out before they lapse.
             </p>
           </div>
-
           {sortedInactive.length === 0 ? (
             <div className="bg-dark-300 rounded-2xl border border-gray-800/60 p-12 text-center">
               <Users className="w-10 h-10 text-gray-600 mx-auto mb-3" />
@@ -281,17 +326,44 @@ export default function Retention() {
           ) : (
             <div className="space-y-3">
               {sortedInactive.map((m, i) => (
-                <MemberCard
-                  key={m.id || i}
-                  member={m}
-                  actionLabel="Send SMS"
-                  actionColor="amber"
+                <MemberCard key={m.id || i} member={m} actionLabel="Send SMS" actionColor="amber" sending={sendingId}
+                  badge={<span className="flex-shrink-0 px-2 py-0.5 rounded-full text-xs bg-amber-500/15 text-amber-400 border border-amber-500/20 font-medium whitespace-nowrap">{timeAgoLabel(m.days_since_visit)}</span>}
+                  onAction={handleSendSMS}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab: Expiring Soon */}
+      {activeTab === 'expiring' && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-orange-500/10 border border-orange-500/20">
+            <Bell className="w-5 h-5 text-orange-400 flex-shrink-0" />
+            <p className="text-sm text-orange-200">
+              <span className="font-bold">{expiringSoon.count}</span> membership{expiringSoon.count !== 1 ? 's' : ''} expire within the next <span className="font-bold">7 days</span>. Send a reminder now so they renew on time.
+            </p>
+          </div>
+          {sortedExpiring.length === 0 ? (
+            <div className="bg-dark-300 rounded-2xl border border-gray-800/60 p-12 text-center">
+              <Bell className="w-10 h-10 text-gray-600 mx-auto mb-3" />
+              <p className="text-gray-400 font-medium">No memberships expiring soon</p>
+              <p className="text-gray-600 text-sm mt-1">No memberships expire in the next 7 days.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {sortedExpiring.map((m, i) => (
+                <MemberCard key={m.id || i} member={m} actionLabel="Send Reminder" actionColor="blue" sending={sendingId}
                   badge={
-                    <span className="flex-shrink-0 px-2 py-0.5 rounded-full text-xs bg-amber-500/15 text-amber-400 border border-amber-500/20 font-medium whitespace-nowrap">
-                      {timeAgoLabel(m.days_since_visit)}
+                    <span className={clsx(
+                      'flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap',
+                      m.days_until_expiry <= 1 ? 'bg-red-500/15 text-red-400 border-red-500/20' : 'bg-orange-500/15 text-orange-400 border-orange-500/20'
+                    )}>
+                      {m.days_until_expiry <= 0 ? 'Expires today' : `${m.days_until_expiry}d left`}
                     </span>
                   }
-                  onAction={handleSendSMS}
+                  onAction={handleExpiringSMS}
                 />
               ))}
             </div>
@@ -302,14 +374,12 @@ export default function Retention() {
       {/* Tab: Win-Back */}
       {activeTab === 'winback' && (
         <div className="space-y-4">
-          {/* Summary Banner */}
           <div className="flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
             <Gift className="w-5 h-5 text-red-400 flex-shrink-0" />
             <p className="text-sm text-red-200">
               <span className="font-bold">{winBack.count}</span> member{winBack.count !== 1 ? 's' : ''} expired in the last 60 days. A renewal offer could bring them back.
             </p>
           </div>
-
           {sortedWinBack.length === 0 ? (
             <div className="bg-dark-300 rounded-2xl border border-gray-800/60 p-12 text-center">
               <Gift className="w-10 h-10 text-gray-600 mx-auto mb-3" />
@@ -318,25 +388,16 @@ export default function Retention() {
             </div>
           ) : (
             <div className="space-y-3">
-              {sortedWinBack.map((m, i) => {
-                const expiredDaysAgo = m.days_until_expiry != null
-                  ? Math.abs(m.days_until_expiry)
-                  : m.days_since_visit;
-                return (
-                  <MemberCard
-                    key={m.id || i}
-                    member={m}
-                    actionLabel="Offer Renewal"
-                    actionColor="green"
-                    badge={
-                      <span className="flex-shrink-0 px-2 py-0.5 rounded-full text-xs bg-red-500/15 text-red-400 border border-red-500/20 font-medium whitespace-nowrap">
-                        Expired {expiredDaysAgo != null ? `${expiredDaysAgo}d ago` : ''}
-                      </span>
-                    }
-                    onAction={handleOfferRenewal}
-                  />
-                );
-              })}
+              {sortedWinBack.map((m, i) => (
+                <MemberCard key={m.id || i} member={m} actionLabel="Offer Renewal" actionColor="green" sending={sendingId}
+                  badge={
+                    <span className="flex-shrink-0 px-2 py-0.5 rounded-full text-xs bg-red-500/15 text-red-400 border border-red-500/20 font-medium whitespace-nowrap">
+                      Expired {m.days_expired != null ? `${m.days_expired}d ago` : ''}
+                    </span>
+                  }
+                  onAction={handleOfferRenewal}
+                />
+              ))}
             </div>
           )}
         </div>

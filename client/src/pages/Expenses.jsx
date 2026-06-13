@@ -6,6 +6,7 @@ import {
   Plus,
   X,
   Trash2,
+  Edit,
   Search,
   ChevronDown,
   TrendingDown,
@@ -459,6 +460,20 @@ export default function Expenses() {
     setShowForm(true);
   };
 
+  const openEditForm = (expense) => {
+    setForm({
+      id:             expense.id,
+      date:           expense.expense_date?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+      category:       expense.category || '',
+      amount:         expense.amount || '',
+      description:    expense.description || '',
+      payment_method: expense.payment_method || 'cash',
+      receipt_note:   expense.receipt_note || '',
+      staff_id:       '',
+    });
+    setShowForm(true);
+  };
+
   const handleFormChange = (key, val) => setForm(prev => ({
     ...prev,
     [key]: val,
@@ -729,7 +744,14 @@ export default function Expenses() {
                   </div>
 
                   {/* Actions */}
-                  <div className="col-span-1 flex justify-end">
+                  <div className="col-span-1 flex justify-end gap-1">
+                    <button
+                      onClick={() => openEditForm(expense)}
+                      className="p-1.5 text-gray-600 hover:text-gym-400 hover:bg-gym-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                      title="Edit expense"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={() => setDeleteTarget(expense)}
                       className="p-1.5 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"

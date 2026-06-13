@@ -130,6 +130,12 @@ function EquipmentCard({ item, onEdit, onDelete, onSelect }) {
         </p>
       )}
 
+      {item.last_service_date && !item.next_service_date && (
+        <div className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg mt-3 bg-dark-400 text-gray-500">
+          <Wrench className="w-3 h-3" />
+          Last serviced · {formatDate(item.last_service_date)}
+        </div>
+      )}
       {item.next_service_date && (
         <div className={clsx(
           'flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg mt-3',
