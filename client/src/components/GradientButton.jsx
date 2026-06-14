@@ -1,10 +1,6 @@
-import { useState, forwardRef } from 'react';
+import { forwardRef } from 'react';
 import clsx from 'clsx';
 
-/**
- * GradientButton Component
- * Buttons with beautiful gradient effects
- */
 export const GradientButton = forwardRef(({
   children,
   variant = 'primary', // 'primary' | 'success' | 'warning' | 'danger' | 'purple' | 'cyan'
@@ -18,51 +14,14 @@ export const GradientButton = forwardRef(({
   type = 'button',
   ...props
 }, ref) => {
-  const [isHovered, setIsHovered] = useState(false);
 
   const variants = {
-    primary: {
-      gradient: 'from-gym-500 to-purple-600',
-      hover: 'hover:from-gym-400 hover:to-purple-500',
-      shadow: 'shadow-gym-500/30',
-      hoverShadow: 'hover:shadow-gym-500/50',
-      text: 'text-white',
-    },
-    success: {
-      gradient: 'from-green-500 to-emerald-600',
-      hover: 'hover:from-green-400 hover:to-emerald-500',
-      shadow: 'shadow-green-500/30',
-      hoverShadow: 'hover:shadow-green-500/50',
-      text: 'text-white',
-    },
-    warning: {
-      gradient: 'from-yellow-500 to-orange-600',
-      hover: 'hover:from-yellow-400 hover:to-orange-500',
-      shadow: 'shadow-yellow-500/30',
-      hoverShadow: 'hover:shadow-yellow-500/50',
-      text: 'text-black',
-    },
-    danger: {
-      gradient: 'from-red-500 to-rose-600',
-      hover: 'hover:from-red-400 hover:to-rose-500',
-      shadow: 'shadow-red-500/30',
-      hoverShadow: 'hover:shadow-red-500/50',
-      text: 'text-white',
-    },
-    purple: {
-      gradient: 'from-purple-500 to-pink-600',
-      hover: 'hover:from-purple-400 hover:to-pink-500',
-      shadow: 'shadow-purple-500/30',
-      hoverShadow: 'hover:shadow-purple-500/50',
-      text: 'text-white',
-    },
-    cyan: {
-      gradient: 'from-cyan-500 to-blue-600',
-      hover: 'hover:from-cyan-400 hover:to-blue-500',
-      shadow: 'shadow-cyan-500/30',
-      hoverShadow: 'hover:shadow-cyan-500/50',
-      text: 'text-white',
-    },
+    primary: 'bg-gym-500 hover:bg-gym-400 text-white',
+    success: 'bg-green-600 hover:bg-green-500 text-white',
+    warning: 'bg-yellow-500 hover:bg-yellow-400 text-black',
+    danger:  'bg-red-600 hover:bg-red-500 text-white',
+    purple:  'bg-purple-600 hover:bg-purple-500 text-white',
+    cyan:    'bg-cyan-600 hover:bg-cyan-500 text-white',
   };
 
   const sizes = {
@@ -71,30 +30,17 @@ export const GradientButton = forwardRef(({
     lg: 'px-6 py-3 text-base',
   };
 
-  const v = variants[variant];
-  const s = sizes[size];
-
   return (
     <button
       ref={ref}
       type={type}
       disabled={disabled || loading}
       onClick={onClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       className={clsx(
-        'inline-flex items-center justify-center gap-2 font-medium rounded-xl',
-        'bg-gradient-to-r transition-all duration-300',
-        v.gradient,
-        v.hover,
-        v.shadow,
-        v.hoverShadow,
-        v.text,
-        s,
-        disabled && 'opacity-50 cursor-not-allowed',
-        loading && 'cursor-wait',
-        !disabled && !loading && 'active:scale-95',
-        isHovered && !disabled && !loading && 'scale-105',
+        'inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-colors duration-150',
+        variants[variant] || variants.primary,
+        sizes[size],
+        (disabled || loading) ? 'opacity-50 cursor-not-allowed' : 'active:scale-95',
         className
       )}
       {...props}

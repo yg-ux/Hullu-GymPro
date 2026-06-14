@@ -406,15 +406,15 @@ export default function Layout() {
 
       {/* Grace Period Banner — subscription expired but within 5-day grace window */}
       {showGraceBanner && (
-        <div className="bg-gradient-to-r from-orange-500/10 to-red-500/10 border-b border-orange-500/40 px-4 py-2">
+        <div className="bg-orange-500/10 border-b border-orange-500/40 px-4 py-2">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-2 text-orange-400 text-sm">
-              <AlertTriangle className="w-4 h-4 animate-pulse flex-shrink-0" />
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
               <span>{t('layout.graceWarning', { n: subscription.graceDaysLeft })}</span>
             </div>
             <button
               onClick={() => navigate('/subscription')}
-              className="px-4 py-1 bg-gradient-to-r from-orange-500 to-red-500 text-white text-sm font-medium rounded-lg hover:from-orange-400 hover:to-red-400 transition-all shadow-lg shadow-orange-500/20 flex-shrink-0"
+              className="px-4 py-1 bg-orange-500 hover:bg-orange-400 text-white text-sm font-medium rounded-lg transition-colors flex-shrink-0"
             >
               {t('layout.renewNow')}
             </button>
@@ -424,10 +424,10 @@ export default function Layout() {
 
       {/* Expired Subscription Alert Banner */}
       {showSubscriptionAlert && (
-        <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border-b border-yellow-500/30 px-4 py-2">
+        <div className="bg-yellow-500/10 border-b border-yellow-500/30 px-4 py-2">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-2 text-yellow-400 text-sm">
-              <AlertTriangle className="w-4 h-4 animate-pulse" />
+              <AlertTriangle className="w-4 h-4" />
               <span>
                 {subscription.status === 'trial_expired'
                   ? t('layout.trialEnded')
@@ -436,7 +436,7 @@ export default function Layout() {
             </div>
             <button
               onClick={() => navigate('/subscription')}
-              className="px-4 py-1 bg-gradient-to-r from-yellow-500 to-orange-500 text-black text-sm font-medium rounded-lg hover:from-yellow-400 hover:to-orange-400 transition-all shadow-lg shadow-yellow-500/20"
+              className="px-4 py-1 bg-yellow-500 hover:bg-yellow-400 text-black text-sm font-medium rounded-lg transition-colors"
             >
               {t('layout.subscribeNow')}
             </button>
@@ -454,16 +454,16 @@ export default function Layout() {
           onClick={() => setSidebarOpen(false)}
         />
         <div className={clsx(
-          "absolute left-0 top-0 h-full w-72 bg-gradient-to-b from-dark-100 to-dark-200 border-r border-gray-800 transition-transform duration-300 overflow-y-auto overflow-x-hidden",
+          "absolute left-0 top-0 h-full w-72 bg-dark-100 border-r border-gray-800 transition-transform duration-300 overflow-y-auto overflow-x-hidden",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}>
           <div className="flex items-center justify-between p-4 border-b border-gray-800">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gym-500 to-purple-600 flex items-center justify-center shadow-lg shadow-gym-500/30 animate-pulse-glow">
-                <Dumbbell className="w-6 h-6 text-white" />
+              <div className="w-10 h-10 rounded-xl bg-gym-500/15 flex items-center justify-center">
+                <Dumbbell className="w-6 h-6 text-gym-400" />
               </div>
               <div>
-                <h1 className="text-lg font-bold gradient-text">{gym?.name || 'Hullu Gyms'}</h1>
+                <h1 className="text-lg font-bold text-white">{gym?.name || 'Hullu Gyms'}</h1>
                 <p className="text-xs text-gray-400 truncate max-w-[140px]">{t('layout.byHullu')}</p>
               </div>
             </div>
@@ -734,9 +734,9 @@ export default function Layout() {
                       onClick={() => setUserMenuOpen(false)} 
                     />
                     <div className="absolute right-0 mt-2 w-64 glass-card shadow-xl z-20 overflow-hidden animate-scale-in">
-                      <div className="px-4 py-4 border-b border-gray-800 bg-gradient-to-r from-gym-500/10 to-purple-500/10">
+                      <div className="px-4 py-4 border-b border-gray-800">
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gym-500 to-purple-600 flex items-center justify-center text-lg font-bold shadow-lg">
+                          <div className="w-12 h-12 rounded-xl bg-gym-500/15 flex items-center justify-center text-lg font-bold text-gym-400">
                             {gym?.name?.[0]?.toUpperCase() || user?.username?.[0]?.toUpperCase() || 'G'}
                           </div>
                           <div>
@@ -970,7 +970,7 @@ function SidebarContent({ onNavigate, recentActivity = [], getTimeAgo }) {
       {/* Footer */}
       <div className="p-4 border-t border-gray-800/50">
         <div className="text-xs text-gray-500 text-center">
-          <span className="gradient-text font-semibold">{gym?.name || t('layout.yourGym')}</span> {t('layout.byHullu')}
+          <span className="text-gray-300 font-semibold">{gym?.name || t('layout.yourGym')}</span> {t('layout.byHullu')}
           <br />
           {t('layout.allRightsReserved')}
         </div>

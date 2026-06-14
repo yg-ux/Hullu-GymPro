@@ -35,12 +35,12 @@ import PageHint from '../components/PageHint';
 
 // Color theme mapping
 const COLOR_THEMES = {
-  default: { gradient: 'from-blue-500 to-blue-700', accent: 'blue', primary: 'blue-500' },
-  emerald: { gradient: 'from-emerald-500 to-emerald-700', accent: 'emerald', primary: 'emerald-500' },
-  purple: { gradient: 'from-purple-500 to-purple-700', accent: 'purple', primary: 'purple-500' },
-  red: { gradient: 'from-red-500 to-red-700', accent: 'red', primary: 'red-500' },
-  amber: { gradient: 'from-amber-500 to-amber-700', accent: 'amber', primary: 'amber-500' },
-  cyan: { gradient: 'from-cyan-500 to-cyan-700', accent: 'cyan', primary: 'cyan-500' },
+  default: { iconBg: 'bg-blue-500/15', iconColor: 'text-blue-400', accent: 'blue', primary: 'blue-500' },
+  emerald: { iconBg: 'bg-emerald-500/15', iconColor: 'text-emerald-400', accent: 'emerald', primary: 'emerald-500' },
+  purple: { iconBg: 'bg-purple-500/15', iconColor: 'text-purple-400', accent: 'purple', primary: 'purple-500' },
+  red: { iconBg: 'bg-red-500/15', iconColor: 'text-red-400', accent: 'red', primary: 'red-500' },
+  amber: { iconBg: 'bg-amber-500/15', iconColor: 'text-amber-400', accent: 'amber', primary: 'amber-500' },
+  cyan: { iconBg: 'bg-cyan-500/15', iconColor: 'text-cyan-400', accent: 'cyan', primary: 'cyan-500' },
 };
 
 // Animated Counter Hook
@@ -247,15 +247,15 @@ export default function Dashboard() {
               style={{ borderColor: `var(--${theme.accent}-500, #3b82f6)` }}
             />
           ) : (
-            <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${theme.gradient} flex items-center justify-center shadow-lg`}>
-              <Dumbbell className="w-8 h-8 text-white" />
+            <div className={`w-14 h-14 rounded-2xl ${theme.iconBg} flex items-center justify-center`}>
+              <Dumbbell className={`w-8 h-8 ${theme.iconColor}`} />
             </div>
           )}
           <div>
             <p className="text-sm font-medium text-gray-400 mb-0.5">
               {stats?.overview?.total_customers === 0 ? t('dashboard.welcome') : t('dashboard.welcomeBack')}
             </p>
-            <h1 className={`text-3xl font-bold bg-gradient-to-r from-${theme.accent}-400 to-${theme.accent}-500 bg-clip-text text-transparent leading-tight`}>
+            <h1 className="text-3xl font-bold text-white leading-tight">
               {gym?.name || t('dashboard.yourGym')}
             </h1>
             <p className="text-gray-400 mt-1 text-sm">
@@ -562,7 +562,7 @@ export default function Dashboard() {
               to="/customers/new"
               className="flex flex-col items-center gap-2 p-4 bg-gym-500/10 rounded-xl border border-gym-500/25 hover:border-gym-500/50 hover:bg-gym-500/15 transition-all hover-lift group"
             >
-              <div className="w-10 h-10 rounded-xl bg-gym-500/25 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <div className="w-10 h-10 rounded-xl bg-gym-500/25 flex items-center justify-center">
                 <UserPlus className="w-5 h-5 text-gym-400" />
               </div>
               <span className="text-sm text-gray-300">{t('dashboard.addCustomer')}</span>
@@ -571,7 +571,7 @@ export default function Dashboard() {
               to="/customers?status=expiring"
               className="flex flex-col items-center gap-2 p-4 bg-amber-500/10 rounded-xl border border-amber-500/25 hover:border-amber-500/50 hover:bg-amber-500/15 transition-all hover-lift group"
             >
-              <div className="w-10 h-10 rounded-xl bg-amber-500/25 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/25 flex items-center justify-center">
                 <Clock className="w-5 h-5 text-amber-400" />
               </div>
               <span className="text-sm text-gray-300">{t('dashboard.expiringSoon')}</span>
@@ -580,7 +580,7 @@ export default function Dashboard() {
               to="/customers"
               className="flex flex-col items-center gap-2 p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/25 hover:border-emerald-500/50 hover:bg-emerald-500/15 transition-all hover-lift group"
             >
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/25 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/25 flex items-center justify-center">
                 <CheckCircle className="w-5 h-5 text-emerald-400" />
               </div>
               <span className="text-sm text-gray-300">{t('dashboard.checkIn')}</span>
@@ -589,7 +589,7 @@ export default function Dashboard() {
               to="/subscription"
               className="flex flex-col items-center gap-2 p-4 bg-dark-300/80 rounded-xl border border-gray-700/60 hover:border-gym-500/40 hover:bg-gym-500/10 transition-all hover-lift group"
             >
-              <div className="w-10 h-10 rounded-xl bg-gray-700/50 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <div className="w-10 h-10 rounded-xl bg-gray-700/50 flex items-center justify-center">
                 <Award className="w-5 h-5 text-gray-300" />
               </div>
               <span className="text-sm text-gray-400">{t('dashboard.upgradePlan')}</span>

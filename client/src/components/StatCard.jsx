@@ -45,7 +45,8 @@ export function StatCard({
       bg: 'bg-blue-500/10',
       text: 'text-blue-400',
       border: 'border-blue-500/30',
-      icon: 'from-blue-500 to-blue-600',
+      iconBg: 'bg-blue-500/15',
+      iconText: 'text-blue-400',
       trendUp: 'text-blue-400',
       trendDown: 'text-red-400'
     },
@@ -53,7 +54,8 @@ export function StatCard({
       bg: 'bg-green-500/10',
       text: 'text-green-400',
       border: 'border-green-500/30',
-      icon: 'from-green-500 to-green-600',
+      iconBg: 'bg-green-500/15',
+      iconText: 'text-green-400',
       trendUp: 'text-green-400',
       trendDown: 'text-red-400'
     },
@@ -61,7 +63,8 @@ export function StatCard({
       bg: 'bg-yellow-500/10',
       text: 'text-yellow-400',
       border: 'border-yellow-500/30',
-      icon: 'from-yellow-500 to-yellow-600',
+      iconBg: 'bg-yellow-500/15',
+      iconText: 'text-yellow-400',
       trendUp: 'text-green-400',
       trendDown: 'text-yellow-400'
     },
@@ -69,7 +72,8 @@ export function StatCard({
       bg: 'bg-red-500/10',
       text: 'text-red-400',
       border: 'border-red-500/30',
-      icon: 'from-red-500 to-red-600',
+      iconBg: 'bg-red-500/15',
+      iconText: 'text-red-400',
       trendUp: 'text-green-400',
       trendDown: 'text-red-400'
     },
@@ -77,7 +81,8 @@ export function StatCard({
       bg: 'bg-purple-500/10',
       text: 'text-purple-400',
       border: 'border-purple-500/30',
-      icon: 'from-purple-500 to-purple-600',
+      iconBg: 'bg-purple-500/15',
+      iconText: 'text-purple-400',
       trendUp: 'text-purple-400',
       trendDown: 'text-red-400'
     },
@@ -85,7 +90,8 @@ export function StatCard({
       bg: 'bg-gym-500/10',
       text: 'text-gym-400',
       border: 'border-gym-500/30',
-      icon: 'from-gym-500 to-purple-600',
+      iconBg: 'bg-gym-500/15',
+      iconText: 'text-gym-400',
       trendUp: 'text-gym-400',
       trendDown: 'text-red-400'
     },
@@ -137,8 +143,8 @@ export function StatCard({
           )}
         </div>
         {Icon && (
-          <div className={clsx('p-3 rounded-xl bg-gradient-to-br shadow-lg', c.icon)}>
-            <Icon className="w-6 h-6 text-white" />
+          <div className={clsx('p-3 rounded-xl', c.iconBg)}>
+            <Icon className={clsx('w-6 h-6', c.iconText)} />
           </div>
         )}
       </div>
