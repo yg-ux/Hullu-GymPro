@@ -240,14 +240,7 @@ export default function Customers() {
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHint id="customers">
-        <p className="font-semibold text-white mb-2">Managing your members</p>
-        <ul className="space-y-1.5 text-sm text-gray-300 leading-relaxed">
-          <li><span className="text-gym-400 font-medium">Finding a member</span> — Use the search bar to look up by name or phone number. You can also filter by status (active, expiring, expired) using the dropdown.</li>
-          <li><span className="text-blue-400 font-medium">Member profile</span> — Click any member card to open their full profile: membership dates, all past payments, check-in history, and QR code for the door.</li>
-          <li><span className="text-green-400 font-medium">Add Member</span> — Register a new member by entering their name, phone, and choosing a membership plan. You can record their first payment on the same screen.</li>
-          <li><span className="text-yellow-400 font-medium">Renewing a membership</span> — Open the member's profile and click "Record Payment". Choose the new plan and it extends their membership end date automatically.</li>
-          <li><span className="text-purple-400 font-medium">Status colors</span> — Green = active, yellow = expiring within 7 days, red = expired. Expired members can still be found here and renewed.</li>
-        </ul>
+        Search by name or phone number, or filter by status (active, expiring, expired) using the dropdown. Click any member card to open their full profile — membership dates, all past payments, and check-in history. To register a new member click Add Member and fill in their details; you can record their first payment on the same screen. To renew, open the member's profile and click Record Payment — choosing a new plan extends the end date automatically. Card colors: green = active, yellow = expiring within 7 days, red = expired.
       </PageHint>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

@@ -233,13 +233,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHint id="dashboard">
-        <p className="font-semibold text-white mb-2">Your gym at a glance</p>
-        <ul className="space-y-1.5 text-sm text-gray-300 leading-relaxed">
-          <li><span className="text-gym-400 font-medium">Stat cards</span> — Show today's check-ins, total active members, memberships expiring soon, and this month's revenue. Refreshes every time you open the page.</li>
-          <li><span className="text-yellow-400 font-medium">Expiring soon</span> — If any memberships expire within 7 days a warning appears here. Click it to go to the Retention page and send renewal reminders directly.</li>
-          <li><span className="text-blue-400 font-medium">Revenue chart</span> — Your income trend for the last 6 months. A quick way to spot if revenue is growing, flat, or dropping.</li>
-          <li><span className="text-purple-400 font-medium">Recent activity feed</span> — The latest check-ins, new members, and payments. Use this as your daily opening routine to see what happened since you were last here.</li>
-        </ul>
+        Stat cards show today's check-ins, active members, expiring memberships, and this month's revenue. If any memberships expire within 7 days an alert appears — click it to go to the Retention page and send renewal reminders. The revenue chart tracks your last 6 months of income so you can spot trends at a glance. The activity feed at the bottom shows the latest check-ins, new members, and payments — use it as your daily opening routine.
       </PageHint>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

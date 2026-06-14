@@ -134,13 +134,7 @@ export default function CheckOut() {
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
       <PageHint id="check-out">
-        <p className="font-semibold text-white mb-2">Recording member departures</p>
-        <ul className="space-y-1.5 text-sm text-gray-300 leading-relaxed">
-          <li><span className="text-gym-400 font-medium">Who's inside right now</span> — This page shows only members who have checked in but not yet checked out. It's your live view of who is currently in the gym.</li>
-          <li><span className="text-blue-400 font-medium">Checking out</span> — When a member leaves, click the <span className="text-white font-medium">Check Out</span> button next to their name. This records the exact time they left.</li>
-          <li><span className="text-yellow-400 font-medium">Forgot to check out</span> — If a member left without checking out (happens often), you can manually check them out here any time. It records the current time as their exit.</li>
-          <li><span className="text-purple-400 font-medium">Why it matters</span> — Check-out times calculate how long members stay at the gym. This feeds into visit duration stats in Attendance Analytics and gives a complete picture of usage.</li>
-        </ul>
+        This page shows only members who have checked in but not yet left — your live view of who is currently inside. Click Check Out next to a member's name when they leave. If someone left without checking out, you can do it manually here at any time. Check-out times feed into visit duration stats in Attendance Analytics and give a complete picture of how long members stay.
       </PageHint>
       {/* Header */}
       <div className="flex items-center justify-between">

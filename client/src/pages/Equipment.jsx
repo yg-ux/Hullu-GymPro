@@ -729,13 +729,7 @@ export default function Equipment() {
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHint id="equipment">
-        <p className="font-semibold text-white mb-2">Tracking your equipment</p>
-        <ul className="space-y-1.5 text-sm text-gray-300 leading-relaxed">
-          <li><span className="text-gym-400 font-medium">Adding equipment</span> — Click "Add Equipment" and fill in the name, category, purchase date, purchase price, and when it next needs servicing. Even partial info is useful — add what you know.</li>
-          <li><span className="text-yellow-400 font-medium">Service status colors</span> — <span className="text-green-400">Green</span> = OK. <span className="text-yellow-400">Yellow</span> = service due soon. <span className="text-red-400">Red</span> = overdue for service. <span className="text-orange-400">Orange</span> = warranty expired. Filter by status to see what needs attention.</li>
-          <li><span className="text-blue-400 font-medium">Clicking an item</span> — Opens full details: purchase info, warranty dates, service history, and notes. Update the "Last serviced" date after each maintenance visit.</li>
-          <li><span className="text-purple-400 font-medium">Equipment expenses</span> — When you buy new equipment or pay for repairs, record it in the <span className="text-white font-medium">Expenses</span> page under the "Equipment" category so it appears in your monthly costs.</li>
-        </ul>
+        Click Add Equipment and fill in what you know — name, category, purchase date, price, and next service date. Card colors show service status: green = OK, yellow = due soon, red = overdue, orange = warranty expired. Filter by status to see what needs attention. Click any item to view purchase info, warranty dates, service history, and notes — update Last Serviced after each maintenance visit. Record equipment purchases and repairs in the Expenses page under the Equipment category so they show up in your monthly costs.
       </PageHint>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

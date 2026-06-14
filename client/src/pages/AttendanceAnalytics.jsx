@@ -70,14 +70,7 @@ export default function AttendanceAnalytics() {
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHint id="attendance-analytics">
-        <p className="font-semibold text-white mb-2">Understanding your foot traffic</p>
-        <ul className="space-y-1.5 text-sm text-gray-300 leading-relaxed">
-          <li><span className="text-gym-400 font-medium">Peak hours chart</span> — Shows which hours of the day get the most check-ins. Use this to decide when to have more staff on the floor and when you can run with fewer.</li>
-          <li><span className="text-blue-400 font-medium">Busiest days heatmap</span> — A grid of days and times. Darker cells = more members present. Great for scheduling classes at high-traffic times.</li>
-          <li><span className="text-yellow-400 font-medium">Trend over time</span> — The line chart shows daily or weekly check-in totals. Look for drops that coincide with holidays or local events, and spikes after promotions.</li>
-          <li><span className="text-purple-400 font-medium">Practical use</span> — If Monday mornings are always packed, consider adding staff. If Sunday afternoons are empty, that might be a good time for maintenance or equipment cleaning.</li>
-          <li><span className="text-gray-400 font-medium">Data comes from</span> — Every check-in recorded on the Check-In page feeds into these charts. The more consistently you use check-in, the more accurate these numbers are.</li>
-        </ul>
+        The peak hours chart shows which times of day get the most check-ins — use it to staff shifts appropriately. The busiest days grid highlights high-traffic windows for scheduling classes. The trend line shows daily or weekly check-in totals over time; look for drops during holidays and spikes after promotions. All data here comes from the Check-In page — the more consistently you record arrivals, the more accurate these charts become.
       </PageHint>
       {/* Header */}
       <div>

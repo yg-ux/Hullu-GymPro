@@ -845,14 +845,7 @@ export default function Revenue() {
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHint id="revenue">
-        <p className="font-semibold text-white mb-2">Tracking your income</p>
-        <ul className="space-y-1.5 text-sm text-gray-300 leading-relaxed">
-          <li><span className="text-gym-400 font-medium">Every payment in one place</span> — Each time you record a payment against a member it appears here automatically. You don't need to enter anything separately on this page.</li>
-          <li><span className="text-blue-400 font-medium">Filtering</span> — Use the date range picker or membership type filter to narrow down. Useful for end-of-month or end-of-year summaries.</li>
-          <li><span className="text-yellow-400 font-medium">Revenue chart</span> — The bar chart shows monthly income for the past 6 months. Hover over a bar to see the exact figure.</li>
-          <li><span className="text-green-400 font-medium">Export</span> — Download the filtered payment list as a CSV for your accountant or for use in a spreadsheet.</li>
-          <li><span className="text-purple-400 font-medium">Profit & Loss</span> — Revenue alone doesn't tell the full story. Go to the <span className="text-white font-medium">Expenses → History</span> tab to see revenue vs expenses and your actual net profit per month.</li>
-        </ul>
+        Every payment recorded against a member appears here automatically — no separate entry needed. Use the date range picker or plan filter to narrow results for monthly or yearly summaries. The bar chart shows your last 6 months of income; hover a bar to see the exact figure. Download any filtered list as a CSV using the Export button. For net profit, go to Expenses → History to see revenue versus expenses side by side.
       </PageHint>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

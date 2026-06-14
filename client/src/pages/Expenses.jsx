@@ -981,13 +981,7 @@ export default function Expenses() {
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHint id="expenses">
-        <p className="font-semibold text-white mb-2">How the Expense Tracker works</p>
-        <ul className="space-y-1.5 text-sm text-gray-300 leading-relaxed">
-          <li><span className="text-yellow-400 font-medium">Monthly Bills tab</span> — Set up your fixed monthly costs (rent, salaries, utilities) <span className="text-white">once</span>. At the start of each month, click the yellow <span className="text-white font-medium">"Log [Month] Bills"</span> button and all of them are added to your expense list automatically.</li>
-          <li><span className="text-gym-400 font-medium">Re-log</span> — If you clicked "Log" but the expenses didn't appear, click the <span className="text-white font-medium">"Re-log"</span> button next to the green badge. It clears the previous attempt and logs everything fresh.</li>
-          <li><span className="text-gray-400 font-medium">Add Expense button</span> — For one-off or irregular expenses that only happen this month (a repair, a one-time purchase, etc.). Not for recurring costs.</li>
-          <li><span className="text-purple-400 font-medium">History tab</span> — Shows your monthly revenue vs expenses and net profit for the past 12 months.</li>
-        </ul>
+        The Monthly Bills tab is for fixed recurring costs — set up rent, salaries, and utilities once, then click "Log [Month] Bills" at the start of each month to add them all at once. If a log didn't apply correctly, click Re-log to clear the previous attempt and start fresh. Use the Add Expense button for one-off costs that don't recur. The History tab shows monthly revenue versus expenses and your net profit for the past 12 months.
       </PageHint>
 
       {/* Header */}
