@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
 import {
-  CheckCircle, CreditCard, AlertTriangle, ArrowLeft,
+  CheckCircle, Check, CreditCard, AlertTriangle, ArrowLeft,
   Crown, Zap, Clock, ChevronRight, Hash, Phone,
   AlertCircle, Loader, Star, Shield, Flame, Lock
 } from 'lucide-react';
@@ -17,10 +17,7 @@ const PLANS = [
     id: 'free',
     nameKey: 'subscription.plan.free',
     price: 0,
-    color: 'from-gray-500 to-gray-600',
-    icon: Shield,
-    emoji: '🏃',
-    maxMembers: 10,
+    description: 'Get started at no cost',
     featureKeys: [
       'subscription.feature.upTo10',
       'subscription.feature.customerMgmt',
@@ -33,12 +30,8 @@ const PLANS = [
     id: 'starter',
     nameKey: 'subscription.plan.starter',
     price: 1499,
-    color: 'from-blue-500 to-cyan-500',
-    icon: Zap,
-    emoji: '⚡',
-    maxMembers: 100,
-    popular: false,
-    promo: true,
+    description: 'For gyms ready to grow',
+    popular: true,
     featureKeys: [
       'subscription.feature.upTo100',
       'subscription.feature.everythingFree',
@@ -53,12 +46,7 @@ const PLANS = [
     id: 'pro',
     nameKey: 'subscription.plan.pro',
     price: 3499,
-    color: 'from-purple-500 to-pink-500',
-    icon: Crown,
-    emoji: '👑',
-    maxMembers: -1,
-    popular: true,
-    promo: true,
+    description: 'Full power, no limits',
     featureKeys: [
       'subscription.feature.unlimited',
       'subscription.feature.everythingStarter',
@@ -319,79 +307,52 @@ export default function SubscriptionPage() {
           {/* Plan Cards */}
           <div className="grid md:grid-cols-3 gap-5 pt-4 items-start">
             {PLANS.map((plan) => {
-              const Icon = plan.icon;
               const isCurrent = isCurrentPlan(plan.id);
               const isPrevious = isPreviousPlan(plan.id);
-              const hasBadge = isCurrent || isPrevious || plan.popular;
               const planName = t(plan.nameKey);
               return (
                 <div key={plan.id} className={clsx(
-                  'flex flex-col relative transition-all rounded-2xl overflow-hidden border-2',
-                  isCurrent && 'border-green-500/50',
-                  isPrevious && 'border-orange-500/50',
-                  plan.popular && !isCurrent && !isPrevious && 'border-purple-500/50 shadow-xl shadow-purple-500/10',
+                  'relative flex flex-col rounded-2xl border bg-dark-200 transition-all',
+                  isCurrent    && 'border-green-500/40',
+                  isPrevious   && 'border-amber-500/40',
+                  plan.popular && !isCurrent && !isPrevious && 'border-white/20 shadow-xl',
                   !isCurrent && !isPrevious && !plan.popular && 'border-gray-700/60',
                 )}>
-                  {/* Coloured header — badges sit inside so overflow:hidden never clips them */}
-                  <div className={clsx('p-5 bg-gradient-to-br', plan.color)}>
-                    {/* Badge row */}
-                    {(plan.popular && !isCurrent && !isPrevious) && (
-                      <div className="mb-3">
-                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-white/25 rounded-full text-white text-xs font-bold">
-                          👑 Best Value
-                        </span>
-                      </div>
-                    )}
-                    {isPrevious && (
-                      <div className="mb-3">
-                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-white/25 rounded-full text-white text-xs font-bold">
-                          ↻ {t('subscription.renewal')}
-                        </span>
-                      </div>
-                    )}
-                    {isCurrent && (
-                      <div className="mb-3">
-                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-white/25 rounded-full text-white text-xs font-bold">
-                          ✓ Current Plan
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-2xl">{plan.emoji}</span>
-                      {plan.promo && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/20 rounded-full text-white text-xs font-semibold">
-                          <Flame className="w-3 h-3" /> Early Bird
-                        </span>
-                      )}
+                  {plan.popular && !isCurrent && !isPrevious && (
+                    <div className="absolute -top-3 left-6">
+                      <span className="px-3 py-1 bg-white text-gray-900 text-xs font-semibold rounded-full">
+                        Most Popular
+                      </span>
                     </div>
-                    <h3 className="text-lg font-bold text-white">{planName}</h3>
-                    <p className="text-white/70 text-xs mt-0.5">
-                      {plan.maxMembers === -1 ? 'Unlimited members' : `Up to ${plan.maxMembers} members`}
-                    </p>
-                    <div className="mt-3 flex items-baseline gap-1">
+                  )}
+
+                  {/* Header */}
+                  <div className="p-5 pb-4">
+                    {(isCurrent || isPrevious) && (
+                      <p className={clsx('text-xs font-semibold mb-2', isCurrent ? 'text-green-400' : 'text-amber-400')}>
+                        {isCurrent ? '✓ Current Plan' : '↻ Previous Plan'}
+                      </p>
+                    )}
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">{planName}</p>
+                    <div className="flex items-baseline gap-1 mb-1">
                       {plan.price === 0 ? (
                         <span className="text-2xl font-bold text-white">{t('subscription.free')}</span>
                       ) : (
                         <>
                           <span className="text-2xl font-bold text-white">ETB {plan.price.toLocaleString()}</span>
-                          <span className="text-white/60 text-xs">/month</span>
+                          <span className="text-gray-400 text-xs">/month</span>
                         </>
                       )}
                     </div>
-                    {plan.promo && (
-                      <div className="mt-1.5 flex items-center gap-1 text-white/70 text-xs">
-                        <Lock className="w-3 h-3 flex-shrink-0" />
-                        Price locked for early adopters
-                      </div>
-                    )}
+                    <p className="text-xs text-gray-500">{plan.description}</p>
                   </div>
 
                   {/* Features */}
-                  <div className="p-5 flex-1 bg-dark-100">
+                  <div className="px-5 pb-5 flex-1 border-t border-gray-800 pt-4">
                     <ul className="space-y-2.5">
                       {plan.featureKeys.map(fKey => (
                         <li key={fKey} className="flex items-start gap-2.5 text-sm text-gray-300">
-                          <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                          <Check className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
                           {t(fKey)}
                         </li>
                       ))}
@@ -399,28 +360,30 @@ export default function SubscriptionPage() {
                   </div>
 
                   {/* CTA */}
-                  <div className="p-5 bg-dark-100 border-t border-gray-800">
+                  <div className="p-5 border-t border-gray-800">
                     <button
                       onClick={() => plan.price > 0 && handleSelectPlan(plan.id)}
                       disabled={isCurrent || plan.price === 0}
                       className={clsx(
-                        'w-full py-3 rounded-xl font-semibold transition-all text-sm',
+                        'w-full py-2.5 rounded-lg font-medium transition-all text-sm',
                         isCurrent
-                          ? 'bg-green-500/20 text-green-400 cursor-not-allowed'
+                          ? 'bg-green-500/15 text-green-400 cursor-not-allowed'
                           : plan.price === 0
-                            ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
+                            ? 'bg-gray-700/40 text-gray-500 cursor-not-allowed'
                             : isPrevious
-                              ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:opacity-90 shadow-lg'
-                              : `bg-gradient-to-r ${plan.color} text-white hover:opacity-90 shadow-lg hover:shadow-xl transition-shadow`
+                              ? 'bg-amber-500 text-white hover:bg-amber-600'
+                              : plan.popular
+                                ? 'bg-white text-gray-900 hover:bg-gray-100'
+                                : 'bg-gray-700 text-white hover:bg-gray-600 border border-gray-600'
                       )}
                     >
                       {isCurrent
-                        ? `✓ ${t('subscription.activePlan')}`
+                        ? t('subscription.activePlan')
                         : plan.price === 0
                           ? t('subscription.defaultPlan')
                           : isPrevious
-                            ? `↻ ${t('layout.renewNow')}`
-                            : `Choose ${planName} →`}
+                            ? `Renew ${planName}`
+                            : `Choose ${planName}`}
                     </button>
                   </div>
                 </div>
