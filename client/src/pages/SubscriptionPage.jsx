@@ -66,7 +66,6 @@ const PLANS = [
       'subscription.feature.retentionInsights',
       'subscription.feature.equipmentMgmt',
       'subscription.feature.csvExport',
-      'subscription.feature.qrCheckin',
       'subscription.feature.unlimitedStaff',
       'subscription.feature.prioritySupport',
     ],
