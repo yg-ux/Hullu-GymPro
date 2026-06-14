@@ -683,7 +683,7 @@ router.get('/retention', authenticateToken, async (req, res) => {
       LEFT JOIN attendance a ON a.customer_id = c.id AND a.gym_id = c.gym_id
       WHERE c.gym_id = ? AND c.status IN ('active', 'expiring')
       GROUP BY c.id, c.name, c.phone, c.photo, c.membership_type, c.membership_end, c.status
-      HAVING (MAX(a.check_in) IS NULL OR MAX(a.check_in) < NOW() - INTERVAL '14 days')
+      HAVING MAX(a.check_in) < NOW() - INTERVAL '14 days'
       ORDER BY last_visit ASC NULLS FIRST
       LIMIT 30
     `, [gymId]);
