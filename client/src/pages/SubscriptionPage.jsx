@@ -422,9 +422,6 @@ export default function SubscriptionPage() {
                             ? `↻ ${t('layout.renewNow')}`
                             : `Choose ${planName} →`}
                     </button>
-                    {plan.id === 'pro' && !isCurrent && (
-                      <p className="text-center text-xs text-gray-600 mt-2">No credit card · Cancel anytime</p>
-                    )}
                   </div>
                 </div>
               );
