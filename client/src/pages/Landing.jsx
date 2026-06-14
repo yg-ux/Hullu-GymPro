@@ -24,17 +24,18 @@ const PLANS = [
     nameKey: 'landing.plan.free.name',
     price: 0,
     priceLabelKey: 'landing.plan.free.priceLabel',
-    descriptionKey: 'landing.plan.free.description',
-    color: 'border-gray-700',
-    badgeKey: null,
+    emoji: '🏃',
+    borderColor: 'border-gray-700',
+    gradient: 'from-gray-500 to-gray-600',
     features: [
-      { textKey: 'landing.feature.upTo10', included: true },
-      { textKey: 'landing.feature.checkinOut', included: true },
-      { textKey: 'landing.feature.paymentTracking', included: true },
-      { textKey: 'landing.feature.basicReports', included: true },
-      { textKey: 'landing.feature.smsNotifications', included: false },
-      { textKey: 'landing.feature.revenueAnalytics', included: false },
-      { textKey: 'landing.feature.staffAccounts', included: false },
+      { text: 'Up to 10 members', included: true },
+      { text: 'Check-in & check-out', included: true },
+      { text: 'Payment tracking & history', included: true },
+      { text: 'Basic dashboard & reports', included: true },
+      { text: 'SMS notifications', included: false },
+      { text: 'Staff accounts', included: false },
+      { text: 'Revenue & retention analytics', included: false },
+      { text: 'Expense & equipment tracking', included: false },
     ],
   },
   {
@@ -42,18 +43,21 @@ const PLANS = [
     nameKey: 'landing.plan.starter.name',
     price: 1499,
     priceLabel: 'ETB 1,499',
-    descriptionKey: 'landing.plan.starter.description',
-    color: 'border-blue-500',
-    badgeKey: 'landing.plan.starter.badge',
+    emoji: '⚡',
+    borderColor: 'border-blue-500/60',
+    gradient: 'from-blue-500 to-cyan-500',
+    badge: 'Most Popular',
+    badgeColor: 'from-blue-500 to-cyan-500',
     promo: true,
     features: [
-      { textKey: 'landing.feature.upTo100', included: true },
-      { textKey: 'landing.feature.checkinOut', included: true },
-      { textKey: 'landing.feature.paymentTracking', included: true },
-      { textKey: 'landing.feature.smsNotifications', included: true },
-      { textKey: 'landing.feature.staffAccounts3', included: true },
-      { textKey: 'landing.feature.revenueAnalytics', included: false },
-      { textKey: 'landing.feature.unlimitedMembers', included: false },
+      { text: 'Up to 100 members', included: true },
+      { text: 'Check-in & check-out', included: true },
+      { text: 'Payment tracking & history', included: true },
+      { text: 'SMS notifications (welcome & expiry)', included: true },
+      { text: 'Up to 3 staff accounts', included: true },
+      { text: 'Attendance analytics', included: true },
+      { text: 'Expense & bill tracking', included: true },
+      { text: 'Revenue & retention analytics', included: false },
     ],
   },
   {
@@ -61,18 +65,21 @@ const PLANS = [
     nameKey: 'landing.plan.pro.name',
     price: 3499,
     priceLabel: 'ETB 3,499',
-    descriptionKey: 'landing.plan.pro.description',
-    color: 'border-purple-500',
-    badgeKey: 'landing.plan.pro.badge',
+    emoji: '👑',
+    borderColor: 'border-purple-500/60',
+    gradient: 'from-purple-500 to-pink-500',
+    badge: 'Best Value',
+    badgeColor: 'from-purple-500 to-pink-500',
     promo: true,
     features: [
-      { textKey: 'landing.feature.unlimitedMembers', included: true },
-      { textKey: 'landing.feature.checkinOut', included: true },
-      { textKey: 'landing.feature.paymentTracking', included: true },
-      { textKey: 'landing.feature.smsNotifications', included: true },
-      { textKey: 'landing.feature.unlimitedStaff', included: true },
-      { textKey: 'landing.feature.revenueAnalytics', included: true },
-      { textKey: 'landing.feature.prioritySupport', included: true },
+      { text: 'Unlimited members', included: true },
+      { text: 'Everything in Starter', included: true },
+      { text: 'Revenue & retention analytics', included: true },
+      { text: 'Equipment management', included: true },
+      { text: 'CSV export & advanced reports', included: true },
+      { text: 'Unlimited staff accounts', included: true },
+      { text: 'QR code check-in', included: true },
+      { text: 'Priority support', included: true },
     ],
   },
 ];
@@ -433,58 +440,76 @@ export default function Landing() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 gap-6 items-start">
             {PLANS.map((plan) => (
-              <div key={plan.id} className={`relative flex flex-col p-8 rounded-2xl bg-gray-800 border-2 transition-all ${plan.color}`}>
-                {plan.badgeKey && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full text-xs font-bold text-white shadow-lg">
-                    {t(plan.badgeKey)}
+              <div key={plan.id} className={`relative flex flex-col rounded-2xl border-2 overflow-hidden transition-all ${plan.borderColor} ${plan.id === 'pro' ? 'shadow-2xl shadow-purple-500/10' : ''}`}>
+
+                {/* Badge */}
+                {plan.badge && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap z-10">
+                    <span className={`px-4 py-1.5 bg-gradient-to-r ${plan.badgeColor} rounded-full text-xs font-bold text-white shadow-lg`}>
+                      {plan.emoji} {plan.badge}
+                    </span>
                   </div>
                 )}
 
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-xl font-bold text-white">{t(plan.nameKey)}</h3>
+                {/* Coloured header */}
+                <div className={`p-6 bg-gradient-to-br ${plan.gradient} ${plan.badge ? 'mt-3' : ''}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-3xl">{plan.emoji}</span>
                     {plan.promo && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/15 border border-amber-500/30 rounded-full text-amber-400 text-xs font-semibold">
-                        <Flame className="w-3 h-3" /> {t('landing.pricing.promoPrice')}
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/20 rounded-full text-white text-xs font-semibold">
+                        <Flame className="w-3 h-3" /> Early Bird
                       </span>
                     )}
                   </div>
-                  <p className="text-gray-400 text-sm mb-4">{t(plan.descriptionKey)}</p>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-black text-white">{plan.priceLabelKey ? t(plan.priceLabelKey) : plan.priceLabel}</span>
-                    {plan.price > 0 && <span className="text-gray-400">{t('landing.pricing.perMonth')}</span>}
+                  <h3 className="text-xl font-bold text-white">{t(plan.nameKey)}</h3>
+                  <div className="flex items-baseline gap-1 mt-2">
+                    <span className="text-3xl font-black text-white">
+                      {plan.priceLabelKey ? t(plan.priceLabelKey) : plan.priceLabel}
+                    </span>
+                    {plan.price > 0 && <span className="text-white/60 text-sm">/month</span>}
                   </div>
                   {plan.promo && (
-                    <div className="mt-3 flex items-start gap-1.5 text-xs text-amber-400/80 bg-amber-500/8 border border-amber-500/20 rounded-lg px-3 py-2">
-                      <Lock className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                      <span>{t('landing.pricing.lockedNote')}</span>
-                    </div>
+                    <p className="mt-1.5 text-white/70 text-xs flex items-center gap-1">
+                      <Lock className="w-3 h-3" /> Price locked for first 10 gyms
+                    </p>
                   )}
                 </div>
 
-                <ul className="space-y-3 mb-8 flex-1">
-                  {plan.features.map((f, i) => (
-                    <li key={i} className={`flex items-center gap-3 text-sm ${f.included ? 'text-gray-300' : 'text-gray-600'}`}>
-                      <CheckCircle className={`w-4 h-4 flex-shrink-0 ${f.included ? 'text-green-400' : 'text-gray-700'}`} />
-                      <span className={f.included ? '' : 'line-through'}>{t(f.textKey)}</span>
-                    </li>
-                  ))}
-                </ul>
+                {/* Features */}
+                <div className="p-6 bg-gray-800 flex-1">
+                  <ul className="space-y-3">
+                    {plan.features.map((f, i) => (
+                      <li key={i} className={`flex items-start gap-3 text-sm ${f.included ? 'text-gray-200' : 'text-gray-600'}`}>
+                        {f.included
+                          ? <CheckCircle className="w-4 h-4 flex-shrink-0 text-green-400 mt-0.5" />
+                          : <div className="w-4 h-4 flex-shrink-0 rounded-full border border-gray-700 mt-0.5" />
+                        }
+                        <span>{f.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
 
-                <button
-                  onClick={() => setShowRegister(true)}
-                  className={`w-full py-3.5 rounded-xl font-semibold transition-all ${
-                    plan.id === 'starter'
-                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg shadow-blue-500/20'
-                      : plan.id === 'pro'
-                        ? 'bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white shadow-lg shadow-purple-500/20'
-                        : 'bg-gray-700 hover:bg-gray-600 text-white'
-                  }`}
-                >
-                  {plan.id === 'free' ? t('landing.pricing.getStartedFree') : t('landing.pricing.startFreeTrial')}
-                </button>
+                {/* CTA */}
+                <div className="p-6 bg-gray-800 border-t border-gray-700">
+                  <button
+                    onClick={() => setShowRegister(true)}
+                    className={`w-full py-3.5 rounded-xl font-semibold transition-all text-sm ${
+                      plan.id === 'starter'
+                        ? 'bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white shadow-lg shadow-blue-500/25'
+                        : plan.id === 'pro'
+                          ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg shadow-purple-500/25'
+                          : 'bg-gray-700 hover:bg-gray-600 text-white'
+                    }`}
+                  >
+                    {plan.id === 'free' ? '🚀 Get Started Free' : `Start Free Trial →`}
+                  </button>
+                  {plan.price > 0 && (
+                    <p className="text-center text-xs text-gray-600 mt-2">No credit card needed · Cancel anytime</p>
+                  )}
+                </div>
               </div>
             ))}
           </div>

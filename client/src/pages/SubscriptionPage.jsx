@@ -19,12 +19,13 @@ const PLANS = [
     price: 0,
     color: 'from-gray-500 to-gray-600',
     icon: Shield,
+    emoji: '🏃',
     maxMembers: 10,
     featureKeys: [
       'subscription.feature.upTo10',
       'subscription.feature.customerMgmt',
-      'subscription.feature.attendance',
       'subscription.feature.checkInOut',
+      'subscription.feature.attendance',
       'subscription.feature.basicDashboard',
     ],
   },
@@ -34,6 +35,7 @@ const PLANS = [
     price: 1499,
     color: 'from-blue-500 to-cyan-500',
     icon: Zap,
+    emoji: '⚡',
     maxMembers: 100,
     popular: false,
     promo: true,
@@ -43,6 +45,8 @@ const PLANS = [
       'subscription.feature.sms',
       'subscription.feature.staffAccounts',
       'subscription.feature.reports',
+      'subscription.feature.expenseTracking',
+      'subscription.feature.pricingPackages',
     ],
   },
   {
@@ -51,6 +55,7 @@ const PLANS = [
     price: 3499,
     color: 'from-purple-500 to-pink-500',
     icon: Crown,
+    emoji: '👑',
     maxMembers: -1,
     popular: true,
     promo: true,
@@ -58,9 +63,12 @@ const PLANS = [
       'subscription.feature.unlimited',
       'subscription.feature.everythingStarter',
       'subscription.feature.revenueAnalytics',
+      'subscription.feature.retentionInsights',
+      'subscription.feature.equipmentMgmt',
       'subscription.feature.csvExport',
-      'subscription.feature.prioritySupport',
       'subscription.feature.qrCheckin',
+      'subscription.feature.unlimitedStaff',
+      'subscription.feature.prioritySupport',
     ],
   },
 ];
@@ -310,7 +318,7 @@ export default function SubscriptionPage() {
           </div>
 
           {/* Plan Cards */}
-          <div className="grid md:grid-cols-3 gap-5 pt-4">
+          <div className="grid md:grid-cols-3 gap-5 pt-4 items-start">
             {PLANS.map((plan) => {
               const Icon = plan.icon;
               const isCurrent = isCurrentPlan(plan.id);
@@ -319,101 +327,108 @@ export default function SubscriptionPage() {
               const planName = t(plan.nameKey);
               return (
                 <div key={plan.id} className={clsx(
-                  'card p-6 flex flex-col relative transition-all overflow-visible',
-                  hasBadge && 'mt-4',
-                  isCurrent ? 'border-green-500/40 bg-green-500/5' : 'hover:border-gym-500/40',
-                  isPrevious && 'border-orange-500/40 bg-orange-500/5',
-                  plan.popular && !isCurrent && !isPrevious && 'border-purple-500/40'
+                  'flex flex-col relative transition-all rounded-2xl overflow-hidden border-2',
+                  hasBadge && 'mt-5',
+                  isCurrent && 'border-green-500/50',
+                  isPrevious && 'border-orange-500/50',
+                  plan.popular && !isCurrent && !isPrevious && 'border-purple-500/50 shadow-xl shadow-purple-500/10',
+                  !isCurrent && !isPrevious && !plan.popular && 'border-gray-700/60',
                 )}>
+                  {/* Badges */}
                   {plan.popular && !isCurrent && !isPrevious && (
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                      <span className="px-3 py-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-bold rounded-full shadow-lg">
-                        {t('subscription.mostPopular')}
+                    <div className="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap z-10">
+                      <span className="px-3 py-1.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-bold rounded-full shadow-lg">
+                        👑 Best Value
                       </span>
                     </div>
                   )}
                   {isPrevious && (
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                      <span className="px-3 py-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs font-bold rounded-full shadow-lg">
+                    <div className="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap z-10">
+                      <span className="px-3 py-1.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs font-bold rounded-full shadow-lg">
                         ↻ {t('subscription.renewal')}
                       </span>
                     </div>
                   )}
                   {isCurrent && (
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                      <span className="px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-bold rounded-full shadow-lg">
-                        {t('subscription.currentPlanBadge')}
+                    <div className="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap z-10">
+                      <span className="px-3 py-1.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-bold rounded-full shadow-lg">
+                        ✓ Current Plan
                       </span>
                     </div>
                   )}
 
-                  <div className={clsx('w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center mb-4', plan.color)}>
-                    <Icon className="w-6 h-6 text-white" />
-                  </div>
-
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-xl font-bold text-white">{planName}</h3>
+                  {/* Coloured header */}
+                  <div className={clsx('p-5 bg-gradient-to-br', plan.color)}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-2xl">{plan.emoji}</span>
+                      {plan.promo && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/20 rounded-full text-white text-xs font-semibold">
+                          <Flame className="w-3 h-3" /> Early Bird
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-lg font-bold text-white">{planName}</h3>
+                    <p className="text-white/70 text-xs mt-0.5">
+                      {plan.maxMembers === -1 ? 'Unlimited members' : `Up to ${plan.maxMembers} members`}
+                    </p>
+                    <div className="mt-3 flex items-baseline gap-1">
+                      {plan.price === 0 ? (
+                        <span className="text-2xl font-bold text-white">{t('subscription.free')}</span>
+                      ) : (
+                        <>
+                          <span className="text-2xl font-bold text-white">ETB {plan.price.toLocaleString()}</span>
+                          <span className="text-white/60 text-xs">/month</span>
+                        </>
+                      )}
+                    </div>
                     {plan.promo && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/15 border border-amber-500/30 rounded-full text-amber-400 text-xs font-semibold">
-                        <Flame className="w-3 h-3" /> {t('subscription.promo')}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-gray-400 text-sm mb-4">
-                    {plan.maxMembers === -1
-                      ? t('subscription.unlimitedMembers')
-                      : t('subscription.upToMembers', { n: plan.maxMembers })}
-                  </p>
-
-                  <div className="mb-2">
-                    {plan.price === 0 ? (
-                      <span className="text-3xl font-bold text-white">{t('subscription.free')}</span>
-                    ) : (
-                      <>
-                        <span className="text-3xl font-bold text-white">ETB {plan.price.toLocaleString()}</span>
-                        <span className="text-gray-400 text-sm">{t('subscription.perMonth')}</span>
-                      </>
+                      <div className="mt-1.5 flex items-center gap-1 text-white/70 text-xs">
+                        <Lock className="w-3 h-3 flex-shrink-0" />
+                        Price locked for early adopters
+                      </div>
                     )}
                   </div>
 
-                  {plan.promo && (
-                    <div className="mb-4 flex items-start gap-1.5 text-xs text-amber-400/80 bg-amber-500/8 border border-amber-500/20 rounded-lg px-3 py-2">
-                      <Lock className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                      <span>{t('subscription.promoLock')}</span>
-                    </div>
-                  )}
+                  {/* Features */}
+                  <div className="p-5 flex-1 bg-dark-100">
+                    <ul className="space-y-2.5">
+                      {plan.featureKeys.map(fKey => (
+                        <li key={fKey} className="flex items-start gap-2.5 text-sm text-gray-300">
+                          <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                          {t(fKey)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
 
-                  <ul className="space-y-2 mb-6 flex-1">
-                    {plan.featureKeys.map(fKey => (
-                      <li key={fKey} className="flex items-center gap-2 text-sm text-gray-300">
-                        <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
-                        {t(fKey)}
-                      </li>
-                    ))}
-                  </ul>
-
-                  <button
-                    onClick={() => plan.price > 0 && handleSelectPlan(plan.id)}
-                    disabled={isCurrent || plan.price === 0}
-                    className={clsx(
-                      'w-full py-3 rounded-lg font-medium transition-all',
-                      isCurrent
-                        ? 'bg-green-500/20 text-green-400 cursor-not-allowed'
+                  {/* CTA */}
+                  <div className="p-5 bg-dark-100 border-t border-gray-800">
+                    <button
+                      onClick={() => plan.price > 0 && handleSelectPlan(plan.id)}
+                      disabled={isCurrent || plan.price === 0}
+                      className={clsx(
+                        'w-full py-3 rounded-xl font-semibold transition-all text-sm',
+                        isCurrent
+                          ? 'bg-green-500/20 text-green-400 cursor-not-allowed'
+                          : plan.price === 0
+                            ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
+                            : isPrevious
+                              ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:opacity-90 shadow-lg'
+                              : `bg-gradient-to-r ${plan.color} text-white hover:opacity-90 shadow-lg hover:shadow-xl transition-shadow`
+                      )}
+                    >
+                      {isCurrent
+                        ? `✓ ${t('subscription.activePlan')}`
                         : plan.price === 0
-                          ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
+                          ? t('subscription.defaultPlan')
                           : isPrevious
-                            ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:opacity-90 hover:shadow-lg'
-                            : `bg-gradient-to-r ${plan.color} text-white hover:opacity-90 hover:shadow-lg`
+                            ? `↻ ${t('layout.renewNow')}`
+                            : `Choose ${planName} →`}
+                    </button>
+                    {plan.price > 0 && !isCurrent && (
+                      <p className="text-center text-xs text-gray-600 mt-2">No credit card · Cancel anytime</p>
                     )}
-                  >
-                    {isCurrent
-                      ? t('subscription.activePlan')
-                      : plan.price === 0
-                        ? t('subscription.defaultPlan')
-                        : isPrevious
-                          ? `↻ ${t('layout.renewNow')}`
-                          : t('subscription.choosePlan', { name: planName })}
-                  </button>
+                  </div>
                 </div>
               );
             })}
