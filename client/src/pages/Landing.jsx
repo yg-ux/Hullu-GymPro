@@ -505,7 +505,7 @@ export default function Landing() {
                   >
                     {plan.id === 'free' ? '🚀 Get Started Free' : `Start Free Trial →`}
                   </button>
-                  {plan.price > 0 && (
+                  {plan.id === 'pro' && (
                     <p className="text-center text-xs text-gray-600 mt-2">No credit card needed · Cancel anytime</p>
                   )}
                 </div>
