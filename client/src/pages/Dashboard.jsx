@@ -35,12 +35,12 @@ import PageHint from '../components/PageHint';
 
 // Color theme mapping
 const COLOR_THEMES = {
-  default: { iconBg: 'bg-blue-500/15', iconColor: 'text-blue-400', accent: 'blue', primary: 'blue-500' },
-  emerald: { iconBg: 'bg-emerald-500/15', iconColor: 'text-emerald-400', accent: 'emerald', primary: 'emerald-500' },
-  purple: { iconBg: 'bg-purple-500/15', iconColor: 'text-purple-400', accent: 'purple', primary: 'purple-500' },
-  red: { iconBg: 'bg-red-500/15', iconColor: 'text-red-400', accent: 'red', primary: 'red-500' },
-  amber: { iconBg: 'bg-amber-500/15', iconColor: 'text-amber-400', accent: 'amber', primary: 'amber-500' },
-  cyan: { iconBg: 'bg-cyan-500/15', iconColor: 'text-cyan-400', accent: 'cyan', primary: 'cyan-500' },
+  default: { iconBg: 'bg-blue-500/15', iconColor: 'text-blue-400', nameColor: 'text-blue-400', accent: 'blue', primary: 'blue-500' },
+  emerald: { iconBg: 'bg-emerald-500/15', iconColor: 'text-emerald-400', nameColor: 'text-emerald-400', accent: 'emerald', primary: 'emerald-500' },
+  purple: { iconBg: 'bg-purple-500/15', iconColor: 'text-purple-400', nameColor: 'text-purple-400', accent: 'purple', primary: 'purple-500' },
+  red: { iconBg: 'bg-red-500/15', iconColor: 'text-red-400', nameColor: 'text-red-400', accent: 'red', primary: 'red-500' },
+  amber: { iconBg: 'bg-amber-500/15', iconColor: 'text-amber-400', nameColor: 'text-amber-400', accent: 'amber', primary: 'amber-500' },
+  cyan: { iconBg: 'bg-cyan-500/15', iconColor: 'text-cyan-400', nameColor: 'text-cyan-400', accent: 'cyan', primary: 'cyan-500' },
 };
 
 // Animated Counter Hook
@@ -255,7 +255,7 @@ export default function Dashboard() {
             <p className="text-sm font-medium text-gray-400 mb-0.5">
               {stats?.overview?.total_customers === 0 ? t('dashboard.welcome') : t('dashboard.welcomeBack')}
             </p>
-            <h1 className="text-3xl font-bold text-white leading-tight">
+            <h1 className={`text-3xl font-bold ${theme.nameColor} leading-tight`}>
               {gym?.name || t('dashboard.yourGym')}
             </h1>
             <p className="text-gray-400 mt-1 text-sm">
