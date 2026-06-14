@@ -454,6 +454,37 @@ export default function AddCustomer() {
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   {t('customers.amountPaidEtb')} <span className="text-red-400">*</span>
                 </label>
+
+                {/* Pricing packages — shown above the input, full width on mobile */}
+                {pricingPackages.filter(p => p.is_active).length > 0 && (
+                  <div className="mb-2">
+                    <p className="text-xs text-gray-500 mb-1.5">Quick-select:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {pricingPackages.filter(p => p.is_active).map(pkg => {
+                        const isMatch = pkg.membership_type === formData.membership_type;
+                        return (
+                          <button
+                            key={pkg.id}
+                            type="button"
+                            onClick={() => {
+                              handleChange({ target: { name: 'membership_type', value: pkg.membership_type } });
+                              handleChange({ target: { name: 'amount', value: String(pkg.price) } });
+                            }}
+                            className={clsx(
+                              'text-xs px-3 py-1.5 rounded-lg border transition-colors',
+                              isMatch
+                                ? 'bg-gym-500/20 border-gym-500/40 text-gym-300 font-medium'
+                                : 'bg-dark-200 border-gray-700 text-gray-400 hover:border-gym-500/30 hover:text-gym-400'
+                            )}
+                          >
+                            {pkg.name} · ETB {pkg.price.toLocaleString()}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
@@ -465,35 +496,6 @@ export default function AddCustomer() {
                     placeholder={t('customers.enterAmountPaid')}
                     min="1"
                   />
-                  {/* Pricing packages — show all active, clicking sets price + membership type */}
-                  {pricingPackages.filter(p => p.is_active).length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-xs text-gray-500 mb-1.5">Quick-select a pricing package:</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {pricingPackages.filter(p => p.is_active).map(pkg => {
-                          const isMatch = pkg.membership_type === formData.membership_type;
-                          return (
-                            <button
-                              key={pkg.id}
-                              type="button"
-                              onClick={() => {
-                                handleChange({ target: { name: 'membership_type', value: pkg.membership_type } });
-                                handleChange({ target: { name: 'amount', value: String(pkg.price) } });
-                              }}
-                              className={clsx(
-                                'text-xs px-2.5 py-1 rounded-full border transition-colors',
-                                isMatch
-                                  ? 'bg-gym-500/20 border-gym-500/40 text-gym-300'
-                                  : 'bg-dark-200 border-gray-700 text-gray-400 hover:border-gym-500/30 hover:text-gym-400'
-                              )}
-                            >
-                              {pkg.name} · ETB {pkg.price.toLocaleString()}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
                 </div>
                 {fieldErrors.amount && (
                   <p className="mt-1 text-xs text-red-400 flex items-center gap-1">
