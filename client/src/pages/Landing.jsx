@@ -444,19 +444,18 @@ export default function Landing() {
             {PLANS.map((plan) => (
               <div key={plan.id} className={`relative flex flex-col rounded-2xl border-2 overflow-hidden transition-all ${plan.borderColor} ${plan.id === 'pro' ? 'shadow-2xl shadow-purple-500/10' : ''}`}>
 
-                {/* Badge */}
-                {plan.badge && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 whitespace-nowrap z-10">
-                    <span className={`px-4 py-1.5 bg-gradient-to-r ${plan.badgeColor} rounded-full text-xs font-bold text-white shadow-lg`}>
-                      {plan.emoji} {plan.badge}
-                    </span>
-                  </div>
-                )}
-
                 {/* Coloured header */}
-                <div className={`p-6 bg-gradient-to-br ${plan.gradient} ${plan.badge ? 'mt-3' : ''}`}>
+                <div className={`p-6 bg-gradient-to-br ${plan.gradient}`}>
+                  {/* Badge row — inside header so it's never clipped */}
+                  {plan.badge && (
+                    <div className="mb-3">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/25 rounded-full text-white text-xs font-bold">
+                        {plan.emoji} {plan.badge}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-3xl">{plan.emoji}</span>
+                    <span className="text-3xl">{plan.badge ? '' : plan.emoji}</span>
                     {plan.promo && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/20 rounded-full text-white text-xs font-semibold">
                         <Flame className="w-3 h-3" /> Early Bird

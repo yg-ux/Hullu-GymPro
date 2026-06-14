@@ -327,37 +327,35 @@ export default function SubscriptionPage() {
               return (
                 <div key={plan.id} className={clsx(
                   'flex flex-col relative transition-all rounded-2xl overflow-hidden border-2',
-                  hasBadge && 'mt-5',
                   isCurrent && 'border-green-500/50',
                   isPrevious && 'border-orange-500/50',
                   plan.popular && !isCurrent && !isPrevious && 'border-purple-500/50 shadow-xl shadow-purple-500/10',
                   !isCurrent && !isPrevious && !plan.popular && 'border-gray-700/60',
                 )}>
-                  {/* Badges */}
-                  {plan.popular && !isCurrent && !isPrevious && (
-                    <div className="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap z-10">
-                      <span className="px-3 py-1.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-bold rounded-full shadow-lg">
-                        👑 Best Value
-                      </span>
-                    </div>
-                  )}
-                  {isPrevious && (
-                    <div className="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap z-10">
-                      <span className="px-3 py-1.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs font-bold rounded-full shadow-lg">
-                        ↻ {t('subscription.renewal')}
-                      </span>
-                    </div>
-                  )}
-                  {isCurrent && (
-                    <div className="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap z-10">
-                      <span className="px-3 py-1.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-bold rounded-full shadow-lg">
-                        ✓ Current Plan
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Coloured header */}
+                  {/* Coloured header — badges sit inside so overflow:hidden never clips them */}
                   <div className={clsx('p-5 bg-gradient-to-br', plan.color)}>
+                    {/* Badge row */}
+                    {(plan.popular && !isCurrent && !isPrevious) && (
+                      <div className="mb-3">
+                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-white/25 rounded-full text-white text-xs font-bold">
+                          👑 Best Value
+                        </span>
+                      </div>
+                    )}
+                    {isPrevious && (
+                      <div className="mb-3">
+                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-white/25 rounded-full text-white text-xs font-bold">
+                          ↻ {t('subscription.renewal')}
+                        </span>
+                      </div>
+                    )}
+                    {isCurrent && (
+                      <div className="mb-3">
+                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-white/25 rounded-full text-white text-xs font-bold">
+                          ✓ Current Plan
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-2xl">{plan.emoji}</span>
                       {plan.promo && (
