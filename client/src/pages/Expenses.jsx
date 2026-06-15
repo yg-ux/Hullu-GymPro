@@ -113,64 +113,79 @@ function MonthlyBarChart({ data }) {
 
   const midVal = Math.ceil(max / 2);
 
+  const peak = total6 > 0 ? data.reduce((a, b) => (b.total > a.total ? b : a), data[0]) : null;
+
   return (
     <div className="bg-dark-300 rounded-2xl p-5 border border-gray-800/50">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-1">
         <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
           <BarChart3 className="w-4 h-4 text-gym-400" />
           Last 6 Months
         </h3>
-        <span className="text-xs text-gray-500">
-          Total <span className="text-white font-semibold">{formatCurrency(total6)}</span>
-        </span>
+        <div className="text-right">
+          <p className="text-xs text-gray-500">Total spent</p>
+          <p className="text-sm font-bold text-white">{formatCurrency(total6)}</p>
+        </div>
       </div>
 
       {/* Chart area */}
-      <div className="relative">
+      <div className="relative mt-4">
         {/* Y-axis guide lines */}
-        <div className="absolute inset-0 flex flex-col justify-between pointer-events-none" style={{ bottom: '20px' }}>
+        <div className="absolute inset-0 flex flex-col justify-between pointer-events-none" style={{ bottom: '24px' }}>
           {[max, midVal, 0].map((val, i) => (
             <div key={i} className="flex items-center gap-2">
-              <span className="text-[10px] text-gray-600 w-8 text-right flex-shrink-0">{yLabel(val)}</span>
-              <div className="flex-1 border-t border-gray-800" />
+              <span className="text-[10px] text-gray-600 w-9 text-right flex-shrink-0">{yLabel(val)}</span>
+              <div className="flex-1 border-t border-gray-800/80" />
             </div>
           ))}
         </div>
 
         {/* Bars */}
-        <div className="flex items-end justify-between pl-10 pb-5" style={{ height: '120px' }}>
+        <div className="flex items-end justify-between pl-11 pb-6" style={{ height: '130px' }}>
           {data.map((d, i) => {
             const pct = (d.total / max) * 100;
             const isCurrent = i === data.length - 1;
             const label = getLabel(d.month);
+            const isPeak = peak && d.month === peak.month && d.total > 0;
 
             return (
-              <div key={i} className="flex flex-col items-center justify-end h-full relative group" style={{ width: '36px' }}>
+              <div key={i} className="flex flex-col items-center justify-end h-full relative group" style={{ width: '40px' }}>
                 {/* Tooltip */}
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-dark-100 border border-gray-700 text-xs text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
-                  {label}: {formatCurrency(d.total)}
+                <div className="absolute -top-9 left-1/2 -translate-x-1/2 bg-dark-100 border border-gray-700 text-xs text-white px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none shadow-lg">
+                  <span className="font-medium">{label}</span>
+                  <span className="text-gray-400 ml-1">{formatCurrency(d.total)}</span>
                 </div>
+
+                {/* Value label on top of bar (only for bars with data) */}
+                {d.total > 0 && (
+                  <span className="absolute text-[9px] text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap"
+                    style={{ bottom: `calc(${Math.max(pct, 6)}% + 4px)` }}>
+                    {yLabel(d.total)}
+                  </span>
+                )}
 
                 {/* Bar */}
                 <div
                   className={clsx(
-                    'w-8 rounded-sm transition-colors cursor-default',
+                    'w-7 rounded-t-md transition-colors duration-150 cursor-default',
                     d.total === 0
-                      ? 'bg-gray-800'
+                      ? 'bg-gray-800/60 rounded-none'
                       : isCurrent
                         ? 'bg-gym-500 group-hover:bg-gym-400'
-                        : 'bg-gym-500/50 group-hover:bg-gym-500/70'
+                        : isPeak
+                          ? 'bg-gym-500/70 group-hover:bg-gym-500/90'
+                          : 'bg-gym-500/40 group-hover:bg-gym-500/60'
                   )}
-                  style={{ height: d.total === 0 ? '3px' : `${Math.max(pct, 6)}%` }}
+                  style={{ height: d.total === 0 ? '2px' : `${Math.max(pct, 6)}%` }}
                 />
 
                 {/* Month label */}
                 <span className={clsx(
-                  'absolute -bottom-4 text-[10px]',
-                  isCurrent ? 'text-gym-400 font-semibold' : 'text-gray-600'
+                  'absolute -bottom-5 text-[10px] font-medium',
+                  isCurrent ? 'text-gym-400' : 'text-gray-600'
                 )}>
-                  {isCurrent ? 'This mo.' : label}
+                  {label}
                 </span>
               </div>
             );
@@ -178,15 +193,19 @@ function MonthlyBarChart({ data }) {
         </div>
       </div>
 
-      {/* Peak callout */}
-      {total6 > 0 && (() => {
-        const peak = data.reduce((a, b) => (b.total > a.total ? b : a), data[0]);
-        return (
-          <p className="text-[10px] text-gray-600 mt-1">
-            Highest: <span className="text-gray-400">{getLabel(peak.month)} — {formatCurrency(peak.total)}</span>
-          </p>
-        );
-      })()}
+      {/* Divider + summary row */}
+      <div className="mt-3 pt-3 border-t border-gray-800/60 flex items-center justify-between">
+        <span className="text-[11px] text-gray-500">
+          Avg/mo <span className="text-gray-300 font-medium">{formatCurrency(Math.round(total6 / (data.length || 1)))}</span>
+        </span>
+        {peak && peak.total > 0 && (
+          <span className="text-[11px] text-gray-500">
+            Peak <span className="text-gray-300 font-medium">{getLabel(peak.month)}</span>
+            <span className="text-gray-600 mx-1">·</span>
+            <span className="text-gray-300 font-medium">{formatCurrency(peak.total)}</span>
+          </span>
+        )}
+      </div>
     </div>
   );
 }
