@@ -605,6 +605,7 @@ export default function Customers() {
 
 function CustomerCard({ customer, onClick, onCheckIn, onCheckOut, isCheckedIn, getDaysDisplay, getDaysColor, selected, onSelect, showBulkActions, t }) {
   const [isHovered, setIsHovered] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <div 
