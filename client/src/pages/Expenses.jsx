@@ -307,13 +307,13 @@ function ExpenseForm({ form, onChange, onSubmit, onClose, saving, staffList = []
           {isSalary && (
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1.5">
-                Staff Member <span className="text-red-400">*</span>
+                Staff / Employee <span className="text-red-400">*</span>
               </label>
               {staffList.length === 0 ? (
                 <div className="flex items-center justify-between gap-3 px-4 py-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-sm text-yellow-400">
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                    No staff found. Add staff members first.
+                    No staff or employees found. Add them on the Staff page.
                   </div>
                   <Link
                     to="/staff"
@@ -330,12 +330,25 @@ function ExpenseForm({ form, onChange, onSubmit, onClose, saving, staffList = []
                     onChange={e => handleStaffSelect(e.target.value)}
                     className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm appearance-none focus:outline-none focus:border-gym-500/60 transition-colors pr-9"
                   >
-                    <option value="">Select staff member</option>
-                    {staffList.map(s => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} — {s.role ? s.role.charAt(0).toUpperCase() + s.role.slice(1) : ''}
-                      </option>
-                    ))}
+                    <option value="">Select person</option>
+                    {staffList.some(s => s._type === 'staff') && (
+                      <optgroup label="Staff Accounts">
+                        {staffList.filter(s => s._type === 'staff').map(s => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}{s.role ? ` — ${s.role.charAt(0).toUpperCase() + s.role.slice(1)}` : ''}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {staffList.some(s => s._type === 'employee') && (
+                      <optgroup label="Employee Directory">
+                        {staffList.filter(s => s._type === 'employee').map(s => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}{s.position ? ` — ${s.position}` : ''}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 </div>
@@ -523,16 +536,16 @@ function RecurringForm({ form, onChange, onSubmit, onClose, saving, staffList = 
               </div>
             </div>
 
-            {/* Staff picker — only shown when category = salaries */}
+            {/* Staff / employee picker — only shown when category = salaries */}
             {isSalary && (
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                  Which staff member? <span className="text-red-400">*</span>
+                  Which person? <span className="text-red-400">*</span>
                 </label>
                 {staffList.length === 0 ? (
                   <div className="flex items-center gap-2 px-4 py-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-sm text-yellow-400">
                     <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                    No staff found. Add staff members first.
+                    No staff or employees found. Add them on the Staff page.
                   </div>
                 ) : (
                   <div className="relative">
@@ -541,12 +554,25 @@ function RecurringForm({ form, onChange, onSubmit, onClose, saving, staffList = 
                       onChange={e => handleStaffSelect(e.target.value)}
                       className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm appearance-none focus:outline-none focus:border-gym-500/60 transition-colors pr-9"
                     >
-                      <option value="">Select staff member</option>
-                      {staffList.map(s => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}{s.role ? ` — ${s.role.charAt(0).toUpperCase() + s.role.slice(1)}` : ''}
-                        </option>
-                      ))}
+                      <option value="">Select person</option>
+                      {staffList.some(s => s._type === 'staff') && (
+                        <optgroup label="Staff Accounts">
+                          {staffList.filter(s => s._type === 'staff').map(s => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}{s.role ? ` — ${s.role.charAt(0).toUpperCase() + s.role.slice(1)}` : ''}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {staffList.some(s => s._type === 'employee') && (
+                        <optgroup label="Employee Directory">
+                          {staffList.filter(s => s._type === 'employee').map(s => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}{s.position ? ` — ${s.position}` : ''}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                   </div>
@@ -734,6 +760,7 @@ export default function Expenses() {
   const [filter, setFilter]             = useState({ month: currentMonth(), category: '' });
   const [search, setSearch]             = useState('');
   const [staffList, setStaffList]       = useState([]);
+  const [employeeList, setEmployeeList] = useState([]);
 
   // ── Recurring state ───────────────────────────────────────────────────────
   const [recurringTemplates, setRecurringTemplates]   = useState([]);
@@ -770,11 +797,15 @@ export default function Expenses() {
     }
   }, [filter]);
 
-  // ── Load staff list once on mount ─────────────────────────────────────────
+  // ── Load staff + employee lists once on mount ────────────────────────────
   useEffect(() => {
-    api.get('/staff')
-      .then(d => setStaffList(Array.isArray(d) ? d : (d.staff || d.data || [])))
-      .catch(() => {});
+    Promise.all([
+      api.get('/staff').catch(() => null),
+      api.get('/employees').catch(() => null),
+    ]).then(([staffData, empData]) => {
+      if (staffData) setStaffList(Array.isArray(staffData) ? staffData : (staffData.staff || staffData.data || []));
+      if (empData)   setEmployeeList(Array.isArray(empData) ? empData : (empData.employees || empData.data || []));
+    });
   }, []);
 
   // ── Load monthly chart & revenue ──────────────────────────────────────────
@@ -1058,6 +1089,12 @@ export default function Expenses() {
       e.category?.toLowerCase().includes(q)
     );
   });
+
+  // ── Combined salary picker list (staff accounts + employee directory) ─────
+  const combinedStaffList = [
+    ...staffList.map(s => ({ ...s, _type: 'staff' })),
+    ...employeeList.map(e => ({ ...e, _type: 'employee' })),
+  ];
 
   // ── Stats ─────────────────────────────────────────────────────────────────
   const totalSpent = summaryData?.total || 0;
@@ -1598,7 +1635,7 @@ export default function Expenses() {
           onSubmit={handleSubmit}
           onClose={() => setShowForm(false)}
           saving={saving}
-          staffList={staffList}
+          staffList={combinedStaffList}
         />
       )}
 
@@ -1610,7 +1647,7 @@ export default function Expenses() {
           onSubmit={handleRecurringSubmit}
           onClose={() => setShowRecurringForm(false)}
           saving={savingRecurring}
-          staffList={staffList}
+          staffList={combinedStaffList}
         />
       )}
 
