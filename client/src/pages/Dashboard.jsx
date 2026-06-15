@@ -4,26 +4,18 @@ import { api, formatDate, formatCurrency, getMembershipLabel, getPaymentMethodLa
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { StatCardSkeleton } from '../components/Skeleton';
-import { 
+import {
   Users,
   UserCheck,
   Clock,
   AlertTriangle,
   DollarSign,
-  TrendingUp,
   Plus,
   ArrowRight,
-  CreditCard,
   UserPlus,
-  TrendingDown,
   PieChart,
   Activity,
-  Wallet,
-  Receipt,
-  Calendar,
-  Star,
   Zap,
-  Target,
   Award,
   ChevronRight,
   CheckCircle,
@@ -90,7 +82,9 @@ function useAnimatedCounter(endValue, duration = 1000, delay = 0) {
 }
 
 export default function Dashboard() {
-  const { gym } = useAuth();
+  const { gym, user } = useAuth();
+  const userRole = user?.role || 'owner';
+  const canSeeRevenue = ['owner', 'admin', 'manager'].includes(userRole);
   const { t, lang } = useLanguage();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -162,24 +156,26 @@ export default function Dashboard() {
         payment:    { icon: DollarSign, color: 'from-emerald-500 to-emerald-600', dot: 'from-emerald-400 to-emerald-600' },
       };
 
-      const activityItems = feed.map(item => {
-        const cfg = TYPE_CONFIG[item.type] || TYPE_CONFIG.check_in;
-        let title = '';
-        if (item.type === 'check_in')   title = t('dashboard.checkedIn', { name: item.customer_name });
-        if (item.type === 'new_member') title = t('dashboard.newMember', { name: item.customer_name });
-        if (item.type === 'payment')    title = t('dashboard.paymentReceived', { amount: formatCurrency(item.amount) });
-        return {
-          id: `${item.type}-${item.id}`,
-          icon: cfg.icon,
-          color: cfg.color,
-          dot: cfg.dot,
-          type: item.type,
-          title,
-          subtitle: item.type === 'payment' ? item.customer_name : null,
-          timeAgo: getTimeAgo(item.event_time),
-          time: item.event_time,
-        };
-      });
+      const activityItems = feed
+        .filter(item => canSeeRevenue || item.type !== 'payment')
+        .map(item => {
+          const cfg = TYPE_CONFIG[item.type] || TYPE_CONFIG.check_in;
+          let title = '';
+          if (item.type === 'check_in')   title = t('dashboard.checkedIn', { name: item.customer_name });
+          if (item.type === 'new_member') title = t('dashboard.newMember', { name: item.customer_name });
+          if (item.type === 'payment')    title = t('dashboard.paymentReceived', { amount: formatCurrency(item.amount) });
+          return {
+            id: `${item.type}-${item.id}`,
+            icon: cfg.icon,
+            color: cfg.color,
+            dot: cfg.dot,
+            type: item.type,
+            title,
+            subtitle: item.type === 'payment' ? item.customer_name : null,
+            timeAgo: getTimeAgo(item.event_time),
+            time: item.event_time,
+          };
+        });
 
       setActivities(activityItems);
     } catch (error) {
@@ -223,9 +219,6 @@ export default function Dashboard() {
   const activeRate = stats?.overview?.total_customers > 0
     ? Math.round((stats.overview.active_customers / stats.overview.total_customers) * 100)
     : 0;
-
-  // Customer of the day (random active customer with recent check-in)
-  const customerOfDay = stats?.recent_payments?.[0];
 
   // Get theme colors
   const theme = COLOR_THEMES[gym?.color_theme] || COLOR_THEMES.default;
@@ -360,151 +353,9 @@ export default function Dashboard() {
       {/* Inactive Members Alert */}
       <InactiveMembersWidget />
 
-      {/* Revenue Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Revenue Card */}
-        <div className="lg:col-span-2">
-          <div className="glass-card p-6 overflow-hidden relative">
-            <div className="absolute inset-0 gradient-hero opacity-50" />
-            <div className="relative">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-white flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gym-500/20 flex items-center justify-center">
-                    <DollarSign className="w-6 h-6 text-gym-400" />
-                  </div>
-                  {t('dashboard.revenueOverview')}
-                </h2>
-                <div className="flex items-center gap-2 text-emerald-400 text-sm">
-                  <TrendingUp className="w-4 h-4" />
-                  <span className="font-medium">+12.5%</span>
-                </div>
-              </div>
-
-              {/* Revenue Stats */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <AnimatedRevenueCard
-                  title={t('dashboard.revenueToday')}
-                  value={stats?.revenue?.today || 0}
-                  icon={Calendar}
-                  animated={animated}
-                  delay={0}
-                />
-                <AnimatedRevenueCard
-                  title={t('dashboard.revenueThisMonth')}
-                  value={stats?.revenue?.this_month || 0}
-                  icon={Activity}
-                  animated={animated}
-                  delay={100}
-                />
-                <AnimatedRevenueCard
-                  title={t('dashboard.revenueLast30')}
-                  value={stats?.revenue?.last_30_days || 0}
-                  icon={TrendingUp}
-                  animated={animated}
-                  delay={200}
-                />
-                <AnimatedRevenueCard
-                  title={t('dashboard.revenueAllTime')}
-                  value={stats?.revenue?.all_time || 0}
-                  icon={Wallet}
-                  animated={animated}
-                  delay={300}
-                />
-              </div>
-
-              {/* Bar Chart */}
-              {stats?.monthly_trend && stats.monthly_trend.length > 0 && (
-                <div className="mt-6">
-                  <h3 className="text-sm font-medium text-gray-400 mb-4 flex items-center gap-2">
-                    <Activity className="w-4 h-4" />
-                    {t('dashboard.monthlyRevenue12')}
-                  </h3>
-                  <AnimatedBarChart data={stats.monthly_trend} animated={animated} />
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column */}
-        <div className="space-y-6">
-          {/* Customer of the Day */}
-          {customerOfDay && (
-            <div className="glass-card p-6 relative overflow-hidden">
-              <div className="relative">
-                <div className="flex items-center gap-2 mb-4">
-                  <Star className="w-4 h-4 text-amber-400" />
-                  <span className="text-xs font-semibold text-amber-400 uppercase tracking-wide">{t('dashboard.latestPayment')}</span>
-                </div>
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-gym-500/25 flex items-center justify-center text-lg font-bold text-gym-300">
-                    {customerOfDay.customer_name?.charAt(0) || 'C'}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-white">{customerOfDay.customer_name}</h3>
-                    <p className="text-sm text-gray-400">{t('dashboard.justPaid')}</p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/25">
-                  <span className="text-sm text-gray-400">{t('dashboard.amountPaid')}</span>
-                  <span className="text-xl font-bold text-emerald-400">
-                    +{formatCurrency(customerOfDay.amount)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* All Time Stats */}
-          <div className="glass-card p-6">
-            <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
-              <Target className="w-5 h-5 text-gym-400" />
-              {t('dashboard.quickStats')}
-            </h2>
-            
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-4 bg-dark-300/60 rounded-xl border border-gray-800/60 hover-lift">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-gym-500/15 flex items-center justify-center">
-                    <Wallet className="w-4 h-4 text-gym-400" />
-                  </div>
-                  <span className="text-gray-400 text-sm">{t('dashboard.totalRevenue')}</span>
-                </div>
-                <span className="text-lg font-bold text-white">
-                  {formatCurrency(stats?.revenue?.all_time || 0)}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-dark-300/60 rounded-xl border border-gray-800/60 hover-lift">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-gym-500/15 flex items-center justify-center">
-                    <Receipt className="w-4 h-4 text-gym-400" />
-                  </div>
-                  <span className="text-gray-400 text-sm">{t('dashboard.totalPayments')}</span>
-                </div>
-                <span className="text-lg font-bold text-white">
-                  {stats?.revenue?.all_time_count || 0}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-dark-300/60 rounded-xl border border-gray-800/60 hover-lift">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-gym-500/15 flex items-center justify-center">
-                    <UserPlus className="w-4 h-4 text-gym-400" />
-                  </div>
-                  <span className="text-gray-400 text-sm">{t('dashboard.newThisMonth')}</span>
-                </div>
-                <span className="text-lg font-bold text-gym-400">
-                  +{stats?.new_this_month || 0}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Membership Distribution & Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Membership Distribution */}
         {stats?.membership_distribution && stats.membership_distribution.length > 0 && (
           <div className="glass-card p-6">
@@ -513,41 +364,6 @@ export default function Dashboard() {
               {t('dashboard.activeMemberships')}
             </h2>
             <AnimatedPieChart data={stats.membership_distribution} animated={animated} />
-          </div>
-        )}
-
-        {/* Payment Methods */}
-        {stats?.payment_methods && stats.payment_methods.length > 0 && (
-          <div className="glass-card p-6">
-            <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
-              <CreditCard className="w-5 h-5 text-gray-400" />
-              {t('dashboard.paymentMethods')}
-            </h2>
-            <div className="space-y-4">
-              {stats.payment_methods.map((method, index) => {
-                const maxCount = Math.max(...stats.payment_methods.map(m => parseInt(m.count, 10)));
-                const percentage = maxCount > 0 ? (parseInt(method.count, 10) / maxCount) * 100 : 0;
-
-                return (
-                  <div key={method.payment_method} className="animate-slide-up" style={{ animationDelay: `${index * 100}ms` }}>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-gray-300">{getPaymentMethodLabel(method.payment_method)}</span>
-                      <span className="text-gray-400">{t('dashboard.paymentsCount', { count: method.count })} • {formatCurrency(method.total)}</span>
-                    </div>
-                    <div className="h-2.5 bg-dark-300 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-1000 ease-out bg-gradient-to-r from-gym-500 to-gym-400"
-                        style={{
-                          width: animated ? `${percentage}%` : '0%',
-                          transitionDelay: `${index * 200}ms`,
-                          opacity: 1 - index * 0.2
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
           </div>
         )}
 
@@ -598,55 +414,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Recent Payments with Activity Feed */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-        {/* Recent Payments */}
-        <div className="glass-card p-6 flex flex-col">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-              <Receipt className="w-5 h-5 text-gray-400" />
-              {t('dashboard.recentPayments')}
-            </h2>
-            <Link to="/customers" className="text-sm text-gym-400 hover:text-gym-300 flex items-center gap-1 transition-colors">
-              {t('dashboard.viewAll')} <ChevronRight className="w-4 h-4" />
-            </Link>
-          </div>
-          
-          {stats?.recent_payments?.length > 0 ? (
-            <div className="space-y-3 flex-1">
-              {stats.recent_payments.map((payment, index) => (
-                <div 
-                  key={payment.id}
-                  className="flex items-center justify-between p-4 bg-dark-200/50 rounded-xl hover:bg-dark-200 transition-all animate-slide-up hover-lift"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-emerald-500/15 flex items-center justify-center">
-                      <CreditCard className="w-5 h-5 text-emerald-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-white">{payment.customer_name}</p>
-                      <p className="text-xs text-gray-500">{formatDate(payment.payment_date)}</p>
-                    </div>
-                  </div>
-                  <span className="text-base font-bold text-emerald-400">
-                    +{formatCurrency(payment.amount)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 rounded-2xl bg-dark-200 flex items-center justify-center mx-auto mb-4">
-                <Receipt className="w-8 h-8 text-gray-600" />
-              </div>
-              <p className="text-gray-500">{t('dashboard.noPaymentsYet')}</p>
-            </div>
-          )}
-        </div>
-
-        {/* Activity Feed */}
-        <div className="glass-card p-6 flex flex-col max-h-[520px]">
+      {/* Activity Feed */}
+      <div>
+        <div className="glass-card p-6 flex flex-col max-h-[400px]">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
               <Activity className="w-5 h-5 text-gym-400" />
@@ -662,7 +432,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-4 mb-4 text-[11px] text-gray-500">
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-gym-400 inline-block" />Check-ins</span>
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-400 inline-block" />New Members</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />Payments</span>
+              {canSeeRevenue && <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />Payments</span>}
             </div>
           )}
 
@@ -717,14 +487,14 @@ export default function Dashboard() {
                   <Activity className="w-7 h-7 text-gray-600" />
                 </div>
                 <p className="text-gray-500 text-sm">{t('dashboard.noRecentActivity')}</p>
-                <p className="text-gray-600 text-xs mt-1">No check-ins, sign-ups or payments today yet</p>
+                <p className="text-gray-600 text-xs mt-1">No check-ins or new sign-ups today yet</p>
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Alerts Section */}
+      {/* Alerts Section — membership expiry summary */}
       {(stats?.overview?.expiring_soon > 0 || stats?.overview?.expired > 0) && (
         <div className="glass-card p-5 border border-amber-500/20 relative overflow-hidden">
           <div className="relative flex items-start gap-4">
