@@ -1,4 +1,13 @@
 import { getAll, getOne, runQuery } from '../models/database.js';
+
+const CLIENT_URL = () => process.env.CLIENT_URL?.split(',')[0]?.trim() || 'http://localhost:5173';
+
+async function getPortalUrl(customerId, gymId) {
+  try {
+    const row = await getOne('SELECT token FROM portal_tokens WHERE customer_id = ? AND gym_id = ? LIMIT 1', [customerId, gymId]);
+    return row ? `${CLIENT_URL()}/portal/${row.token}` : null;
+  } catch { return null; }
+}
 import { smsService } from './smsService.js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -45,7 +54,7 @@ class ReminderService {
       console.log(`Found ${expiringCustomers.length} customers with expiring memberships`);
 
       for (const customer of expiringCustomers) {
-        if (!customer.phone || !customer.sms_enabled) continue;
+        if (!customer.phone) continue;
 
         const expiryDate = new Date(customer.membership_end);
         const daysLeft = Math.ceil((expiryDate - new Date()) / (1000 * 60 * 60 * 24));
@@ -57,10 +66,12 @@ class ReminderService {
         }
 
         try {
+          const portalUrl = await getPortalUrl(customer.id, customer.gym_id);
           const result = await smsService.sendMembershipExpiryReminder(
             customer,
-            { name: customer.gym_name },
-            daysLeft
+            { name: customer.gym_name, phone: customer.gym_phone },
+            daysLeft,
+            portalUrl
           );
           const status = result?.success ? 'sent' : 'failed';
           this._logSms(customer.gym_id, customer.id, customer.phone, messageType,

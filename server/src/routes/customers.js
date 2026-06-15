@@ -250,11 +250,13 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreateCus
     const clientUrl = process.env.CLIENT_URL?.split(',')[0]?.trim() || 'http://localhost:5173';
     const portalUrl = `${clientUrl}/portal/${portalToken}`;
 
-    if (customer.phone && gym.sms_enabled && gym.subscription_plan !== 'free' && !customer.welcome_sms_sent) {
+    if (customer.phone && gym.sms_enabled && !customer.welcome_sms_sent) {
       try {
         await smsService.sendWelcomeSms({ ...customer, amount: amount || null }, gym, portalUrl);
         await runQuery('UPDATE customers SET welcome_sms_sent = true WHERE id = ?', [customerId]);
       } catch (smsError) { console.warn('Failed to send welcome SMS:', smsError.message); }
+    } else {
+      console.log(`Welcome SMS skipped — phone: ${!!customer.phone}, sms_enabled: ${gym.sms_enabled}, already_sent: ${!!customer.welcome_sms_sent}`);
     }
 
     res.status(201).json({ ...customer, portal_url: portalUrl, member_limit: maxMembers, total_customers: totalCustomers + 1 });

@@ -184,9 +184,11 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreatePay
       logPaymentRecorded(gymId, req.user.id, paymentId, amount, updatedCustomer.name);
 
       // Send payment confirmation SMS for 3_days_week
-      if (updatedCustomer.phone && gym.sms_enabled && gym.subscription_plan !== 'free') {
+      if (updatedCustomer.phone && gym.sms_enabled) {
         try {
-          await smsService.sendPaymentConfirmation(updatedCustomer, payment, gym);
+          const portalRow = await getOne('SELECT token FROM portal_tokens WHERE customer_id = ? AND gym_id = ? LIMIT 1', [customer_id, gymId]);
+          const portalUrl = portalRow ? `${process.env.CLIENT_URL?.split(',')[0]?.trim() || 'http://localhost:5173'}/portal/${portalRow.token}` : null;
+          await smsService.sendPaymentConfirmation(updatedCustomer, payment, gym, portalUrl);
         } catch (smsError) {
           console.warn('Failed to send payment confirmation SMS:', smsError.message);
         }
@@ -235,9 +237,11 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreatePay
     logPaymentRecorded(gymId, req.user.id, paymentId, amount, updatedCustomer.name);
 
     // Send payment confirmation SMS — skip for daily walk-in renewals (they get one-time welcome only)
-    if (updatedCustomer.phone && gym.sms_enabled && gym.subscription_plan !== 'free' && selectedType !== 'daily') {
+    if (updatedCustomer.phone && gym.sms_enabled && selectedType !== 'daily') {
       try {
-        await smsService.sendPaymentConfirmation(updatedCustomer, payment, gym);
+        const portalRow = await getOne('SELECT token FROM portal_tokens WHERE customer_id = ? AND gym_id = ? LIMIT 1', [customer_id, gymId]);
+        const portalUrl = portalRow ? `${process.env.CLIENT_URL?.split(',')[0]?.trim() || 'http://localhost:5173'}/portal/${portalRow.token}` : null;
+        await smsService.sendPaymentConfirmation(updatedCustomer, payment, gym, portalUrl);
       } catch (smsError) {
         console.warn('Failed to send payment confirmation SMS:', smsError.message);
       }
