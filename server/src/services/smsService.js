@@ -116,7 +116,7 @@ class SmsService {
       message += ` Keep showing up!`;
     }
     if (gym.phone) message += ` Call us: ${gym.phone}.`;
-    if (portalUrl) message += ` Membership portal: ${portalUrl}`;
+    if (portalUrl) message += ` Check your info here: ${portalUrl}`;
 
     return await this.sendSms(customer.phone, message);
   }
@@ -138,7 +138,7 @@ class SmsService {
     if (endDate) message += ` Valid until ${endDate}.`;
     message += ` Keep it up!`;
     if (gym.phone) message += ` Call us: ${gym.phone}.`;
-    if (portalUrl) message += ` Portal: ${portalUrl}`;
+    if (portalUrl) message += ` Check your info here: ${portalUrl}`;
 
     return await this.sendSms(customer.phone, message);
   }
@@ -160,7 +160,7 @@ class SmsService {
       message = `Hi ${customer.name}, your membership at ${gym.name} expires in ${daysLeft} days. Renew soon!`;
     }
     if (gym.phone) message += ` Call us: ${gym.phone}.`;
-    if (portalUrl) message += ` Portal: ${portalUrl}`;
+    if (portalUrl) message += ` Check your status here: ${portalUrl}`;
     return await this.sendSms(customer.phone, message);
   }
 
