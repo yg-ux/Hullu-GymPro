@@ -454,10 +454,10 @@ function ReportsContent() {
               <div key={item.type} className="flex items-center justify-between p-3 bg-dark-200/50 rounded-xl hover:bg-dark-200 transition-all">
                 <div className="flex items-center gap-3">
                   <div className={clsx(
-                    "w-10 h-10 rounded-xl flex items-center justify-center text-lg",
-                    index === 0 ? "bg-gradient-to-br from-gym-500 to-purple-600" :
-                    index === 1 ? "bg-gradient-to-br from-blue-500 to-cyan-600" :
-                    "bg-gradient-to-br from-purple-500 to-pink-600"
+                    "w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold",
+                    index === 0 ? "bg-gym-500/15 text-gym-400" :
+                    index === 1 ? "bg-blue-500/15 text-blue-400" :
+                    "bg-purple-500/15 text-purple-400"
                   )}>
                     {item.count}
                   </div>
@@ -471,56 +471,136 @@ function ReportsContent() {
 
         {/* Attendance Trends */}
         <div className="glass-card p-6">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
               <Activity className="w-5 h-5 text-green-400" />
               {t('reports.attendanceTrends')}
             </h2>
-          </div>
-          
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-400">{t('reports.checkInsLabel')}</span>
-              <span className="text-lg font-bold text-green-400">{reportData?.attendance?.total || 0}</span>
-            </div>
-            <div className="h-32 flex items-end gap-1">
-              {(reportData?.attendance?.daily || Array(30).fill({ count: 0 })).slice(-14).map((day, index) => {
-                const maxCount = Math.max(...(reportData?.attendance?.daily || [{count: 1}]).slice(-14).map(d => d.count || 1));
-                const height = maxCount > 0 ? ((day.count || 0) / maxCount) * 100 : 0;
-                
-                return (
-                  <div
-                    key={index}
-                    className="flex-1 bg-gradient-to-t from-green-600 to-green-400 rounded-t transition-all hover:from-green-500 hover:to-green-300 cursor-pointer group relative"
-                    style={{ height: `${Math.max(height, 5)}%`, minHeight: '4px' }}
-                  >
-                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-dark-100 text-xs text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                      {t('reports.checkInsCount', { count: day.count || 0 })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="flex justify-between mt-2">
-              <span className="text-xs text-gray-500">{t('reports.daysAgo14')}</span>
-              <span className="text-xs text-gray-500">{t('reports.todayLabel')}</span>
-            </div>
+            <span className="text-sm text-gray-400">
+              <span className="text-white font-semibold">{reportData?.attendance?.total || 0}</span> check-ins
+            </span>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-dark-200 rounded-xl p-3 text-center">
-              <p className="text-xs text-gray-400">{t('reports.avgDaily')}</p>
-              <p className="text-lg font-bold text-white">{reportData?.attendance?.avg_daily || 0}</p>
-            </div>
-            <div className="bg-dark-200 rounded-xl p-3 text-center">
-              <p className="text-xs text-gray-400">{t('reports.peakDay')}</p>
-              <p className="text-lg font-bold text-white">{reportData?.attendance?.peak_day || 'N/A'}</p>
-            </div>
-            <div className="bg-dark-200 rounded-xl p-3 text-center">
-              <p className="text-xs text-gray-400">{t('reports.busiestHour')}</p>
-              <p className="text-lg font-bold text-white">{reportData?.attendance?.busiest_hour || 'N/A'}</p>
-            </div>
-          </div>
+          {(() => {
+            // Build a 14-slot array with a real date for each slot
+            const today = new Date();
+            const slots = Array.from({ length: 14 }, (_, i) => {
+              const d = new Date(today);
+              d.setDate(today.getDate() - (13 - i));
+              const key = d.toISOString().slice(0, 10); // 'YYYY-MM-DD'
+              return { date: d, key };
+            });
+
+            // Map API daily data by date key
+            const dailyByDate = {};
+            (reportData?.attendance?.daily || []).forEach(day => {
+              const k = (day.date || day.check_date || '').slice(0, 10);
+              if (k) dailyByDate[k] = day.count || 0;
+            });
+
+            const bars = slots.map(slot => ({
+              date: slot.date,
+              count: dailyByDate[slot.key] || 0,
+            }));
+
+            const maxCount = Math.max(...bars.map(b => b.count), 1);
+            const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+            // Format peak day from ISO to readable
+            const rawPeak = reportData?.attendance?.peak_day;
+            const peakFormatted = rawPeak
+              ? new Date(rawPeak).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+              : 'N/A';
+
+            // Format busiest hour from "05:00" to "5 AM" / "2 PM"
+            const rawHour = reportData?.attendance?.busiest_hour;
+            const hourFormatted = rawHour
+              ? (() => {
+                  const h = parseInt(rawHour.split(':')[0], 10);
+                  if (isNaN(h)) return rawHour;
+                  return h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`;
+                })()
+              : 'N/A';
+
+            return (
+              <>
+                {/* Bar chart */}
+                <div className="relative mb-1">
+                  {/* Horizontal guide lines */}
+                  <div className="absolute inset-0 flex flex-col justify-between pointer-events-none" style={{ bottom: '24px' }}>
+                    {[maxCount, Math.ceil(maxCount / 2), 0].map((val, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="text-[10px] text-gray-600 w-4 text-right flex-shrink-0">{val}</span>
+                        <div className="flex-1 border-t border-gray-800" />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Bars */}
+                  <div className="flex items-end gap-1 h-36 pl-7 pb-6">
+                    {bars.map((bar, i) => {
+                      const heightPct = (bar.count / maxCount) * 100;
+                      const isToday = i === 13;
+                      const label = DAY_ABBR[bar.date.getDay()];
+                      const showLabel = i % 2 === 0 || isToday;
+                      const dateLabel = bar.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+                      return (
+                        <div key={i} className="flex-1 flex flex-col items-center justify-end gap-0 relative group h-full">
+                          {/* Tooltip */}
+                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-dark-100 border border-gray-700 text-xs text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
+                            {dateLabel}: {bar.count} check-in{bar.count !== 1 ? 's' : ''}
+                          </div>
+
+                          {/* Bar */}
+                          <div
+                            className={clsx(
+                              'w-full rounded-sm transition-colors cursor-default',
+                              bar.count === 0
+                                ? 'bg-gray-800'
+                                : isToday
+                                  ? 'bg-green-400 group-hover:bg-green-300'
+                                  : 'bg-green-600 group-hover:bg-green-500'
+                            )}
+                            style={{ height: bar.count === 0 ? '3px' : `${Math.max(heightPct, 8)}%` }}
+                          />
+
+                          {/* Day label */}
+                          {showLabel && (
+                            <span className={clsx(
+                              'absolute -bottom-5 text-[10px]',
+                              isToday ? 'text-green-400 font-medium' : 'text-gray-600'
+                            )}>
+                              {isToday ? 'Today' : label}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Summary stats */}
+                <div className="grid grid-cols-3 gap-3 mt-2">
+                  <div className="bg-dark-200 rounded-xl p-3 text-center">
+                    <p className="text-xs text-gray-400 mb-1">{t('reports.avgDaily')}</p>
+                    <p className="text-lg font-bold text-white">{reportData?.attendance?.avg_daily || 0}</p>
+                    <p className="text-xs text-gray-500">per day</p>
+                  </div>
+                  <div className="bg-dark-200 rounded-xl p-3 text-center">
+                    <p className="text-xs text-gray-400 mb-1">{t('reports.peakDay')}</p>
+                    <p className="text-lg font-bold text-white">{peakFormatted}</p>
+                    <p className="text-xs text-gray-500">most check-ins</p>
+                  </div>
+                  <div className="bg-dark-200 rounded-xl p-3 text-center">
+                    <p className="text-xs text-gray-400 mb-1">{t('reports.busiestHour')}</p>
+                    <p className="text-lg font-bold text-white">{hourFormatted}</p>
+                    <p className="text-xs text-gray-500">peak time</p>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </div>
       </div>
 
@@ -558,7 +638,7 @@ function ReportsContent() {
                   <td className="py-4 text-gray-500">{index + 1}</td>
                   <td className="py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gym-500 to-purple-600 flex items-center justify-center text-white font-bold">
+                      <div className="w-10 h-10 rounded-xl bg-gym-500/15 flex items-center justify-center text-gym-400 font-bold">
                         {customer.name?.charAt(0) || 'C'}
                       </div>
                       <div>
