@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { api, formatCurrency } from '../utils/api';
+import { resizeImage } from '../utils/imageUtils';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -147,17 +148,17 @@ export default function Settings() {
     applyTheme(themeId);
   };
 
-  const handleLogoChange = (e) => {
+  const handleLogoChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 1024 * 1024) {
-      toast.error(t('settings.photoTooLarge'));
-      return;
+    if (!file.type.startsWith('image/')) { toast.error(t('settings.photoTooLarge')); return; }
+    try {
+      const compressed = await resizeImage(file, 400); // logos don't need to be large
+      setLogoFile(compressed);
+      setLogoPreview(compressed);
+    } catch {
+      toast.error('Could not process image. Please try another file.');
     }
-    setLogoFile(file);
-    const reader = new FileReader();
-    reader.onloadend = () => setLogoPreview(reader.result);
-    reader.readAsDataURL(file);
   };
 
   const removeLogo = () => {
@@ -169,15 +170,8 @@ export default function Settings() {
   const handleAppearanceSave = async () => {
     setAppearanceLoading(true);
     try {
-      let logoData = logoPreview;
-      if (logoFile) {
-        logoData = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(logoFile);
-        });
-      }
+      // logoFile is already a compressed base64 string set by handleLogoChange
+      const logoData = logoFile ?? logoPreview ?? null;
 
       const payload = { color_theme: selectedTheme };
       if (logoFile || logoPreview === null) {

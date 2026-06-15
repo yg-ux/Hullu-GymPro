@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { resizeImage } from '../utils/imageUtils';
 import clsx from 'clsx';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -134,13 +135,16 @@ export default function Landing() {
     }
   };
 
-  const handleLogoUpload = (e) => {
+  const handleLogoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 1024 * 1024) { setError(t('landing.register.logoTooBig')); return; }
-    const reader = new FileReader();
-    reader.onloadend = () => setRegisterForm(p => ({ ...p, logo: reader.result }));
-    reader.readAsDataURL(file);
+    if (!file.type.startsWith('image/')) { setError('Please select an image file'); return; }
+    try {
+      const compressed = await resizeImage(file, 400);
+      setRegisterForm(p => ({ ...p, logo: compressed }));
+    } catch {
+      setError('Could not process image. Please try another file.');
+    }
   };
 
   return (

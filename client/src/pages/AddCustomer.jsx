@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, MEMBERSHIP_TYPES, getMembershipDays } from '../utils/api';
+import { resizeImage } from '../utils/imageUtils';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useSubscriptionGate } from '../context/AuthContext';
@@ -90,19 +91,16 @@ export default function AddCustomer() {
     }
   };
 
-  const handlePhotoChange = (e) => {
+  const handlePhotoChange = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      if (file.size > 1024 * 1024) {
-        toast.error(t('customers.toastPhotoTooLarge'));
-        return;
-      }
-      setPhoto(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
+    try {
+      const compressed = await resizeImage(file);
+      setPhoto(compressed);
+      setPhotoPreview(compressed);
+    } catch {
+      toast.error('Could not process image. Please try another file.');
     }
   };
 
@@ -155,17 +153,9 @@ export default function AddCustomer() {
     setLoading(true);
 
     try {
-      let photoData = null;
-      if (photo && photo instanceof File) {
-        photoData = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(photo);
-        });
-      } else if (photoPreview && !photo) {
-        photoData = photoPreview;
-      }
+      // photo is already a compressed base64 string set by handlePhotoChange,
+      // or null — in which case keep the existing preview (when editing)
+      const photoData = photo ?? photoPreview ?? null;
 
       const submitData = {
         name: formData.name,

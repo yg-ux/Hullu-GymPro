@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, getStatusColor, formatDate, formatDateTime, getMembershipLabel, MEMBERSHIP_TYPES, formatCurrency, getMembershipPrice, getPaymentMethodLabel } from '../utils/api';
+import { resizeImage } from '../utils/imageUtils';
 import { useToast } from '../context/ToastContext';
 import { useAuth, useSubscriptionGate } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -137,13 +138,16 @@ export default function CustomerDetail() {
     });
   };
 
-  const handlePhotoFileChange = (e) => {
+  const handlePhotoFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 3 * 1024 * 1024) { toast.error('Photo must be under 3MB'); return; }
-    const reader = new FileReader();
-    reader.onloadend = () => setPhotoForm(p => ({ ...p, photo_data: reader.result }));
-    reader.readAsDataURL(file);
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
+    try {
+      const compressed = await resizeImage(file, 800); // slightly larger for progress photos
+      setPhotoForm(p => ({ ...p, photo_data: compressed }));
+    } catch {
+      toast.error('Could not process image. Please try another file.');
+    }
   };
 
   const handlePhotoUpload = async (e) => {
