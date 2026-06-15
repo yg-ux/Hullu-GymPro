@@ -249,7 +249,10 @@ function ExpenseForm({ form, onChange, onSubmit, onClose, saving, staffList = []
   const handleStaffSelect = (staffId) => {
     const staff = staffList.find(s => String(s.id) === String(staffId));
     onChange('staff_id', staffId);
-    if (staff) onChange('description', `Salary — ${staff.name}`);
+    if (staff) {
+      onChange('description', `Salary — ${staff.name}`);
+      if (staff.salary) onChange('amount', String(staff.salary));
+    }
   };
 
   return (
@@ -468,7 +471,10 @@ function RecurringForm({ form, onChange, onSubmit, onClose, saving, staffList = 
   const handleStaffSelect = (staffId) => {
     const staff = staffList.find(s => String(s.id) === String(staffId));
     onChange('staff_id', staffId);
-    if (staff) onChange('description', `Salary — ${staff.name}`);
+    if (staff) {
+      onChange('description', `Salary — ${staff.name}`);
+      if (staff.salary) onChange('amount', String(staff.salary));
+    }
   };
 
   return (
