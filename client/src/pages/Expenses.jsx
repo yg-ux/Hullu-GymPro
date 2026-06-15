@@ -104,6 +104,15 @@ function MonthlyBarChart({ data }) {
     return MONTH_ABBR[m - 1] || monthStr;
   };
 
+  // Compact y-axis label: 12500 → "12.5k", 500 → "500"
+  const yLabel = (val) => {
+    if (val === 0) return '0';
+    if (val >= 1000) return `${(val / 1000).toFixed(val % 1000 === 0 ? 0 : 1)}k`;
+    return String(Math.round(val));
+  };
+
+  const midVal = Math.ceil(max / 2);
+
   return (
     <div className="bg-dark-300 rounded-2xl p-5 border border-gray-800/50">
       {/* Header */}
@@ -117,22 +126,33 @@ function MonthlyBarChart({ data }) {
         </span>
       </div>
 
-      {/* Chart */}
-      <div className="flex items-end gap-2" style={{ height: '96px' }}>
-        {data.map((d, i) => {
-          const pct = (d.total / max) * 100;
-          const isCurrent = i === data.length - 1;
-          const label = getLabel(d.month);
+      {/* Chart area */}
+      <div className="relative">
+        {/* Y-axis guide lines */}
+        <div className="absolute inset-0 flex flex-col justify-between pointer-events-none" style={{ bottom: '20px' }}>
+          {[max, midVal, 0].map((val, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <span className="text-[10px] text-gray-600 w-8 text-right flex-shrink-0">{yLabel(val)}</span>
+              <div className="flex-1 border-t border-gray-800" />
+            </div>
+          ))}
+        </div>
 
-          return (
-            <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1 h-full relative group">
-              {/* Tooltip */}
-              <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-dark-100 border border-gray-700 text-xs text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
-                {label}: {formatCurrency(d.total)}
-              </div>
+        {/* Bars */}
+        <div className="flex items-end gap-1.5 pl-10 pb-5" style={{ height: '120px' }}>
+          {data.map((d, i) => {
+            const pct = (d.total / max) * 100;
+            const isCurrent = i === data.length - 1;
+            const label = getLabel(d.month);
 
-              {/* Bar */}
-              <div className="w-full flex items-end justify-center" style={{ height: '72px' }}>
+            return (
+              <div key={i} className="flex-1 flex flex-col items-center justify-end h-full relative group">
+                {/* Tooltip */}
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-dark-100 border border-gray-700 text-xs text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
+                  {label}: {formatCurrency(d.total)}
+                </div>
+
+                {/* Bar */}
                 <div
                   className={clsx(
                     'w-full rounded-sm transition-colors cursor-default',
@@ -140,30 +160,30 @@ function MonthlyBarChart({ data }) {
                       ? 'bg-gray-800'
                       : isCurrent
                         ? 'bg-gym-500 group-hover:bg-gym-400'
-                        : 'bg-gym-500/45 group-hover:bg-gym-500/65'
+                        : 'bg-gym-500/50 group-hover:bg-gym-500/70'
                   )}
-                  style={{ height: d.total === 0 ? '3px' : `${Math.max(pct, 8)}%` }}
+                  style={{ height: d.total === 0 ? '3px' : `${Math.max(pct, 6)}%` }}
                 />
-              </div>
 
-              {/* Month label */}
-              <span className={clsx(
-                'text-[10px]',
-                isCurrent ? 'text-gym-400 font-semibold' : 'text-gray-600'
-              )}>
-                {label}
-              </span>
-            </div>
-          );
-        })}
+                {/* Month label */}
+                <span className={clsx(
+                  'absolute -bottom-4 text-[10px]',
+                  isCurrent ? 'text-gym-400 font-semibold' : 'text-gray-600'
+                )}>
+                  {isCurrent ? 'This mo.' : label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Highest month callout */}
-      {max > 0 && (() => {
+      {/* Peak callout */}
+      {total6 > 0 && (() => {
         const peak = data.reduce((a, b) => (b.total > a.total ? b : a), data[0]);
         return (
-          <p className="text-[10px] text-gray-600 mt-3">
-            Highest month: <span className="text-gray-400">{getLabel(peak.month)} — {formatCurrency(peak.total)}</span>
+          <p className="text-[10px] text-gray-600 mt-1">
+            Highest: <span className="text-gray-400">{getLabel(peak.month)} — {formatCurrency(peak.total)}</span>
           </p>
         );
       })()}
