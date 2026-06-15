@@ -252,9 +252,16 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreateCus
 
     if (customer.phone && gym.sms_enabled && !customer.welcome_sms_sent) {
       try {
-        await smsService.sendWelcomeSms({ ...customer, amount: amount || null }, gym, portalUrl);
-        await runQuery('UPDATE customers SET welcome_sms_sent = true WHERE id = ?', [customerId]);
-      } catch (smsError) { console.warn('Failed to send welcome SMS:', smsError.message); }
+        const smsResult = await smsService.sendWelcomeSms({ ...customer, amount: amount || null }, gym, portalUrl);
+        if (smsResult?.success) {
+          await runQuery('UPDATE customers SET welcome_sms_sent = true WHERE id = ?', [customerId]);
+          console.log(`Welcome SMS sent to ${customer.name} (${customer.phone})`);
+        } else {
+          console.warn(`Welcome SMS failed for ${customer.name}: ${smsResult?.message}`);
+        }
+      } catch (smsError) {
+        console.warn('Welcome SMS exception:', smsError.message);
+      }
     } else {
       console.log(`Welcome SMS skipped — phone: ${!!customer.phone}, sms_enabled: ${gym.sms_enabled}, already_sent: ${!!customer.welcome_sms_sent}`);
     }

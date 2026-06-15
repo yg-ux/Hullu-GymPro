@@ -188,7 +188,8 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreatePay
         try {
           const portalRow = await getOne('SELECT token FROM portal_tokens WHERE customer_id = ? AND gym_id = ? LIMIT 1', [customer_id, gymId]);
           const portalUrl = portalRow ? `${process.env.CLIENT_URL?.split(',')[0]?.trim() || 'http://localhost:5173'}/portal/${portalRow.token}` : null;
-          await smsService.sendPaymentConfirmation(updatedCustomer, payment, gym, portalUrl);
+          const smsResult = await smsService.sendPaymentConfirmation(updatedCustomer, payment, gym, portalUrl);
+          if (!smsResult?.success) console.warn(`Payment SMS failed for ${updatedCustomer.name}: ${smsResult?.message}`);
         } catch (smsError) {
           console.warn('Failed to send payment confirmation SMS:', smsError.message);
         }
@@ -241,7 +242,8 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreatePay
       try {
         const portalRow = await getOne('SELECT token FROM portal_tokens WHERE customer_id = ? AND gym_id = ? LIMIT 1', [customer_id, gymId]);
         const portalUrl = portalRow ? `${process.env.CLIENT_URL?.split(',')[0]?.trim() || 'http://localhost:5173'}/portal/${portalRow.token}` : null;
-        await smsService.sendPaymentConfirmation(updatedCustomer, payment, gym, portalUrl);
+        const smsResult = await smsService.sendPaymentConfirmation(updatedCustomer, payment, gym, portalUrl);
+        if (!smsResult?.success) console.warn(`Payment SMS failed for ${updatedCustomer.name}: ${smsResult?.message}`);
       } catch (smsError) {
         console.warn('Failed to send payment confirmation SMS:', smsError.message);
       }

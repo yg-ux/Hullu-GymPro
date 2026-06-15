@@ -97,7 +97,7 @@ class SmsService {
    * @param {object} gym - Gym object
    */
   async sendWelcomeSms(customer, gym, portalUrl = null) {
-    const amount = customer.amount ? `ETB ${bi(parseFloat(customer.amount).toLocaleString())}` : null;
+    const amount = customer.amount ? `ETB ${parseFloat(customer.amount).toLocaleString()}` : null;
     const end = customer.membership_end
       ? new Date(customer.membership_end).toLocaleDateString('en-ET', { day: 'numeric', month: 'short', year: 'numeric' })
       : null;
@@ -106,17 +106,17 @@ class SmsService {
       ? customer.membership_type.replace(/_/g, ' ')
       : 'monthly';
 
-    let message = `Hi ${bi(customer.name)}, you're officially registered at ${bi(gym.name)}! 💪`;
+    let message = `Hi ${customer.name}, welcome to ${gym.name}!`;
     if (isDaily) {
-      if (amount) message += ` Daily walk-in pass — ${amount} received. Valid today only.`;
-      message += ` See you on the gym floor!`;
+      if (amount) message += ` Daily pass — ${amount} received. Valid today only.`;
+      message += ` See you on the floor!`;
     } else {
-      if (amount) message += ` Your ${bi(duration)} membership is active — ${amount} received.`;
+      if (amount) message += ` Your ${duration} membership is active — ${amount} received.`;
       if (end) message += ` Valid until ${end}.`;
-      message += ` Show up, put in the work, and let's lift some weights!`;
+      message += ` Keep showing up!`;
     }
-    if (gym.phone) message += ` Questions? Call us at ${gym.phone}.`;
-    if (portalUrl) message += ` View your membership: ${portalUrl}`;
+    if (gym.phone) message += ` Call us: ${gym.phone}.`;
+    if (portalUrl) message += ` Membership portal: ${portalUrl}`;
 
     return await this.sendSms(customer.phone, message);
   }
@@ -128,17 +128,17 @@ class SmsService {
    * @param {object} gym - Gym object
    */
   async sendPaymentConfirmation(customer, payment, gym, portalUrl = null) {
-    const amount = bi(parseFloat(payment.amount).toLocaleString());
+    const amount = parseFloat(payment.amount).toLocaleString();
     const duration = customer.membership_type ? customer.membership_type.replace(/_/g, ' ') : 'membership';
     const endDate = payment.end_date
       ? new Date(payment.end_date).toLocaleDateString('en-ET', { day: 'numeric', month: 'short', year: 'numeric' })
       : null;
 
-    let message = `Hi ${bi(customer.name)}, payment confirmed! ✅ ETB ${amount} received for your ${bi(duration)} at ${bi(gym.name)}.`;
-    if (endDate) message += ` You're covered until ${endDate}.`;
-    message += ` Keep showing up — you've got this! 💪`;
-    if (gym.phone) message += ` Questions? Call ${gym.phone}.`;
-    if (portalUrl) message += ` View your membership: ${portalUrl}`;
+    let message = `Hi ${customer.name}, payment confirmed! ETB ${amount} received for your ${duration} at ${gym.name}.`;
+    if (endDate) message += ` Valid until ${endDate}.`;
+    message += ` Keep it up!`;
+    if (gym.phone) message += ` Call us: ${gym.phone}.`;
+    if (portalUrl) message += ` Portal: ${portalUrl}`;
 
     return await this.sendSms(customer.phone, message);
   }
@@ -153,14 +153,14 @@ class SmsService {
   async sendMembershipExpiryReminder(customer, gym, daysLeft, portalUrl = null) {
     let message;
     if (daysLeft <= 0) {
-      message = `Hi ${customer.name}, your membership at ${gym.name} has expired today. Don't let the momentum stop — renew now and keep going! 🔥`;
+      message = `Hi ${customer.name}, your membership at ${gym.name} has expired. Renew now to keep going!`;
     } else if (daysLeft === 1) {
-      message = `Hi ${customer.name}, heads up! Your membership at ${gym.name} expires tomorrow. Renew today and keep that streak alive! 💪`;
+      message = `Hi ${customer.name}, your membership at ${gym.name} expires tomorrow. Renew today!`;
     } else {
-      message = `Hi ${customer.name}, just a reminder — your membership at ${gym.name} expires in ${daysLeft} days. Renew soon and stay on track!`;
+      message = `Hi ${customer.name}, your membership at ${gym.name} expires in ${daysLeft} days. Renew soon!`;
     }
-    if (gym.phone) message += ` Call us at ${gym.phone} to renew.`;
-    if (portalUrl) message += ` View your membership: ${portalUrl}`;
+    if (gym.phone) message += ` Call us: ${gym.phone}.`;
+    if (portalUrl) message += ` Portal: ${portalUrl}`;
     return await this.sendSms(customer.phone, message);
   }
 
