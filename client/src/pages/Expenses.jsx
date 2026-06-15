@@ -139,14 +139,14 @@ function MonthlyBarChart({ data }) {
         </div>
 
         {/* Bars */}
-        <div className="flex items-end gap-1.5 pl-10 pb-5" style={{ height: '120px' }}>
+        <div className="flex items-end justify-between pl-10 pb-5" style={{ height: '120px' }}>
           {data.map((d, i) => {
             const pct = (d.total / max) * 100;
             const isCurrent = i === data.length - 1;
             const label = getLabel(d.month);
 
             return (
-              <div key={i} className="flex-1 flex flex-col items-center justify-end h-full relative group">
+              <div key={i} className="flex flex-col items-center justify-end h-full relative group" style={{ width: '36px' }}>
                 {/* Tooltip */}
                 <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-dark-100 border border-gray-700 text-xs text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
                   {label}: {formatCurrency(d.total)}
@@ -155,7 +155,7 @@ function MonthlyBarChart({ data }) {
                 {/* Bar */}
                 <div
                   className={clsx(
-                    'w-full rounded-sm transition-colors cursor-default',
+                    'w-8 rounded-sm transition-colors cursor-default',
                     d.total === 0
                       ? 'bg-gray-800'
                       : isCurrent

@@ -537,7 +537,7 @@ function ReportsContent() {
                   </div>
 
                   {/* Bars */}
-                  <div className="flex items-end gap-1 h-36 pl-7 pb-6">
+                  <div className="flex items-end justify-between h-36 pl-7 pb-6">
                     {bars.map((bar, i) => {
                       const heightPct = (bar.count / maxCount) * 100;
                       const isToday = i === 13;
@@ -546,7 +546,7 @@ function ReportsContent() {
                       const dateLabel = bar.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
                       return (
-                        <div key={i} className="flex-1 flex flex-col items-center justify-end gap-0 relative group h-full">
+                        <div key={i} className="flex flex-col items-center justify-end relative group h-full" style={{ width: '20px' }}>
                           {/* Tooltip */}
                           <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-dark-100 border border-gray-700 text-xs text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
                             {dateLabel}: {bar.count} check-in{bar.count !== 1 ? 's' : ''}
@@ -555,7 +555,7 @@ function ReportsContent() {
                           {/* Bar */}
                           <div
                             className={clsx(
-                              'w-full rounded-sm transition-colors cursor-default',
+                              'w-4 rounded-sm transition-colors cursor-default',
                               bar.count === 0
                                 ? 'bg-gray-800'
                                 : isToday
