@@ -375,6 +375,24 @@ export async function initDatabase() {
     `CREATE INDEX IF NOT EXISTS idx_portal_tokens_token ON portal_tokens(token)`,
     `CREATE INDEX IF NOT EXISTS idx_portal_tokens_customer ON portal_tokens(customer_id)`,
 
+    // ── Employee Directory (no login — record-keeping only) ───────────────────
+    `CREATE TABLE IF NOT EXISTS employees (
+      id TEXT PRIMARY KEY,
+      gym_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      phone TEXT,
+      email TEXT,
+      position TEXT,
+      salary REAL,
+      start_date TEXT,
+      status TEXT DEFAULT 'active',
+      notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_employees_gym_id ON employees(gym_id)`,
+
     // ── PWA Push Subscriptions ────────────────────────────────────────────────
     `CREATE TABLE IF NOT EXISTS push_subscriptions (
       id TEXT PRIMARY KEY,

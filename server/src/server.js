@@ -24,6 +24,7 @@ import portalRoutes from './routes/portal.js';
 import branchesRoutes from './routes/branches.js';
 import pushRoutes from './routes/push.js';
 import progressRoutes from './routes/progress.js';
+import employeesRoutes from './routes/employees.js';
 import { reminderService } from './services/reminderService.js';
 
 const app = express();
@@ -85,6 +86,7 @@ app.use('/api/portal', portalRoutes);
 app.use('/api/branches', branchesRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/progress', progressRoutes);
+app.use('/api/employees', employeesRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
