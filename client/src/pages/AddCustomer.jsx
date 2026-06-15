@@ -273,7 +273,6 @@ export default function AddCustomer() {
                 </span>
               </label>
             </div>
-            <p className="text-xs text-gray-500 mt-2">{t('customers.photoFormat')}</p>
           </div>
         </div>
 
