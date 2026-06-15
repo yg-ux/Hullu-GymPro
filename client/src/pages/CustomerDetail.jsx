@@ -117,13 +117,15 @@ export default function CustomerDetail() {
     } catch { setPortalToken(null); }
   };
 
+  // Fetches (or lazily creates) the permanent portal link for members registered
+  // before auto-generation was added
   const generatePortalLink = async () => {
     setPortalLoading(true);
     try {
       const data = await api.post(`/portal/generate/${id}`, {});
       setPortalToken(data);
-      toast.success('Member portal link generated!');
-    } catch (err) { toast.error(err.message || 'Failed to generate portal link'); }
+      toast.success('Portal link ready!');
+    } catch (err) { toast.error(err.message || 'Failed to load portal link'); }
     finally { setPortalLoading(false); }
   };
 
@@ -1087,19 +1089,14 @@ export default function CustomerDetail() {
                   <ExternalLink className="w-3 h-3 text-gray-500 flex-shrink-0" />
                   <span className="text-xs text-gray-400 truncate flex-1">{portalToken.url}</span>
                 </div>
-                <div className="flex gap-2">
-                  <button onClick={copyPortalLink} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-gym-500/20 border border-gym-500/30 text-gym-400 rounded-lg text-xs hover:bg-gym-500/30 transition-colors">
-                    {portalCopied ? <><Check className="w-3 h-3" /> Copied!</> : <><Copy className="w-3 h-3" /> Copy Link</>}
-                  </button>
-                  <button onClick={generatePortalLink} disabled={portalLoading} className="px-3 py-1.5 bg-dark-200 border border-gray-700 text-gray-400 rounded-lg text-xs hover:border-gray-500 transition-colors">
-                    Refresh
-                  </button>
-                </div>
+                <button onClick={copyPortalLink} className="w-full flex items-center justify-center gap-1.5 py-1.5 bg-gym-500/20 border border-gym-500/30 text-gym-400 rounded-lg text-xs hover:bg-gym-500/30 transition-colors">
+                  {portalCopied ? <><Check className="w-3 h-3" /> Copied!</> : <><Copy className="w-3 h-3" /> Copy Link</>}
+                </button>
               </div>
             ) : (
               <button onClick={generatePortalLink} disabled={portalLoading} className="w-full flex items-center justify-center gap-2 py-2 bg-gym-500/20 border border-gym-500/30 text-gym-400 rounded-lg text-sm hover:bg-gym-500/30 transition-colors">
                 <Share2 className="w-4 h-4" />
-                {portalLoading ? 'Generating...' : 'Generate Portal Link'}
+                {portalLoading ? 'Loading...' : 'Get Portal Link'}
               </button>
             )}
           </div>

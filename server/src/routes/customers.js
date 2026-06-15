@@ -238,14 +238,26 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreateCus
     const customer = await getOne('SELECT * FROM customers WHERE id = ?', [customerId]);
     logCustomerAdded(gymId, req.user.id, customerId, name);
 
+    // Generate portal token once at registration
+    const portalTokenId = uuidv4();
+    const portalToken = uuidv4();
+    const portalExpiry = new Date();
+    portalExpiry.setFullYear(portalExpiry.getFullYear() + 10); // effectively permanent
+    await runQuery(
+      `INSERT INTO portal_tokens (id, gym_id, customer_id, token, expires_at) VALUES (?, ?, ?, ?, ?)`,
+      [portalTokenId, gymId, customerId, portalToken, portalExpiry.toISOString()]
+    );
+    const clientUrl = process.env.CLIENT_URL?.split(',')[0]?.trim() || 'http://localhost:5173';
+    const portalUrl = `${clientUrl}/portal/${portalToken}`;
+
     if (customer.phone && gym.sms_enabled && gym.subscription_plan !== 'free' && !customer.welcome_sms_sent) {
       try {
-        await smsService.sendWelcomeSms({ ...customer, amount: amount || null }, gym);
-        await runQuery('UPDATE customers SET welcome_sms_sent = 1 WHERE id = ?', [customerId]);
+        await smsService.sendWelcomeSms({ ...customer, amount: amount || null }, gym, portalUrl);
+        await runQuery('UPDATE customers SET welcome_sms_sent = true WHERE id = ?', [customerId]);
       } catch (smsError) { console.warn('Failed to send welcome SMS:', smsError.message); }
     }
 
-    res.status(201).json({ ...customer, member_limit: maxMembers, total_customers: totalCustomers + 1 });
+    res.status(201).json({ ...customer, portal_url: portalUrl, member_limit: maxMembers, total_customers: totalCustomers + 1 });
   } catch (error) {
     console.error('Create customer error:', error);
     res.status(500).json({ error: 'Failed to create customer' });

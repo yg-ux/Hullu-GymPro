@@ -5,7 +5,7 @@ import { authenticateToken } from './auth.js';
 
 const router = express.Router();
 
-// POST /generate/:customerId — (authenticated) generate or refresh portal token
+// POST /generate/:customerId — (authenticated) return existing token or create one if missing
 router.post('/generate/:customerId', authenticateToken, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
@@ -14,19 +14,28 @@ router.post('/generate/:customerId', authenticateToken, async (req, res) => {
     const customer = await getOne('SELECT id FROM customers WHERE id = $1 AND gym_id = $2', [customerId, gymId]);
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
 
-    await runQuery('DELETE FROM portal_tokens WHERE customer_id = $1 AND gym_id = $2', [customerId, gymId]);
+    const clientUrl = process.env.CLIENT_URL?.split(',')[0]?.trim() || 'http://localhost:5173';
 
+    // Return existing token if one already exists — never regenerate
+    const existing = await getOne(
+      'SELECT token FROM portal_tokens WHERE customer_id = $1 AND gym_id = $2 LIMIT 1',
+      [customerId, gymId]
+    );
+    if (existing) {
+      return res.json({ token: existing.token, url: `${clientUrl}/portal/${existing.token}` });
+    }
+
+    // No token yet (member registered before this feature) — create one now
     const token = uuidv4();
     const id = uuidv4();
     const expiresAt = new Date();
-    expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+    expiresAt.setFullYear(expiresAt.getFullYear() + 10);
 
     await runQuery(
       `INSERT INTO portal_tokens (id, gym_id, customer_id, token, expires_at) VALUES ($1, $2, $3, $4, $5)`,
       [id, gymId, customerId, token, expiresAt.toISOString()]
     );
 
-    const clientUrl = process.env.CLIENT_URL?.split(',')[0]?.trim() || 'http://localhost:5173';
     res.status(201).json({ token, url: `${clientUrl}/portal/${token}` });
   } catch (err) {
     console.error('POST /portal/generate error:', err);
@@ -40,7 +49,7 @@ router.get('/view/:token', async (req, res) => {
     const { token } = req.params;
 
     const portalToken = await getOne(
-      `SELECT * FROM portal_tokens WHERE token = $1 AND (expires_at IS NULL OR expires_at > NOW())`,
+      `SELECT * FROM portal_tokens WHERE token = $1`,
       [token]
     );
     if (!portalToken) return res.status(404).json({ error: 'Invalid or expired portal link' });
@@ -93,7 +102,7 @@ router.get('/my/:customerId', authenticateToken, async (req, res) => {
     const { customerId } = req.params;
 
     const portalToken = await getOne(
-      `SELECT token FROM portal_tokens WHERE customer_id = $1 AND gym_id = $2 AND (expires_at IS NULL OR expires_at > NOW())`,
+      `SELECT token FROM portal_tokens WHERE customer_id = $1 AND gym_id = $2 LIMIT 1`,
       [customerId, gymId]
     );
     if (!portalToken) return res.json({ token: null });

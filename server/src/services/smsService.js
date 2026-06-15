@@ -96,7 +96,7 @@ class SmsService {
    * @param {object} customer - Customer object
    * @param {object} gym - Gym object
    */
-  async sendWelcomeSms(customer, gym) {
+  async sendWelcomeSms(customer, gym, portalUrl = null) {
     const amount = customer.amount ? `ETB ${bi(parseFloat(customer.amount).toLocaleString())}` : null;
     const end = customer.membership_end
       ? new Date(customer.membership_end).toLocaleDateString('en-ET', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -115,7 +115,8 @@ class SmsService {
       if (end) message += ` Valid until ${end}.`;
       message += ` Show up, put in the work, and let's lift some weights!`;
     }
-    if (gym.phone) message += ` Any questions? Call us at ${gym.phone}.`;
+    if (gym.phone) message += ` Questions? Call us at ${gym.phone}.`;
+    if (portalUrl) message += ` View your membership: ${portalUrl}`;
 
     return await this.sendSms(customer.phone, message);
   }
