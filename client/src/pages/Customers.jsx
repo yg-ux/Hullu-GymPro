@@ -583,7 +583,7 @@ export default function Customers() {
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => navigate(`/customers/${customer.id}?edit=true`)}
+                        onClick={() => navigate(`/customers/${customer.id}/edit`)}
                         className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
                         title={t('common.edit')}
                       >
@@ -655,7 +655,7 @@ function CustomerCard({ customer, onClick, onCheckIn, onCheckOut, isCheckedIn, g
             <Eye className="w-4 h-4" />
           </button>
           <button
-            onClick={(e) => { e.stopPropagation(); navigate(`/customers/${customer.id}?edit=true`); }}
+            onClick={(e) => { e.stopPropagation(); navigate(`/customers/${customer.id}/edit`); }}
             className="p-2 bg-dark-200 text-gray-400 hover:text-blue-400 rounded-lg shadow-lg transition-all hover:scale-110"
             title={t('common.edit')}
           >
