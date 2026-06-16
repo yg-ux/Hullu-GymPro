@@ -122,15 +122,56 @@ function StatusBadge({ status, daysLeft }) {
 
 function DaysCounter({ member }) {
   const isSession = SESSION_TYPES.includes(member.membership_type);
+  const is3DaysWeek = member.membership_type === '3_days_week';
 
   if (isSession) {
-    const remaining = member.sessions_remaining ?? member.days_until_expiry ?? 0;
+    const remaining = Math.max(0, member.sessions_remaining ?? 0);
+    const maxVisits = member.max_visits_per_week || 3;
+    const usedThisWeek = member.visits_this_week || 0;
+    const leftThisWeek = Math.max(0, maxVisits - usedThisWeek);
+
     return (
-      <div className="text-center py-6">
-        <div className="text-6xl font-black text-gym-400 leading-none tabular-nums">
-          {Math.max(0, remaining)}
+      <div className="py-5 px-4 space-y-4">
+        {/* Overall sessions */}
+        <div className="text-center">
+          <div className="text-6xl font-black text-gym-400 leading-none tabular-nums">
+            {remaining}
+          </div>
+          <div className="mt-1.5 text-sm text-gray-400 font-medium">sessions remaining</div>
         </div>
-        <div className="mt-2 text-sm text-gray-400 font-medium">sessions remaining</div>
+
+        {/* Weekly visit tracker — 3 days/week only */}
+        {is3DaysWeek && maxVisits > 0 && (
+          <div className="mt-2 pt-4 border-t border-gray-800/50 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-gray-400 font-medium">This week's visits</span>
+              <span style={{ color: leftThisWeek === 0 ? '#f87171' : 'rgb(var(--gym-400-rgb))' }}
+                    className="font-semibold">
+                {usedThisWeek} / {maxVisits} used · {leftThisWeek} left
+              </span>
+            </div>
+            {/* Dot tracker */}
+            <div className="flex gap-2 justify-center">
+              {Array.from({ length: maxVisits }, (_, i) => (
+                <div
+                  key={i}
+                  className="flex-1 h-3 rounded-full transition-all"
+                  style={{
+                    background: i < usedThisWeek
+                      ? 'rgb(var(--gym-500-rgb))'
+                      : 'rgba(255,255,255,0.08)',
+                    border: i < usedThisWeek
+                      ? '1px solid rgb(var(--gym-400-rgb) / 0.5)'
+                      : '1px solid rgba(255,255,255,0.1)',
+                  }}
+                />
+              ))}
+            </div>
+            {leftThisWeek === 0 && (
+              <p className="text-xs text-center text-red-400 pt-0.5">Weekly limit reached — resets next Monday</p>
+            )}
+          </div>
+        )}
       </div>
     );
   }

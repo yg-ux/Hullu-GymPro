@@ -60,7 +60,8 @@ router.get('/view/:token', async (req, res) => {
 
     const customer = await getOne(
       `SELECT name, photo, membership_type, membership_start, membership_end, status,
-              sessions_used, total_sessions, outstanding_balance, date_of_birth
+              sessions_used, total_sessions, outstanding_balance, date_of_birth,
+              visits_this_week, max_visits_per_week, week_start_date
        FROM customers WHERE id = $1 AND gym_id = $2`,
       [customerId, gymId]
     );
@@ -75,6 +76,18 @@ router.get('/view/:token', async (req, res) => {
       ? Math.max(0, (customer.total_sessions || 0) - (customer.sessions_used || 0))
       : null;
 
+    // Compute current week start (Monday) to detect stale week_start_date
+    const now = new Date();
+    const dow = now.getDay();
+    const diffToMon = (dow === 0 ? -6 : 1 - dow);
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + diffToMon);
+    const currentWeekStart = monday.toISOString().split('T')[0];
+    // If week has rolled over, visits_this_week resets to 0
+    const visitsThisWeek = customer.week_start_date === currentWeekStart
+      ? (customer.visits_this_week || 0)
+      : 0;
+
     const [attendance, payments, progressPhotos] = await Promise.all([
       getAll(`SELECT check_in, check_out FROM attendance WHERE customer_id = $1 ORDER BY check_in DESC LIMIT 10`, [customerId]),
       getAll(`SELECT amount, payment_date, membership_type, payment_method FROM payments WHERE customer_id = $1 ORDER BY payment_date DESC LIMIT 5`, [customerId]),
@@ -86,6 +99,8 @@ router.get('/view/:token', async (req, res) => {
       ...customer,
       days_until_expiry: daysUntilExpiry,
       sessions_remaining: sessionsRemaining,
+      visits_this_week: visitsThisWeek,
+      max_visits_per_week: customer.max_visits_per_week || 0,
     };
 
     res.json({ gym, member, attendance, payments, progress_photos: progressPhotos });
