@@ -34,6 +34,7 @@ export default function AddCustomer() {
     name: '',
     phone: '',
     email: '',
+    gender: '',
     membership_type: '1_month',
     membership_duration: '1_month',
     amount: '',
@@ -69,6 +70,7 @@ export default function AddCustomer() {
         name: customer.name || '',
         phone: customer.phone || '',
         email: customer.email || '',
+        gender: customer.gender || '',
         membership_type: customer.membership_type || '1_month',
         amount: customer.amount || '',
         emergency_contact: customer.emergency_contact || '',
@@ -161,6 +163,7 @@ export default function AddCustomer() {
         name: formData.name,
         phone: formData.phone || null,
         email: formData.email || null,
+        gender: formData.gender || null,
         emergency_contact: formData.emergency_contact || null,
         notes: formData.notes || null,
         photo: photoData,
@@ -344,6 +347,32 @@ export default function AddCustomer() {
                   {fieldErrors.email}
                 </p>
               )}
+            </div>
+          </div>
+
+          {/* Gender */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Gender <span className="text-gray-500 font-normal">(optional)</span></label>
+            <div className="flex gap-2">
+              {[
+                { value: 'male',   label: '♂ Male' },
+                { value: 'female', label: '♀ Female' },
+                { value: 'other',  label: '⊕ Other' },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, gender: prev.gender === opt.value ? '' : opt.value }))}
+                  className={clsx(
+                    'flex-1 px-3 py-2.5 rounded-xl text-sm font-medium border transition-all',
+                    formData.gender === opt.value
+                      ? 'bg-gym-500/20 border-gym-500/60 text-gym-400'
+                      : 'bg-dark-300 border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200'
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
           </div>
 

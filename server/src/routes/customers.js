@@ -185,7 +185,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
 router.post('/', authenticateToken, requireActiveSubscription, validateCreateCustomer, async (req, res) => {
   try {
-    const { name, phone, email, membership_type = '1_month', membership_duration, amount, emergency_contact, notes, photo } = req.body;
+    const { name, phone, email, membership_type = '1_month', membership_duration, amount, emergency_contact, notes, photo, gender } = req.body;
     const gymId = req.user.gym_id;
     if (!name) return res.status(400).json({ error: 'Customer name is required' });
 
@@ -222,9 +222,9 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreateCus
     const weekStart = maxVisitsPerWeek > 0 ? getWeekStart() : null;
 
     await runQuery(`
-      INSERT INTO customers (id, gym_id, name, phone, email, photo, membership_type, membership_start, membership_end, status, emergency_contact, notes, max_visits_per_week, visits_this_week, week_start_date, total_sessions, sessions_used)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, 0, ?, ?, 0)
-    `, [customerId, gymId, name, phone || null, email || null, photo || null, membership_type, membershipStart, membershipEnd, emergency_contact || null, notes || null, maxVisitsPerWeek, weekStart, totalSessions]);
+      INSERT INTO customers (id, gym_id, name, phone, email, photo, membership_type, membership_start, membership_end, status, emergency_contact, notes, gender, max_visits_per_week, visits_this_week, week_start_date, total_sessions, sessions_used)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, 0, ?, ?, 0)
+    `, [customerId, gymId, name, phone || null, email || null, photo || null, membership_type, membershipStart, membershipEnd, emergency_contact || null, notes || null, gender || null, maxVisitsPerWeek, weekStart, totalSessions]);
 
     await runQuery('UPDATE gyms SET total_customers = total_customers + 1 WHERE id = ?', [gymId]);
 
@@ -275,7 +275,7 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreateCus
 
 router.put('/:id', authenticateToken, requireActiveSubscription, validateUpdateCustomer, async (req, res) => {
   try {
-    const { name, phone, email, membership_type, membership_start, membership_end, emergency_contact, notes, status, photo } = req.body;
+    const { name, phone, email, membership_type, membership_start, membership_end, emergency_contact, notes, status, photo, gender } = req.body;
     const existingCustomer = await getOne('SELECT * FROM customers WHERE id = ? AND gym_id = ?', [req.params.id, req.user.gym_id]);
     if (!existingCustomer) return res.status(404).json({ error: 'Customer not found' });
 
@@ -291,6 +291,7 @@ router.put('/:id', authenticateToken, requireActiveSubscription, validateUpdateC
     if (notes !== undefined) { updates.push('notes = ?'); values.push(notes || null); }
     if (status !== undefined) { updates.push('status = ?'); values.push(status); }
     if (photo !== undefined) { updates.push('photo = ?'); values.push(photo); }
+    if (gender !== undefined) { updates.push('gender = ?'); values.push(gender || null); }
 
     if (updates.length > 0) {
       updates.push('updated_at = NOW()');

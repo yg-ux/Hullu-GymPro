@@ -111,6 +111,15 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
       GROUP BY payment_method
     `, [gymId]);
 
+    const genderBreakdown = await getAll(`
+      SELECT
+        COALESCE(gender, 'unknown') as gender,
+        COUNT(*) as count
+      FROM customers
+      WHERE gym_id = ?
+      GROUP BY COALESCE(gender, 'unknown')
+    `, [gymId]);
+
     res.json({
       overview: {
         total_customers: totalCustomers,
@@ -130,7 +139,8 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
       membership_distribution: membershipDistribution,
       monthly_trend: monthlyTrend,
       top_customers: topCustomers,
-      payment_methods: paymentMethods
+      payment_methods: paymentMethods,
+      gender_breakdown: genderBreakdown
     });
   } catch (error) {
     console.error('Get stats error:', error);

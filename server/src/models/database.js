@@ -438,6 +438,9 @@ export async function initDatabase() {
   // Birthday for birthday reminders
   await p.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS date_of_birth DATE');
 
+  // Gender for member demographics
+  await p.query("ALTER TABLE customers ADD COLUMN IF NOT EXISTS gender TEXT");
+
   // Gym parent for multi-branch
   await p.query('ALTER TABLE gyms ADD COLUMN IF NOT EXISTS parent_gym_id TEXT');
 

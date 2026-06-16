@@ -12,6 +12,7 @@ export default function AttendanceAnalytics() {
   const { t, lang } = useLanguage();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [genderData, setGenderData] = useState([]);
 
   // Heatmap state
   const [heatmap, setHeatmap] = useState(null);
@@ -21,6 +22,7 @@ export default function AttendanceAnalytics() {
   useEffect(() => {
     loadStats();
     loadHeatmap('');
+    api.get('/stats').then(d => setGenderData(d.gender_breakdown || [])).catch(() => {});
   }, []);
 
   const loadStats = async () => {
@@ -241,6 +243,9 @@ export default function AttendanceAnalytics() {
         </div>
       </div>
 
+      {/* Gender Distribution */}
+      <GenderBreakdown data={genderData} />
+
       {/* Attendance Heatmap */}
       <div className="glass-card p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
@@ -282,6 +287,92 @@ export default function AttendanceAnalytics() {
           <AttendanceHeatmap matrix={heatmap.matrix} max={heatmap.max} />
         )}
       </div>
+    </div>
+  );
+}
+
+function GenderBreakdown({ data }) {
+  const GENDER_CONFIG = {
+    male:    { label: 'Male',    color: 'bg-blue-500',   text: 'text-blue-400',   bar: 'bg-blue-500',   badge: 'bg-blue-500/15 border-blue-500/30 text-blue-400',   icon: '♂' },
+    female:  { label: 'Female',  color: 'bg-pink-500',   text: 'text-pink-400',   bar: 'bg-pink-500',   badge: 'bg-pink-500/15 border-pink-500/30 text-pink-400',   icon: '♀' },
+    other:   { label: 'Other',   color: 'bg-purple-500', text: 'text-purple-400', bar: 'bg-purple-500', badge: 'bg-purple-500/15 border-purple-500/30 text-purple-400', icon: '⊕' },
+    unknown: { label: 'Not set', color: 'bg-gray-600',   text: 'text-gray-400',   bar: 'bg-gray-600',   badge: 'bg-gray-500/15 border-gray-600/30 text-gray-400',   icon: '?' },
+  };
+
+  const total = data.reduce((s, d) => s + parseInt(d.count || 0), 0);
+  const known = data.filter(d => d.gender !== 'unknown').reduce((s, d) => s + parseInt(d.count || 0), 0);
+
+  // Sort: male, female, other, unknown
+  const ORDER = ['male', 'female', 'other', 'unknown'];
+  const sorted = [...data].sort((a, b) => ORDER.indexOf(a.gender) - ORDER.indexOf(b.gender));
+
+  return (
+    <div className="glass-card p-6">
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+          <Users className="w-5 h-5 text-gym-400" />
+          Member Demographics
+        </h2>
+        {total > 0 && (
+          <span className="text-xs text-gray-500">
+            {known} of {total} members have gender recorded
+          </span>
+        )}
+      </div>
+
+      {total === 0 ? (
+        <div className="flex flex-col items-center justify-center py-8 text-gray-500 text-sm gap-2">
+          <Users className="w-8 h-8 opacity-30" />
+          <p>No member data yet</p>
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {/* Stacked bar */}
+          <div className="relative h-5 rounded-full overflow-hidden bg-dark-300 flex">
+            {sorted.filter(d => parseInt(d.count) > 0).map(d => {
+              const cfg = GENDER_CONFIG[d.gender] || GENDER_CONFIG.unknown;
+              const pct = (parseInt(d.count) / total) * 100;
+              return (
+                <div
+                  key={d.gender}
+                  className={clsx('h-full transition-all', cfg.bar)}
+                  style={{ width: `${pct}%` }}
+                  title={`${cfg.label}: ${d.count} (${pct.toFixed(1)}%)`}
+                />
+              );
+            })}
+          </div>
+
+          {/* Legend cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {sorted.map(d => {
+              const cfg = GENDER_CONFIG[d.gender] || GENDER_CONFIG.unknown;
+              const count = parseInt(d.count || 0);
+              const pct = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0';
+              return (
+                <div key={d.gender} className={clsx('rounded-xl p-4 border text-center', cfg.badge)}>
+                  <div className="text-2xl mb-1">{cfg.icon}</div>
+                  <p className={clsx('text-2xl font-bold', cfg.text)}>{count}</p>
+                  <p className="text-xs font-medium text-white mt-0.5">{cfg.label}</p>
+                  <p className="text-xs text-gray-500">{pct}%</p>
+                </div>
+              );
+            })}
+            {/* Pad to 4 cols if fewer items */}
+            {sorted.length < 4 && ORDER.filter(g => !sorted.find(d => d.gender === g)).map(g => {
+              const cfg = GENDER_CONFIG[g];
+              return (
+                <div key={g} className="rounded-xl p-4 border border-gray-800/40 bg-dark-300/30 text-center opacity-40">
+                  <div className="text-2xl mb-1">{cfg.icon}</div>
+                  <p className="text-2xl font-bold text-gray-600">0</p>
+                  <p className="text-xs font-medium text-gray-500 mt-0.5">{cfg.label}</p>
+                  <p className="text-xs text-gray-600">0.0%</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
