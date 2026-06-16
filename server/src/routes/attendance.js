@@ -5,6 +5,13 @@ import { authenticateToken, requireActiveSubscription } from './auth.js';
 
 const router = express.Router();
 
+function getWeekStart(date = new Date()) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(d.setDate(diff)).toISOString().split('T')[0];
+}
+
 // Get today's attendance
 router.get('/today', authenticateToken, async (req, res) => {
   try {
@@ -178,6 +185,18 @@ router.post('/check-in', authenticateToken, requireActiveSubscription, async (re
       } else if ((customer.total_sessions || 0) - newUsed <= 3) {
         await runQuery("UPDATE customers SET status = 'expiring', updated_at = NOW() WHERE id = ?", [customer.id]);
       }
+    }
+
+    // Update weekly visit counter (reset if new week, then increment)
+    if (customer.max_visits_per_week > 0) {
+      const currentWeekStart = getWeekStart();
+      const visitsThisWeek = customer.week_start_date !== currentWeekStart
+        ? 1
+        : (customer.visits_this_week || 0) + 1;
+      await runQuery(
+        'UPDATE customers SET visits_this_week = ?, week_start_date = ? WHERE id = ?',
+        [visitsThisWeek, currentWeekStart, customer.id]
+      );
     }
 
     const attendance = await getOne(`
