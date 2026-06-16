@@ -188,26 +188,30 @@ export default function AttendanceAnalytics() {
               {
                 label: t('analytics.today'),
                 value: stats?.today?.total_visits || 0,
-                sub: t('analytics.checkIns'),
+                unit: 'check-ins',
+                sub: `${stats?.today?.currently_present || 0} currently inside`,
                 color: 'text-green-400',
               },
               {
                 label: t('analytics.thisWeek'),
                 value: stats?.weekly?.total_visits || 0,
-                sub: `${stats?.weekly?.unique_visitors || 0} ${t('analytics.uniquePeople')}`,
+                unit: 'check-ins',
+                sub: `by ${stats?.weekly?.unique_visitors || 0} unique members`,
                 color: 'text-blue-400',
               },
               {
                 label: t('analytics.thisMonth'),
                 value: stats?.monthly?.total_visits || 0,
-                sub: `${stats?.monthly?.unique_visitors || 0} ${t('analytics.uniquePeople')}`,
+                unit: 'check-ins',
+                sub: `by ${stats?.monthly?.unique_visitors || 0} unique members`,
                 color: 'text-purple-400',
               },
             ].map(item => (
               <div key={item.label} className="bg-dark-200/50 rounded-xl p-4 border border-gray-800/60 text-center">
                 <p className={clsx('text-3xl font-bold', item.color)}>{item.value}</p>
-                <p className="text-xs text-gray-400 mt-1">{item.sub}</p>
-                <p className="text-[11px] text-gray-600 mt-0.5 uppercase tracking-wide">{item.label}</p>
+                <p className="text-xs text-gray-500 mt-0.5 font-medium">{item.unit}</p>
+                <p className="text-xs text-gray-500 mt-1.5">{item.sub}</p>
+                <p className="text-[11px] text-gray-600 mt-1 uppercase tracking-wide">{item.label}</p>
               </div>
             ))}
           </div>
