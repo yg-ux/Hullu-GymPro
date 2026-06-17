@@ -16,7 +16,6 @@ import {
   CreditCard,
   AlertTriangle,
   Receipt,
-  BarChart3,
   RefreshCw,
   Building2,
   Zap,
@@ -64,7 +63,7 @@ function getMonthOptions() {
   const now = new Date();
   for (let i = 0; i < 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '00')}`;
+    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     options.push({ value: val, label });
   }
@@ -81,133 +80,6 @@ function getMonthLabel(ym) {
   const [year, month] = ym.split('-');
   const d = new Date(Number(year), Number(month) - 1, 1);
   return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-}
-
-function ordinal(n) {
-  const s = ['th','st','nd','rd'];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
-
-// ── Mini bar chart (CSS bars) ─────────────────────────────────────────────────
-const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-function MonthlyBarChart({ data }) {
-  if (!data || data.length === 0) return null;
-
-  const max = Math.max(...data.map(d => d.total), 1);
-  const total6 = data.reduce((s, d) => s + (d.total || 0), 0);
-
-  const getLabel = (monthStr) => {
-    if (!monthStr) return '';
-    const m = parseInt(monthStr.split('-')[1], 10);
-    return MONTH_ABBR[m - 1] || monthStr;
-  };
-
-  // Compact y-axis label: 12500 → "12.5k", 500 → "500"
-  const yLabel = (val) => {
-    if (val === 0) return '0';
-    if (val >= 1000) return `${(val / 1000).toFixed(val % 1000 === 0 ? 0 : 1)}k`;
-    return String(Math.round(val));
-  };
-
-  const midVal = Math.ceil(max / 2);
-
-  const peak = total6 > 0 ? data.reduce((a, b) => (b.total > a.total ? b : a), data[0]) : null;
-
-  return (
-    <div className="bg-dark-300 rounded-2xl p-5 border border-gray-800/50">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-1">
-        <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-          <BarChart3 className="w-4 h-4 text-gym-400" />
-          Last 6 Months
-        </h3>
-        <div className="text-right">
-          <p className="text-xs text-gray-500">Total spent</p>
-          <p className="text-sm font-bold text-white">{formatCurrency(total6)}</p>
-        </div>
-      </div>
-
-      {/* Chart area */}
-      <div className="relative mt-4">
-        {/* Y-axis guide lines */}
-        <div className="absolute inset-0 flex flex-col justify-between pointer-events-none" style={{ bottom: '24px' }}>
-          {[max, midVal, 0].map((val, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <span className="text-[10px] text-gray-600 w-9 text-right flex-shrink-0">{yLabel(val)}</span>
-              <div className="flex-1 border-t border-gray-800/80" />
-            </div>
-          ))}
-        </div>
-
-        {/* Bars */}
-        <div className="flex items-end justify-between pl-11 pb-6" style={{ height: '130px' }}>
-          {data.map((d, i) => {
-            const pct = (d.total / max) * 100;
-            const isCurrent = i === data.length - 1;
-            const label = getLabel(d.month);
-            const isPeak = peak && d.month === peak.month && d.total > 0;
-
-            return (
-              <div key={i} className="flex flex-col items-center justify-end h-full relative group" style={{ width: '40px' }}>
-                {/* Tooltip */}
-                <div className="absolute -top-9 left-1/2 -translate-x-1/2 bg-dark-100 border border-gray-700 text-xs text-white px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none shadow-lg">
-                  <span className="font-medium">{label}</span>
-                  <span className="text-gray-400 ml-1">{formatCurrency(d.total)}</span>
-                </div>
-
-                {/* Value label on top of bar (only for bars with data) */}
-                {d.total > 0 && (
-                  <span className="absolute text-[9px] text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap"
-                    style={{ bottom: `calc(${Math.max(pct, 6)}% + 4px)` }}>
-                    {yLabel(d.total)}
-                  </span>
-                )}
-
-                {/* Bar */}
-                <div
-                  className={clsx(
-                    'w-7 rounded-t-md transition-colors duration-150 cursor-default',
-                    d.total === 0
-                      ? 'bg-gray-800/60 rounded-none'
-                      : isCurrent
-                        ? 'bg-gym-500 group-hover:bg-gym-400'
-                        : isPeak
-                          ? 'bg-gym-500/70 group-hover:bg-gym-500/90'
-                          : 'bg-gym-500/40 group-hover:bg-gym-500/60'
-                  )}
-                  style={{ height: d.total === 0 ? '2px' : `${Math.max(pct, 6)}%` }}
-                />
-
-                {/* Month label */}
-                <span className={clsx(
-                  'absolute -bottom-5 text-[10px] font-medium',
-                  isCurrent ? 'text-gym-400' : 'text-gray-600'
-                )}>
-                  {label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Divider + summary row */}
-      <div className="mt-3 pt-3 border-t border-gray-800/60 flex items-center justify-between">
-        <span className="text-[11px] text-gray-500">
-          Avg/mo <span className="text-gray-300 font-medium">{formatCurrency(Math.round(total6 / (data.length || 1)))}</span>
-        </span>
-        {peak && peak.total > 0 && (
-          <span className="text-[11px] text-gray-500">
-            Peak <span className="text-gray-300 font-medium">{getLabel(peak.month)}</span>
-            <span className="text-gray-600 mx-1">·</span>
-            <span className="text-gray-300 font-medium">{formatCurrency(peak.total)}</span>
-          </span>
-        )}
-      </div>
-    </div>
-  );
 }
 
 // ── P&L Section ───────────────────────────────────────────────────────────────
@@ -385,39 +257,6 @@ function ExpenseForm({ form, onChange, onSubmit, onClose, saving, staffList = []
             />
           </div>
 
-          {/* Payment Method */}
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1.5">Payment Method</label>
-            <div className="flex gap-2">
-              {PAYMENT_METHODS.map(m => (
-                <button
-                  key={m.value}
-                  type="button"
-                  onClick={() => onChange('payment_method', m.value)}
-                  className={clsx(
-                    'flex-1 px-3 py-2.5 rounded-xl text-sm font-medium border transition-all',
-                    form.payment_method === m.value
-                      ? 'bg-gym-500/20 border-gym-500/50 text-gym-400'
-                      : 'bg-dark-300 border-gray-700 text-gray-400 hover:bg-dark-400 hover:text-gray-200'
-                  )}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Receipt Note */}
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1.5">Receipt Note <span className="text-gray-600">(optional)</span></label>
-            <textarea
-              value={form.receipt_note}
-              onChange={e => onChange('receipt_note', e.target.value)}
-              placeholder="Receipt number or additional notes..."
-              rows={3}
-              className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gym-500/60 transition-colors resize-none"
-            />
-          </div>
         </div>
 
         {/* Footer */}
@@ -456,13 +295,9 @@ const EMPTY_RECURRING_FORM = {
   description: '',
   amount: '',
   payment_method: 'cash',
-  day_of_month: 1,
   notes: '',
   staff_id: '',
 };
-
-// Day options 1-28
-const DAY_OPTIONS = Array.from({ length: 28 }, (_, i) => i + 1);
 
 function RecurringForm({ form, onChange, onSubmit, onClose, saving, staffList = [] }) {
   const isSalary = form.category === 'salaries';
@@ -586,39 +421,20 @@ function RecurringForm({ form, onChange, onSubmit, onClose, saving, staffList = 
               </div>
             )}
 
-            {/* Amount + Day side by side */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                  Monthly amount (ETB) <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={form.amount}
-                  onChange={e => onChange('amount', e.target.value)}
-                  placeholder="0"
-                  className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gym-500/60 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                  Paid on which day?
-                </label>
-                <div className="relative">
-                  <select
-                    value={form.day_of_month}
-                    onChange={e => onChange('day_of_month', Number(e.target.value))}
-                    className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm appearance-none focus:outline-none focus:border-gym-500/60 transition-colors pr-9"
-                  >
-                    {DAY_OPTIONS.map(d => (
-                      <option key={d} value={d}>{ordinal(d)} of the month</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                </div>
-              </div>
+            {/* Amount */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                Monthly amount (ETB) <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={form.amount}
+                onChange={e => onChange('amount', e.target.value)}
+                placeholder="0"
+                className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gym-500/60 transition-colors"
+              />
             </div>
 
             {/* Payment Method */}
@@ -650,7 +466,7 @@ function RecurringForm({ form, onChange, onSubmit, onClose, saving, staffList = 
                 <div className="flex-1 min-w-0">
                   <p className={clsx('text-sm font-semibold truncate', selectedCat?.color)}>{form.description}</p>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {formatCurrency(Number(form.amount))} every month · due {ordinal(Number(form.day_of_month))}
+                    {formatCurrency(Number(form.amount))} every month
                   </p>
                 </div>
               </div>
@@ -743,8 +559,6 @@ const EMPTY_FORM = {
   category: '',
   amount: '',
   description: '',
-  payment_method: 'cash',
-  receipt_note: '',
   staff_id: '',
 };
 
@@ -756,7 +570,6 @@ export default function Expenses() {
   const [expenses, setExpenses]         = useState([]);
   const [loading, setLoading]           = useState(true);
   const [summaryData, setSummaryData]   = useState(null);
-  const [monthlyChart, setMonthlyChart] = useState([]);
   const [revenue, setRevenue]           = useState(0);
   const [showForm, setShowForm]         = useState(false);
   const [form, setForm]                 = useState(EMPTY_FORM);
@@ -814,16 +627,13 @@ export default function Expenses() {
     });
   }, []);
 
-  // ── Load monthly chart & revenue ──────────────────────────────────────────
+  // ── Load this month's revenue for P&L (uses non-gated endpoint) ─────────
   useEffect(() => {
-    api.get('/expenses/summary')
-      .then(d => {
-        const last6 = Array.isArray(d) ? d.slice(-6) : [];
-        setMonthlyChart(last6);
+    api.get('/expenses/monthly-history')
+      .then(history => {
+        const row = Array.isArray(history) ? history.find(r => r.month === cm) : null;
+        setRevenue(row ? parseFloat(row.total_revenue) || 0 : 0);
       })
-      .catch(() => {});
-    api.get('/stats/revenue')
-      .then(d => setRevenue(d.this_month || 0))
       .catch(() => {});
   }, []);
 
@@ -879,14 +689,12 @@ export default function Expenses() {
 
   const openEditForm = (expense) => {
     setForm({
-      id:             expense.id,
-      date:           expense.expense_date?.slice(0, 10) || new Date().toISOString().slice(0, 10),
-      category:       expense.category || '',
-      amount:         expense.amount || '',
-      description:    expense.description || '',
-      payment_method: expense.payment_method || 'cash',
-      receipt_note:   expense.receipt_note || '',
-      staff_id:       '',
+      id:          expense.id,
+      date:        expense.expense_date?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+      category:    expense.category || '',
+      amount:      expense.amount || '',
+      description: expense.description || '',
+      staff_id:    '',
     });
     setShowForm(true);
   };
@@ -910,8 +718,6 @@ export default function Expenses() {
         category: form.category,
         amount: Number(form.amount),
         description: form.description.trim(),
-        payment_method: form.payment_method,
-        receipt_note: form.receipt_note.trim() || undefined,
       };
 
       if (form.id) {
@@ -961,7 +767,6 @@ export default function Expenses() {
       description:    tpl.description || '',
       amount:         tpl.amount || '',
       payment_method: tpl.payment_method || 'cash',
-      day_of_month:   tpl.day_of_month || 1,
       notes:          tpl.notes || '',
       staff_id:       '',
     });
@@ -979,7 +784,6 @@ export default function Expenses() {
     if (recurringForm.category === 'salaries' && !recurringForm.staff_id) return toast.error('Please select a staff member for salary');
     if (!recurringForm.amount || Number(recurringForm.amount) <= 0) return toast.error('Please enter a valid amount');
     if (!recurringForm.description.trim()) return toast.error('Please enter a description');
-    if (!recurringForm.day_of_month || recurringForm.day_of_month < 1 || recurringForm.day_of_month > 28) return toast.error('Day of month must be between 1 and 28');
 
     setSavingRecurring(true);
     try {
@@ -988,7 +792,6 @@ export default function Expenses() {
         description:    recurringForm.description.trim(),
         amount:         Number(recurringForm.amount),
         payment_method: recurringForm.payment_method,
-        day_of_month:   Number(recurringForm.day_of_month),
         notes:          recurringForm.notes.trim() || undefined,
       };
 
@@ -1261,11 +1064,7 @@ export default function Expenses() {
             ))}
           </div>
 
-          {/* Charts Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <MonthlyBarChart data={monthlyChart} />
-            <ProfitLoss revenue={revenue} expenses={totalSpent} />
-          </div>
+          <ProfitLoss revenue={revenue} expenses={totalSpent} />
 
           {/* Filter Bar */}
           <div className="bg-dark-300 rounded-2xl p-4 border border-gray-800/50 flex flex-col sm:flex-row gap-3">
@@ -1374,13 +1173,11 @@ export default function Expenses() {
 
                       <div className="col-span-3">
                         <p className="text-sm text-gray-200 truncate">{expense.description}</p>
-                        {expense.is_recurring ? (
+                        {expense.is_recurring && (
                           <span className="inline-flex items-center gap-1 text-xs text-gym-400 mt-0.5">
                             🔄 Recurring
                           </span>
-                        ) : expense.receipt_note ? (
-                          <p className="text-xs text-gray-500 truncate mt-0.5">{expense.receipt_note}</p>
-                        ) : null}
+                        )}
                       </div>
 
                       <div className="col-span-2 text-right">
@@ -1539,7 +1336,7 @@ export default function Expenses() {
                     <div>
                       <p className="text-sm font-semibold text-white leading-snug">{tpl.description}</p>
                       <p className="text-xs text-gray-500 mt-1">
-                        Every month on the <span className="text-gray-400">{ordinal(tpl.day_of_month)}</span>
+                        Every month
                         {' · '}
                         <span className="capitalize">{(tpl.payment_method || 'cash').replace('_', ' ')}</span>
                       </p>
