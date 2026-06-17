@@ -529,17 +529,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Developer credit */}
-      <div className="pt-2 pb-1 text-center">
-        <a
-          href="https://aleqatech.million-designers.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
-        >
-          Developed by <span className="font-medium text-gray-500 hover:text-gray-300 transition-colors">Aleqa Tech</span>
-        </a>
-      </div>
     </div>
   );
 }

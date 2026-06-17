@@ -969,10 +969,19 @@ function SidebarContent({ onNavigate, recentActivity = [], getTimeAgo }) {
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-800/50">
-        <div className="text-xs text-gray-500 text-center">
-          <span className="text-gray-300 font-semibold">{gym?.name || t('layout.yourGym')}</span> {t('layout.byHullu')}
-          <br />
-          {t('layout.allRightsReserved')}
+        <div className="text-xs text-gray-500 text-center space-y-1">
+          <div>
+            <span className="text-gray-300 font-semibold">{gym?.name || t('layout.yourGym')}</span> {t('layout.byHullu')}
+          </div>
+          <div>{t('layout.allRightsReserved')}</div>
+          <a
+            href="https://aleqatech.million-designers.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block text-gray-600 hover:text-gray-400 transition-colors mt-1"
+          >
+            Developed by <span className="font-medium text-gray-500 hover:text-gray-300 transition-colors">Aleqa Tech</span>
+          </a>
         </div>
       </div>
     </div>
