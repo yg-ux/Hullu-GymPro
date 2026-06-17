@@ -459,7 +459,7 @@ export default function Staff() {
 
         {/* ── Employee Directory ─────────────────────────────────────────────── */}
         <div className="glass-card p-6">
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex flex-wrap items-start sm:items-center justify-between gap-3 mb-5">
             <div>
               <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                 <Users className="w-5 h-5 text-gym-400" />
@@ -470,7 +470,7 @@ export default function Staff() {
               </h2>
               <p className="text-sm text-gray-500 mt-0.5">Track your staff without giving them system access</p>
             </div>
-            <button onClick={openAddEmployee} className="btn-primary inline-flex items-center gap-2 text-sm">
+            <button onClick={openAddEmployee} className="btn-primary inline-flex items-center gap-2 text-sm flex-shrink-0">
               <Plus className="w-4 h-4" />
               Add Employee
             </button>
@@ -497,13 +497,16 @@ export default function Staff() {
           ) : (
             <div className="divide-y divide-gray-800/40">
               {employees.map(emp => (
-                <div key={emp.id} className="flex items-center gap-3 py-3 group">
-                  <div className="w-10 h-10 rounded-xl bg-gym-500/15 flex items-center justify-center flex-shrink-0 text-sm font-bold text-gym-400">
+                <div key={emp.id} className="flex items-start gap-3 py-3.5">
+                  {/* Avatar */}
+                  <div className="w-10 h-10 rounded-xl bg-gym-500/15 flex items-center justify-center flex-shrink-0 text-sm font-bold text-gym-400 mt-0.5">
                     {emp.name.charAt(0).toUpperCase()}
                   </div>
+
+                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-medium text-white">{emp.name}</p>
+                      <p className="text-sm font-semibold text-white">{emp.name}</p>
                       {emp.position && (
                         <span className="text-xs px-2 py-0.5 rounded-full bg-dark-300 text-gray-400">{emp.position}</span>
                       )}
@@ -511,22 +514,38 @@ export default function Staff() {
                         <span className="text-xs px-2 py-0.5 rounded-full bg-gray-700/60 text-gray-500">Inactive</span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500">
-                      {emp.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{emp.phone}</span>}
-                      {emp.start_date && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />Since {new Date(emp.start_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>}
-                      {emp.salary && <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" />ETB {parseFloat(emp.salary).toLocaleString()}/mo</span>}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-gray-500">
+                      {emp.phone && (
+                        <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{emp.phone}</span>
+                      )}
+                      {emp.start_date && (
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          Since {new Date(emp.start_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                        </span>
+                      )}
+                      {emp.salary && (
+                        <span className="flex items-center gap-1">
+                          <Briefcase className="w-3 h-3" />
+                          ETB {parseFloat(emp.salary).toLocaleString()}/mo
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+
+                  {/* Actions — always visible (no hover-only on mobile) */}
+                  <div className="flex items-center gap-1 flex-shrink-0">
                     <button
                       onClick={() => openEditEmployee(emp)}
-                      className="p-1.5 text-gray-400 hover:text-white hover:bg-dark-200 rounded-lg transition-colors"
+                      className="p-2 text-gray-400 hover:text-white hover:bg-dark-200 rounded-lg transition-colors"
+                      aria-label="Edit employee"
                     >
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setEmpDeleteModal({ open: true, employee: emp })}
-                      className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                      className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                      aria-label="Delete employee"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
