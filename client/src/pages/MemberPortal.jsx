@@ -312,15 +312,24 @@ export default function MemberPortal() {
           <div className="p-5">
             <div className="flex items-start gap-4">
               {/* Avatar */}
-              <div
-                className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black text-white flex-shrink-0"
-                style={{
-                  background: 'linear-gradient(135deg, rgb(var(--gym-500-rgb)), rgb(var(--gym-700-rgb)))',
-                  boxShadow: '0 4px 16px rgb(var(--gym-500-rgb) / 0.4)',
-                }}
-              >
-                {member.name?.charAt(0).toUpperCase() || '?'}
-              </div>
+              {member.photo ? (
+                <img
+                  src={member.photo}
+                  alt={member.name}
+                  className="w-16 h-16 rounded-2xl object-cover flex-shrink-0 border-2"
+                  style={{ borderColor: 'rgb(var(--gym-500-rgb) / 0.4)', boxShadow: '0 4px 16px rgb(var(--gym-500-rgb) / 0.35)' }}
+                />
+              ) : (
+                <div
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black text-white flex-shrink-0"
+                  style={{
+                    background: 'linear-gradient(135deg, rgb(var(--gym-500-rgb)), rgb(var(--gym-700-rgb)))',
+                    boxShadow: '0 4px 16px rgb(var(--gym-500-rgb) / 0.4)',
+                  }}
+                >
+                  {member.name?.charAt(0).toUpperCase() || '?'}
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <h2 className="text-xl font-bold text-white truncate">{member.name}</h2>
                 <div className="flex flex-wrap gap-2 mt-2">
