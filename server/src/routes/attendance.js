@@ -130,6 +130,21 @@ router.post('/check-in', authenticateToken, requireActiveSubscription, async (re
           customer: { id: customer.id, name: customer.name },
         });
       }
+      // Enforce weekly visit limit
+      if (customer.max_visits_per_week > 0) {
+        const currentWeekStart = getWeekStart();
+        const visitsThisWeek = customer.week_start_date === currentWeekStart
+          ? (customer.visits_this_week || 0)
+          : 0;
+        if (visitsThisWeek >= customer.max_visits_per_week) {
+          return res.status(400).json({
+            error: `Weekly visit limit reached (${customer.max_visits_per_week} visits/week). Resets next Monday.`,
+            customer: { id: customer.id, name: customer.name },
+            visits_this_week: visitsThisWeek,
+            max_visits_per_week: customer.max_visits_per_week,
+          });
+        }
+      }
     } else if (customer.membership_type === 'daily') {
       const sessionsLeft = (customer.total_sessions || 0) - (customer.sessions_used || 0);
       if (sessionsLeft <= 0) {

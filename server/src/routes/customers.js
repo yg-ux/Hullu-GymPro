@@ -614,9 +614,10 @@ router.post('/bulk-import', authenticateToken, requireActiveSubscription, async 
 
     // Check gym member limit
     const gym = await getOne('SELECT max_members, total_customers FROM gyms WHERE id = ?', [gymId]);
+    if (!gym) return res.status(404).json({ error: 'Gym not found' });
     const currentCount = await getOne('SELECT COUNT(*) as cnt FROM customers WHERE gym_id = ?', [gymId]);
     const current = parseInt(currentCount?.cnt || 0);
-    if (gym?.max_members && current + members.length > gym.max_members) {
+    if (gym.max_members && current + members.length > gym.max_members) {
       return res.status(400).json({
         error: `Import would exceed your plan limit of ${gym.max_members} members. You have ${current} and are trying to add ${members.length}.`
       });

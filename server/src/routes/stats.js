@@ -587,29 +587,21 @@ router.get('/forecast', authenticateToken, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
 
-    // Members expiring in next 30 days (potential renewals)
-    const expiringNext30 = await getAll(`
+    // Members expiring in next 90 days — partitioned into 30/60/90 buckets
+    const expiringAll90 = await getAll(`
       SELECT id, name, phone, membership_type, membership_end, status,
         FLOOR(EXTRACT(EPOCH FROM (membership_end::timestamp - NOW())) / 86400)::integer as days_left
       FROM customers
       WHERE gym_id = ?
-        AND membership_end::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'
+        AND membership_end::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '90 days'
         AND status NOT IN ('inactive', 'frozen')
         AND membership_type != 'daily'
       ORDER BY membership_end ASC
     `, [gymId]);
 
-    const expiringNext60 = await getOne(`
-      SELECT COUNT(*) as count FROM customers
-      WHERE gym_id = ? AND membership_end::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '60 days'
-        AND status NOT IN ('inactive', 'frozen') AND membership_type != 'daily'
-    `, [gymId]);
-
-    const expiringNext90 = await getOne(`
-      SELECT COUNT(*) as count FROM customers
-      WHERE gym_id = ? AND membership_end::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '90 days'
-        AND status NOT IN ('inactive', 'frozen') AND membership_type != 'daily'
-    `, [gymId]);
+    const expiringNext30 = expiringAll90.filter(m => (m.days_left || 0) <= 30);
+    const expiringNext60 = { count: expiringAll90.filter(m => (m.days_left || 0) <= 60).length };
+    const expiringNext90 = { count: expiringAll90.length };
 
     // Average revenue per membership type from last 90 days
     const avgByType = await getAll(`
@@ -625,7 +617,7 @@ router.get('/forecast', authenticateToken, async (req, res) => {
     // Calculate projected revenue from expiring members (assume 70% renewal rate)
     const RENEWAL_RATE = 0.70;
     let projected30 = 0, projected60 = 0, projected90 = 0;
-    for (const m of expiringNext30) {
+    for (const m of expiringAll90) {
       const avg = typeAvgMap[m.membership_type] || 0;
       const daysLeft = m.days_left || 0;
       if (daysLeft <= 30) projected30 += avg * RENEWAL_RATE;
