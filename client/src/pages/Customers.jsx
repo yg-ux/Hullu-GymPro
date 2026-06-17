@@ -498,10 +498,15 @@ export default function Customers() {
               </tr>
             </thead>
             <tbody>
-              {filteredCustomers.map((customer, index) => (
-                <tr 
+              {filteredCustomers.map((customer, index) => {
+                const isIn = checkedInIds.has(customer.id);
+                return (
+                <tr
                   key={customer.id}
-                  className="border-b border-gray-800/50 hover:bg-dark-100/30 cursor-pointer transition-colors animate-fade-in"
+                  className={clsx(
+                    "border-b border-gray-800/50 cursor-pointer transition-colors animate-fade-in",
+                    isIn ? "bg-green-500/5 hover:bg-green-500/10" : "hover:bg-dark-100/30"
+                  )}
                   style={{ animationDelay: `${index * 30}ms` }}
                   onClick={() => navigate(`/customers/${customer.id}`)}
                 >
@@ -518,18 +523,37 @@ export default function Customers() {
                   )}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      {customer.photo ? (
-                        <img
-                          src={customer.photo}
-                          alt={customer.name}
-                          className="w-10 h-10 rounded-xl object-cover border-2 border-gym-500/30"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gym-500 to-purple-600 flex items-center justify-center text-sm font-bold text-white shadow-lg">
-                          {customer.name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      <span className="font-medium text-white">{customer.name}</span>
+                      <div className="relative flex-shrink-0">
+                        {customer.photo ? (
+                          <img
+                            src={customer.photo}
+                            alt={customer.name}
+                            className={clsx(
+                              "w-10 h-10 rounded-xl object-cover border-2",
+                              isIn ? "border-green-500/60" : "border-gym-500/30"
+                            )}
+                          />
+                        ) : (
+                          <div className={clsx(
+                            "w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-lg",
+                            isIn ? "bg-gradient-to-br from-green-500 to-emerald-600"
+                                 : "bg-gradient-to-br from-gym-500 to-purple-600"
+                          )}>
+                            {customer.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        {isIn && (
+                          <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-green-500 border-2 border-dark-100 animate-pulse" />
+                        )}
+                      </div>
+                      <div>
+                        <span className="font-medium text-white">{customer.name}</span>
+                        {isIn && (
+                          <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-semibold text-green-400 bg-green-500/15 border border-green-500/25 px-1.5 py-0.5 rounded-full">
+                            ● Inside
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-gray-400 hidden sm:table-cell">{customer.phone || '-'}</td>
@@ -592,7 +616,8 @@ export default function Customers() {
                     </div>
                   </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         </div>
@@ -608,63 +633,78 @@ function CustomerCard({ customer, onClick, onCheckIn, onCheckOut, isCheckedIn, g
   const navigate = useNavigate();
 
   return (
-    <div 
+    <div
       onClick={onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={clsx(
-        "glass-card p-5 cursor-pointer transition-all duration-300 relative overflow-hidden group",
-        selected ? "border-gym-500 ring-2 ring-gym-500/30" : "hover:border-gym-500/50 hover-lift"
+        "glass-card cursor-pointer transition-all duration-300 relative overflow-hidden group",
+        isCheckedIn
+          ? "border-green-500/60 ring-2 ring-green-500/25 shadow-lg shadow-green-500/15"
+          : selected
+            ? "border-gym-500 ring-2 ring-gym-500/30"
+            : "hover:border-gym-500/50 hover-lift"
       )}
     >
-      {/* Gradient background on hover */}
-      <div className={clsx(
-        "absolute inset-0 bg-gradient-to-br from-gym-500/5 to-purple-500/5 transition-opacity duration-300",
-        isHovered ? "opacity-100" : "opacity-0"
-      )} />
+      {/* Checked-in green shimmer background */}
+      {isCheckedIn && (
+        <div className="absolute inset-0 bg-gradient-to-br from-green-500/8 to-emerald-500/5 pointer-events-none" />
+      )}
 
-      <div className="relative">
+      {/* Hover gradient (non-checked-in) */}
+      {!isCheckedIn && (
+        <div className={clsx(
+          "absolute inset-0 bg-gradient-to-br from-gym-500/5 to-purple-500/5 transition-opacity duration-300 pointer-events-none",
+          isHovered ? "opacity-100" : "opacity-0"
+        )} />
+      )}
+
+      {/* ── CHECKED-IN banner strip ── */}
+      {isCheckedIn && (
+        <div className="flex items-center justify-center gap-1.5 py-1.5 bg-green-500/20 border-b border-green-500/30">
+          <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+          <span className="text-[11px] font-semibold text-green-400 uppercase tracking-wide">Inside Now</span>
+        </div>
+      )}
+
+      <div className="relative p-5">
         {/* Bulk Selection Checkbox */}
         {showBulkActions && (
           <button
             onClick={(e) => { e.stopPropagation(); onSelect(); }}
             className={clsx(
               "absolute top-0 right-0 p-2 rounded-lg transition-all z-10",
-              selected 
-                ? "bg-gym-500 text-white" 
-                : "bg-dark-200 text-gray-400 hover:text-white"
+              selected ? "bg-gym-500 text-white" : "bg-dark-200 text-gray-400 hover:text-white"
             )}
           >
-            {selected ? (
-              <CheckSquare className="w-5 h-5" />
-            ) : (
-              <Square className="w-5 h-5" />
-            )}
+            {selected ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
           </button>
         )}
 
-        {/* Quick Actions Overlay */}
-        <div className={clsx(
-          "absolute -top-2 right-0 flex gap-1 transition-all duration-300 z-10",
-          isHovered ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2"
-        )}>
-          <button 
-            onClick={(e) => { e.stopPropagation(); onClick(); }}
-            className="p-2 bg-dark-200 text-gray-400 hover:text-gym-400 rounded-lg shadow-lg transition-all hover:scale-110"
-            title={t('customers.view')}
-          >
-            <Eye className="w-4 h-4" />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); navigate(`/customers/${customer.id}/edit`); }}
-            className="p-2 bg-dark-200 text-gray-400 hover:text-blue-400 rounded-lg shadow-lg transition-all hover:scale-110"
-            title={t('common.edit')}
-          >
-            <Edit className="w-4 h-4" />
-          </button>
-        </div>
+        {/* Quick Actions Overlay (edit/view — on hover) */}
+        {!isCheckedIn && (
+          <div className={clsx(
+            "absolute -top-2 right-0 flex gap-1 transition-all duration-300 z-10",
+            isHovered ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2"
+          )}>
+            <button
+              onClick={(e) => { e.stopPropagation(); onClick(); }}
+              className="p-2 bg-dark-200 text-gray-400 hover:text-gym-400 rounded-lg shadow-lg transition-all hover:scale-110"
+              title={t('customers.view')}
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); navigate(`/customers/${customer.id}/edit`); }}
+              className="p-2 bg-dark-200 text-gray-400 hover:text-blue-400 rounded-lg shadow-lg transition-all hover:scale-110"
+              title={t('common.edit')}
+            >
+              <Edit className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
-        {/* Photo */}
+        {/* Photo / Avatar */}
         <div className="flex flex-col items-center mb-4">
           <div className="relative">
             {customer.photo ? (
@@ -673,37 +713,46 @@ function CustomerCard({ customer, onClick, onCheckIn, onCheckOut, isCheckedIn, g
                 alt={customer.name}
                 className={clsx(
                   "w-20 h-20 rounded-2xl object-cover border-2 transition-all duration-300",
-                  customer.status === 'active' ? "border-green-500/50" :
-                  customer.status === 'expiring' ? "border-yellow-500/50" :
-                  customer.status === 'expired' ? "border-red-500/50" : "border-gray-700"
+                  isCheckedIn ? "border-green-400/70 shadow-lg shadow-green-500/30"
+                  : customer.status === 'active' ? "border-green-500/50"
+                  : customer.status === 'expiring' ? "border-yellow-500/50"
+                  : customer.status === 'expired' ? "border-red-500/50"
+                  : "border-gray-700"
                 )}
               />
             ) : (
               <div className={clsx(
                 "w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-bold text-white shadow-lg transition-all duration-300",
-                customer.status === 'active' ? "bg-gradient-to-br from-green-500 to-emerald-600" :
-                customer.status === 'expiring' ? "bg-gradient-to-br from-yellow-500 to-orange-500" :
-                customer.status === 'expired' ? "bg-gradient-to-br from-red-500 to-rose-600" :
-                "bg-gradient-to-br from-gym-500 to-purple-600"
+                isCheckedIn ? "bg-gradient-to-br from-green-500 to-emerald-600 shadow-green-500/40"
+                : customer.status === 'active' ? "bg-gradient-to-br from-green-500 to-emerald-600"
+                : customer.status === 'expiring' ? "bg-gradient-to-br from-yellow-500 to-orange-500"
+                : customer.status === 'expired' ? "bg-gradient-to-br from-red-500 to-rose-600"
+                : "bg-gradient-to-br from-gym-500 to-purple-600"
               )}>
                 {customer.name.charAt(0).toUpperCase()}
               </div>
             )}
-            
-            {/* Status indicator */}
-            <div className={clsx(
-              "absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-dark-100",
-              customer.status === 'active' && "bg-green-500 animate-pulse",
-              customer.status === 'expiring' && "bg-yellow-500 animate-pulse",
-              customer.status === 'expired' && "bg-red-500",
-              customer.status === 'inactive' && "bg-gray-500"
-            )} />
+
+            {/* Status dot — replaced by animated green ring when checked in */}
+            {isCheckedIn ? (
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-green-500 border-2 border-dark-100 flex items-center justify-center shadow-md shadow-green-500/50">
+                <CheckCircle className="w-3.5 h-3.5 text-white" />
+              </div>
+            ) : (
+              <div className={clsx(
+                "absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-dark-100",
+                customer.status === 'active' && "bg-green-500 animate-pulse",
+                customer.status === 'expiring' && "bg-yellow-500 animate-pulse",
+                customer.status === 'expired' && "bg-red-500",
+                customer.status === 'inactive' && "bg-gray-500"
+              )} />
+            )}
           </div>
         </div>
 
         {/* Name */}
         <h3 className="font-semibold text-white text-center mb-1 truncate w-full">{customer.name}</h3>
-        
+
         {/* Phone */}
         <p className="text-sm text-gray-400 text-center mb-3">{customer.phone || t('customers.noPhone')}</p>
 
@@ -767,35 +816,41 @@ function CustomerCard({ customer, onClick, onCheckIn, onCheckOut, isCheckedIn, g
           </div>
         </div>
 
-        {/* Quick Actions on Hover */}
+        {/* Action buttons — always visible when checked in, hover-only otherwise */}
         <div className={clsx(
-          "flex justify-center gap-2 mt-3 pt-3 border-t border-gray-800/50 transition-all duration-300",
-          isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+          "flex justify-center gap-2 mt-3 pt-3 border-t transition-all duration-300",
+          isCheckedIn
+            ? "opacity-100 translate-y-0 border-green-500/20"
+            : isHovered
+              ? "opacity-100 translate-y-0 border-gray-800/50"
+              : "opacity-0 translate-y-2 border-gray-800/50"
         )}>
           {isCheckedIn ? (
             <button
               onClick={(e) => onCheckOut(e, customer.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-medium rounded-lg hover:shadow-lg hover:shadow-red-500/30 transition-all hover:scale-105"
+              className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-semibold rounded-lg hover:shadow-lg hover:shadow-red-500/30 transition-all hover:scale-105 w-full justify-center"
             >
-              <Zap className="w-3 h-3" />
-              {t('customers.cardCheckOut')}
+              <Zap className="w-3.5 h-3.5" />
+              Check Out
             </button>
           ) : (
-            <button
-              onClick={(e) => onCheckIn(e, customer.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-medium rounded-lg hover:shadow-lg hover:shadow-green-500/30 transition-all hover:scale-105"
-            >
-              <Zap className="w-3 h-3" />
-              {t('customers.cardCheckIn')}
-            </button>
+            <>
+              <button
+                onClick={(e) => onCheckIn(e, customer.id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-medium rounded-lg hover:shadow-lg hover:shadow-green-500/30 transition-all hover:scale-105"
+              >
+                <Zap className="w-3 h-3" />
+                {t('customers.cardCheckIn')}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onClick(); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-200 text-gray-300 text-xs font-medium rounded-lg hover:bg-dark-300 transition-all hover:scale-105"
+              >
+                <Eye className="w-3 h-3" />
+                {t('customers.view')}
+              </button>
+            </>
           )}
-          <button
-            onClick={(e) => { e.stopPropagation(); onClick(); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-200 text-gray-300 text-xs font-medium rounded-lg hover:bg-dark-300 transition-all hover:scale-105"
-          >
-            <Eye className="w-3 h-3" />
-            {t('customers.view')}
-          </button>
         </div>
       </div>
     </div>
