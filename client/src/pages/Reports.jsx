@@ -43,7 +43,6 @@ function ReportsContent() {
   const [loading, setLoading] = useState(true);
   const [reportData, setReportData] = useState(null);
   const [dateRange, setDateRange] = useState('this_month');
-  const [reportType, setReportType] = useState('summary');
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
@@ -289,22 +288,6 @@ function ReportsContent() {
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           </div>
 
-          <div className="flex items-center gap-2 bg-dark-200 rounded-lg p-1">
-            {['summary', 'revenue', 'members', 'attendance'].map((type) => (
-              <button
-                key={type}
-                onClick={() => setReportType(type)}
-                className={clsx(
-                  "px-4 py-2 rounded-lg text-sm font-medium transition-all capitalize",
-                  reportType === type
-                    ? "bg-gym-600 text-white"
-                    : "text-gray-400 hover:text-white hover:bg-dark-300"
-                )}
-              >
-                {t(`reports.${type}`)}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Export Buttons */}
