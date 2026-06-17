@@ -3,7 +3,6 @@ import { useParams } from 'react-router-dom';
 import { formatCurrency } from '../utils/api';
 import {
   Dumbbell,
-  Calendar,
   Clock,
   CreditCard,
   Image,
@@ -14,6 +13,8 @@ import {
   Phone,
   TrendingUp,
   Snowflake,
+  ChevronDown,
+  Timer,
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL
@@ -261,6 +262,8 @@ export default function MemberPortal() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [attendanceExpanded, setAttendanceExpanded] = useState(false);
+
   const fetchPortalData = useCallback(async (silent = false) => {
     try {
       const res = await fetch(`${API_BASE}/portal/view/${token}`);
@@ -433,56 +436,128 @@ export default function MemberPortal() {
         </div>
 
         {/* Recent Attendance */}
-        <div className="bg-dark-300 rounded-2xl border border-gray-800/60 overflow-hidden">
-          <div className="px-5 pt-5 pb-3 flex items-center gap-2 border-b border-gray-800/40">
-            <LogIn className="w-4 h-4 text-gym-400" />
-            <h3 className="text-sm font-semibold text-white">Recent Attendance</h3>
-            <div className="ml-auto flex items-center gap-1.5 text-xs text-gray-500">
-              <TrendingUp className="w-3 h-3" />
-              {SESSION_TYPES.includes(member.membership_type)
-                ? <span>{member.sessions_used || 0} total visits</span>
-                : <span>last {recentAttendance.length} visits shown</span>
-              }
-            </div>
-          </div>
-          {recentAttendance.length === 0 ? (
-            <div className="px-5 py-8 text-center text-sm text-gray-500">No attendance records yet</div>
-          ) : (
-            <div className="divide-y divide-gray-800/40">
-              {recentAttendance.map((entry, i) => {
-                const duration = formatDuration(entry.check_in, entry.check_out);
-                const isActiveEntry = !entry.check_out && i === 0;
-                return (
-                  <div key={entry.id || i} className="px-5 py-3 flex items-center gap-3">
-                    <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                      style={{ background: isActiveEntry ? 'rgb(34 197 94 / 0.15)' : 'rgb(var(--gym-500-rgb) / 0.15)' }}
-                    >
-                      <CheckCircle
-                        className="w-4 h-4"
-                        style={{ color: isActiveEntry ? '#4ade80' : 'rgb(var(--gym-400-rgb))' }}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white">{formatDateTime(entry.check_in)}</p>
-                      {isActiveEntry ? (
-                        <p className="text-xs text-green-400 flex items-center gap-1 mt-0.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                          Currently inside
-                        </p>
-                      ) : duration ? (
-                        <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                          <Clock className="w-3 h-3" /> {duration}
-                        </p>
-                      ) : null}
-                    </div>
-                    <span className="text-xs text-gray-600">{timeAgo(entry.check_in)}</span>
+        {(() => {
+          const PREVIEW = 4;
+          const hasMore = recentAttendance.length > PREVIEW;
+          const visible = attendanceExpanded ? recentAttendance : recentAttendance.slice(0, PREVIEW);
+          const totalVisits = SESSION_TYPES.includes(member.membership_type)
+            ? member.sessions_used || 0
+            : recentAttendance.length;
+
+          return (
+            <div className="bg-dark-300 rounded-2xl border border-gray-800/60 overflow-hidden">
+              {/* Header */}
+              <div className="px-5 pt-5 pb-4 flex items-center gap-3">
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'rgb(var(--gym-500-rgb) / 0.12)' }}
+                >
+                  <LogIn className="w-4.5 h-4.5" style={{ color: 'rgb(var(--gym-400-rgb))' }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-semibold text-white">Attendance</h3>
+                  <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                    <TrendingUp className="w-3 h-3" />
+                    {SESSION_TYPES.includes(member.membership_type)
+                      ? `${totalVisits} total session${totalVisits !== 1 ? 's' : ''} used`
+                      : `${recentAttendance.length} visit${recentAttendance.length !== 1 ? 's' : ''} on record`
+                    }
+                  </p>
+                </div>
+              </div>
+
+              {recentAttendance.length === 0 ? (
+                <div className="px-5 pb-8 pt-2 text-center space-y-2">
+                  <div className="w-12 h-12 rounded-2xl mx-auto flex items-center justify-center bg-gray-800/60">
+                    <LogIn className="w-5 h-5 text-gray-600" />
                   </div>
-                );
-              })}
+                  <p className="text-sm text-gray-500">No visits recorded yet</p>
+                </div>
+              ) : (
+                <>
+                  <div className="px-4 pb-2 space-y-2">
+                    {visible.map((entry, i) => {
+                      const duration = formatDuration(entry.check_in, entry.check_out);
+                      const isActive = !entry.check_out && i === 0;
+                      const dt = new Date(entry.check_in);
+                      const dayName = dt.toLocaleDateString('en-US', { weekday: 'short' });
+                      const dateStr = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                      const timeStr = dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+                      return (
+                        <div
+                          key={entry.id || i}
+                          className="flex items-center gap-3 px-3 py-3 rounded-xl transition-colors"
+                          style={{
+                            background: isActive
+                              ? 'rgb(34 197 94 / 0.07)'
+                              : 'rgb(255 255 255 / 0.02)',
+                            border: isActive
+                              ? '1px solid rgb(34 197 94 / 0.2)'
+                              : '1px solid rgb(255 255 255 / 0.04)',
+                          }}
+                        >
+                          {/* Day column */}
+                          <div className="w-10 flex-shrink-0 text-center">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide"
+                               style={{ color: isActive ? '#4ade80' : 'rgb(var(--gym-400-rgb))' }}>
+                              {dayName}
+                            </p>
+                            <p className="text-xs text-gray-500 leading-tight">{dateStr.split(' ')[1]}</p>
+                            <p className="text-[9px] text-gray-600 leading-tight">{dateStr.split(' ')[0]}</p>
+                          </div>
+
+                          {/* Divider */}
+                          <div className="w-px h-8 bg-gray-800/80 flex-shrink-0" />
+
+                          {/* Main info */}
+                          <div className="flex-1 min-w-0">
+                            {isActive ? (
+                              <p className="text-xs font-semibold text-green-400 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
+                                Currently inside
+                              </p>
+                            ) : (
+                              <p className="text-xs font-medium text-gray-300">{timeStr}</p>
+                            )}
+                            {duration && (
+                              <p className="text-xs text-gray-600 flex items-center gap-1 mt-0.5">
+                                <Timer className="w-3 h-3" /> {duration}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Time ago */}
+                          <span className="text-[11px] text-gray-600 flex-shrink-0">{timeAgo(entry.check_in)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Expand / collapse */}
+                  {hasMore && (
+                    <button
+                      onClick={() => setAttendanceExpanded(e => !e)}
+                      className="w-full flex items-center justify-center gap-2 py-3.5 border-t border-gray-800/50 text-xs font-medium text-gray-500 hover:text-gray-300 hover:bg-white/[0.02] transition-all"
+                    >
+                      {attendanceExpanded ? (
+                        <>
+                          <ChevronDown className="w-3.5 h-3.5 rotate-180 transition-transform" />
+                          Show less
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="w-3.5 h-3.5 transition-transform" />
+                          Show {recentAttendance.length - PREVIEW} more visit{recentAttendance.length - PREVIEW !== 1 ? 's' : ''}
+                        </>
+                      )}
+                    </button>
+                  )}
+                </>
+              )}
             </div>
-          )}
-        </div>
+          );
+        })()}
 
         {/* Recent Payments */}
         <div className="bg-dark-300 rounded-2xl border border-gray-800/60 overflow-hidden">
