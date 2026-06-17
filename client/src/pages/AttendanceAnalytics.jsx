@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api, formatDate } from '../utils/api';
 import { useLanguage } from '../context/LanguageContext';
 import { StatCardSkeleton } from '../components/Skeleton';
 import {
-  Activity, Clock, Users, TrendingUp, BarChart3, Calendar, LogIn
+  Activity, Clock, Users, TrendingUp, BarChart3, Calendar, LogIn, RefreshCw
 } from 'lucide-react';
 import clsx from 'clsx';
 import PageHint from '../components/PageHint';
@@ -18,14 +18,9 @@ export default function AttendanceAnalytics() {
   const [heatmap, setHeatmap] = useState(null);
   const [heatmapMonth, setHeatmapMonth] = useState('');
   const [heatmapLoading, setHeatmapLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadStats();
-    loadHeatmap('');
-    api.get('/stats').then(d => setGenderData(d.gender_breakdown || [])).catch(() => {});
-  }, []);
-
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     try {
       const data = await api.get('/attendance/stats');
       setStats(data);
@@ -34,7 +29,33 @@ export default function AttendanceAnalytics() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const refreshAll = useCallback(async (showSpinner = true) => {
+    if (showSpinner) setRefreshing(true);
+    try {
+      await Promise.all([
+        loadStats(),
+        api.get('/stats').then(d => setGenderData(d.gender_breakdown || [])).catch(() => {}),
+      ]);
+    } finally {
+      if (showSpinner) setRefreshing(false);
+    }
+  }, [loadStats]);
+
+  // Load on mount
+  useEffect(() => {
+    loadStats();
+    loadHeatmap('');
+    api.get('/stats').then(d => setGenderData(d.gender_breakdown || [])).catch(() => {});
+  }, [loadStats]);
+
+  // Re-fetch stats when tab becomes visible again
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') refreshAll(false); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [refreshAll]);
 
   const loadHeatmap = async (month) => {
     setHeatmapLoading(true);
@@ -75,14 +96,24 @@ export default function AttendanceAnalytics() {
         The peak hours chart shows which times of day get the most check-ins — use it to staff shifts appropriately. The busiest days grid highlights high-traffic windows for scheduling classes. The trend line shows daily or weekly check-in totals over time; look for drops during holidays and spikes after promotions. All data here comes from the Check-In page — the more consistently you record arrivals, the more accurate these charts become.
       </PageHint>
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gym-500/20 flex items-center justify-center">
-            <Activity className="w-6 h-6 text-gym-400" />
-          </div>
-          {t('analytics.title')}
-        </h1>
-        <p className="text-gray-400 mt-1">{t('analytics.subtitle')}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gym-500/20 flex items-center justify-center">
+              <Activity className="w-6 h-6 text-gym-400" />
+            </div>
+            {t('analytics.title')}
+          </h1>
+          <p className="text-gray-400 mt-1">{t('analytics.subtitle')}</p>
+        </div>
+        <button
+          onClick={() => refreshAll(true)}
+          disabled={refreshing}
+          className="flex-shrink-0 p-2.5 bg-dark-300 text-gray-400 hover:text-white rounded-xl border border-gray-700 hover:bg-dark-400 transition-all disabled:opacity-50 mt-1"
+          title="Refresh stats"
+        >
+          <RefreshCw className={clsx('w-4 h-4', refreshing && 'animate-spin')} />
+        </button>
       </div>
 
       {/* Summary Cards */}
