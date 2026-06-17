@@ -659,6 +659,27 @@ function CustomerCard({ customer, onClick, onCheckIn, onCheckOut, isCheckedIn, g
         )} />
       )}
 
+      {/* ── Eye + Edit buttons — top-right corner of the card, appear on hover ── */}
+      <div className={clsx(
+        "absolute top-2 right-2 flex gap-1 transition-all duration-200 z-20",
+        isHovered ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1 pointer-events-none"
+      )}>
+        <button
+          onClick={(e) => { e.stopPropagation(); onClick(); }}
+          className="p-1.5 bg-dark-100/90 backdrop-blur-sm text-gray-400 hover:text-gym-400 rounded-lg shadow-lg border border-gray-700/60 transition-all hover:scale-110"
+          title={t('customers.view')}
+        >
+          <Eye className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); navigate(`/customers/${customer.id}/edit`); }}
+          className="p-1.5 bg-dark-100/90 backdrop-blur-sm text-gray-400 hover:text-blue-400 rounded-lg shadow-lg border border-gray-700/60 transition-all hover:scale-110"
+          title={t('common.edit')}
+        >
+          <Edit className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
       {/* ── CHECKED-IN banner strip ── */}
       {isCheckedIn && (
         <div className="flex items-center justify-center gap-1.5 py-1.5 bg-green-500/20 border-b border-green-500/30">
@@ -679,29 +700,6 @@ function CustomerCard({ customer, onClick, onCheckIn, onCheckOut, isCheckedIn, g
           >
             {selected ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
           </button>
-        )}
-
-        {/* Quick Actions Overlay (edit/view — on hover) */}
-        {!isCheckedIn && (
-          <div className={clsx(
-            "absolute -top-2 right-0 flex gap-1 transition-all duration-300 z-10",
-            isHovered ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2"
-          )}>
-            <button
-              onClick={(e) => { e.stopPropagation(); onClick(); }}
-              className="p-2 bg-dark-200 text-gray-400 hover:text-gym-400 rounded-lg shadow-lg transition-all hover:scale-110"
-              title={t('customers.view')}
-            >
-              <Eye className="w-4 h-4" />
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); navigate(`/customers/${customer.id}/edit`); }}
-              className="p-2 bg-dark-200 text-gray-400 hover:text-blue-400 rounded-lg shadow-lg transition-all hover:scale-110"
-              title={t('common.edit')}
-            >
-              <Edit className="w-4 h-4" />
-            </button>
-          </div>
         )}
 
         {/* Photo / Avatar */}

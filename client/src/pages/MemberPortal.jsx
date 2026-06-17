@@ -10,8 +10,9 @@ import {
   CheckCircle,
   AlertTriangle,
   XCircle,
-  ChevronRight,
   LogIn,
+  Phone,
+  TrendingUp,
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL
@@ -279,28 +280,39 @@ export default function MemberPortal() {
         className="py-6 px-4 border-b border-gray-800/50"
         style={{ background: 'linear-gradient(135deg, rgb(var(--gym-600-rgb) / 0.2), transparent)' }}
       >
-        <div className="max-w-lg mx-auto flex items-center gap-3">
-          {gymLogo ? (
-            <img
-              src={gymLogo}
-              alt={gymName}
-              className="w-12 h-12 rounded-xl object-cover border border-gym-500/30 flex-shrink-0"
-            />
-          ) : (
-            <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{
-                background: 'linear-gradient(135deg, rgb(var(--gym-500-rgb)), rgb(var(--gym-700-rgb)))',
-                boxShadow: '0 4px 14px rgb(var(--gym-500-rgb) / 0.35)',
-              }}
-            >
-              <Dumbbell className="w-6 h-6 text-white" />
+        <div className="max-w-lg mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            {gymLogo ? (
+              <img
+                src={gymLogo}
+                alt={gymName}
+                className="w-12 h-12 rounded-xl object-cover border border-gym-500/30 flex-shrink-0"
+              />
+            ) : (
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{
+                  background: 'linear-gradient(135deg, rgb(var(--gym-500-rgb)), rgb(var(--gym-700-rgb)))',
+                  boxShadow: '0 4px 14px rgb(var(--gym-500-rgb) / 0.35)',
+                }}
+              >
+                <Dumbbell className="w-6 h-6 text-white" />
+              </div>
+            )}
+            <div>
+              <h1 className="text-lg font-bold text-white">{gymName}</h1>
+              <p className="text-xs text-gray-400">Member Portal</p>
             </div>
-          )}
-          <div>
-            <h1 className="text-lg font-bold text-white">{gymName}</h1>
-            <p className="text-xs text-gray-400">Member Portal</p>
           </div>
+          {gym?.phone && (
+            <a
+              href={`tel:${gym.phone}`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-gray-300 hover:text-white border border-gray-700/60 bg-dark-300/60 hover:bg-dark-300 transition-all flex-shrink-0"
+            >
+              <Phone className="w-3.5 h-3.5" style={{ color: 'rgb(var(--gym-400-rgb))' }} />
+              {gym.phone}
+            </a>
+          )}
         </div>
       </div>
 
@@ -345,13 +357,33 @@ export default function MemberPortal() {
                   </span>
                   <StatusBadge status={member.status} daysLeft={member.days_until_expiry} />
                 </div>
-                {member.membership_end && (
-                  <p className="mt-2 text-xs text-gray-500">
-                    {member.status === 'expired' ? 'Expired' : 'Expires'}: {formatDate(member.membership_end)}
-                  </p>
-                )}
+                <div className="mt-2 space-y-0.5">
+                  {member.membership_start && (
+                    <p className="text-xs text-gray-500">
+                      Started: <span className="text-gray-400">{formatDate(member.membership_start)}</span>
+                    </p>
+                  )}
+                  {member.membership_end && (
+                    <p className="text-xs text-gray-500">
+                      {member.status === 'expired' ? 'Expired' : 'Expires'}: <span className="text-gray-400">{formatDate(member.membership_end)}</span>
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
+
+            {/* Outstanding balance warning */}
+            {member.outstanding_balance > 0 && (
+              <div className="mt-4 flex items-center gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/25">
+                <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-red-400">Outstanding Balance</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    You have an unpaid balance of <span className="text-white font-semibold">{formatCurrency(member.outstanding_balance)}</span>. Please settle it at the gym.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Days Counter */}
             <div className="mt-4 rounded-xl bg-dark-400/60 border border-gray-800/40">
@@ -365,7 +397,13 @@ export default function MemberPortal() {
           <div className="px-5 pt-5 pb-3 flex items-center gap-2 border-b border-gray-800/40">
             <LogIn className="w-4 h-4 text-gym-400" />
             <h3 className="text-sm font-semibold text-white">Recent Attendance</h3>
-            <span className="ml-auto text-xs text-gray-500">{recentAttendance.length} visits</span>
+            <div className="ml-auto flex items-center gap-1.5 text-xs text-gray-500">
+              <TrendingUp className="w-3 h-3" />
+              {SESSION_TYPES.includes(member.membership_type)
+                ? <span>{member.sessions_used || 0} total visits</span>
+                : <span>last {recentAttendance.length} visits shown</span>
+              }
+            </div>
           </div>
           {recentAttendance.length === 0 ? (
             <div className="px-5 py-8 text-center text-sm text-gray-500">No attendance records yet</div>
