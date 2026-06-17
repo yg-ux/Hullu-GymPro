@@ -587,7 +587,7 @@ router.get('/inactive-alert', authenticateToken, async (req, res) => {
       WHERE c.gym_id = ?
         AND c.status IN ('active', 'expiring')
       GROUP BY c.id, c.name, c.phone, c.photo, c.status, c.membership_end
-      HAVING (MAX(a.check_in) IS NULL OR MAX(a.check_in) < NOW() - INTERVAL '1 day' * ?)
+      HAVING (MAX(a.check_in) IS NULL OR MAX(a.check_in) < NOW() - CAST(? AS integer) * INTERVAL '1 day')
       ORDER BY last_check_in ASC NULLS FIRST
       LIMIT 50
     `, [gymId, days]);

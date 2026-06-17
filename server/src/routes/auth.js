@@ -141,11 +141,14 @@ router.post('/register', validateRegister, async (req, res) => {
     }
 
     const today = new Date();
+    const trialEnd = new Date(today);
+    trialEnd.setDate(trialEnd.getDate() + TRIAL_DAYS);
+
     const gymInsertSql = `
       INSERT INTO gyms (id, name, slug, email, phone, subscription_status, subscription_plan, subscription_start, subscription_end, color_theme, logo, max_members, sms_enabled)
-      VALUES (?, ?, ?, ?, ?, 'active', 'free', ?, ?, ?, ?, 10, 1)
+      VALUES (?, ?, ?, ?, ?, 'trial', 'free', ?, ?, ?, ?, 10, 1)
     `;
-    const gymParams = [gymId, gymName, slug, email, phone || null, today.toISOString().split('T')[0], today.toISOString().split('T')[0], colorTheme || 'default', logo || null];
+    const gymParams = [gymId, gymName, slug, email, phone || null, today.toISOString().split('T')[0], trialEnd.toISOString().split('T')[0], colorTheme || 'default', logo || null];
 
     await runQuery(gymInsertSql, gymParams);
 
@@ -164,7 +167,7 @@ router.post('/register', validateRegister, async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    const subscription = checkSubscription({ subscription_status: 'active', subscription_start: today.toISOString(), subscription_end: today.toISOString() });
+    const subscription = checkSubscription({ subscription_status: 'trial', subscription_start: today.toISOString(), subscription_end: trialEnd.toISOString() });
 
     res.status(201).json({
       token,
@@ -474,7 +477,7 @@ router.post('/subscribe', authenticateToken, async (req, res) => {
 // Get gym settings
 router.get('/settings', authenticateToken, async (req, res) => {
   try {
-    const settings = await getAll('SELECT * FROM settings WHERE gym_id = ? OR gym_id = "global"', [req.user.gym_id]);
+    const settings = await getAll("SELECT * FROM settings WHERE gym_id = ? OR gym_id = 'global'", [req.user.gym_id]);
     const settingsObj = {};
     settings.forEach(s => {
       settingsObj[s.key] = s.value;

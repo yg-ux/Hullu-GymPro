@@ -18,10 +18,16 @@ class ReminderService {
 
   async _alreadySentToday(customerId, messageType) {
     const today = new Date().toISOString().split('T')[0];
-    const existing = await getOne(`
-      SELECT id FROM sms_logs
-      WHERE customer_id = ? AND message_type = ? AND created_at::date = ?::date
-    `, [customerId, messageType, today]);
+    // customer_id can be NULL for gym-level reminders — must use IS NULL, not = NULL
+    const existing = customerId != null
+      ? await getOne(
+          `SELECT id FROM sms_logs WHERE customer_id = ? AND message_type = ? AND created_at::date = ?::date`,
+          [customerId, messageType, today]
+        )
+      : await getOne(
+          `SELECT id FROM sms_logs WHERE customer_id IS NULL AND message_type = ? AND created_at::date = ?::date`,
+          [messageType, today]
+        );
     return !!existing;
   }
 

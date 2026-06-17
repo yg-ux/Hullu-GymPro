@@ -104,13 +104,11 @@ app.post('/api/update-demo-sms', async (req, res) => {
   }
 
   try {
-    const { getDb, saveDatabase } = await import('./models/database.js');
-    const db = getDb();
+    const { runQuery } = await import('./models/database.js');
     const smsKey = process.env.GEEZSMS_API_KEY;
     if (!smsKey) return res.status(500).json({ error: 'GEEZSMS_API_KEY not configured' });
 
-    db.run("UPDATE gyms SET sms_enabled = 1, sms_api_key = ? WHERE email = 'demo@afrofitness.com'", [smsKey]);
-    saveDatabase();
+    await runQuery("UPDATE gyms SET sms_enabled = 1, sms_api_key = ? WHERE email = 'demo@afrofitness.com'", [smsKey]);
 
     res.json({ success: true, message: 'SMS updated for demo gym' });
   } catch (error) {
@@ -138,7 +136,7 @@ app.post('/api/cron/sms-reminders', async (req, res) => {
 });
 
 // Demo seeding endpoint
-app.post('/api/seed-demo', (req, res) => {
+app.post('/api/seed-demo', async (req, res) => {
   const { secret } = req.body;
   const seedSecret = process.env.SEED_SECRET;
 
@@ -146,131 +144,120 @@ app.post('/api/seed-demo', (req, res) => {
     return res.status(401).json({ error: 'Invalid secret key' });
   }
 
-  import('./models/database.js').then(({ getDb, runQuery, getOne, saveDatabase }) => {
-    import('bcryptjs').then(({ default: bcrypt }) => {
-      import('uuid').then(({ v4: uuidv4 }) => {
-        const db = getDb();
+  try {
+    const { runQuery, getOne } = await import('./models/database.js');
+    const { default: bcrypt } = await import('bcryptjs');
+    const { v4: uuidv4 } = await import('uuid');
 
-        const existingGym = db.exec("SELECT * FROM gyms WHERE email = 'demo@afrofitness.com'");
-        if (existingGym.length > 0 && existingGym[0].values.length > 0) {
-          // Always refresh subscription_end to 1 year from now and fix SMS
-          const futureEnd = new Date(); futureEnd.setFullYear(futureEnd.getFullYear() + 1);
-          const smsApiKey = process.env.GEEZSMS_API_KEY;
-          db.run(`UPDATE gyms SET subscription_status='active', subscription_plan='pro', subscription_end=?, max_members=-1, sms_enabled=?, color_theme='purple' WHERE email='demo@afrofitness.com'`,
-            [futureEnd.toISOString().split('T')[0], smsApiKey ? 1 : 0]);
-          // Fix owner user name/email fields
-          db.run(`UPDATE gym_users SET name='Demo Owner', email='demo@afrofitness.com' WHERE username='demo@afrofitness.com'`);
-          saveDatabase();
-          return res.json({ message: 'Demo gym refreshed', email: 'demo@afrofitness.com', password: 'Demo1234' });
-        }
+    // Refresh if demo gym already exists
+    const existingGym = await getOne("SELECT id FROM gyms WHERE email = 'demo@afrofitness.com'");
+    if (existingGym) {
+      const futureEnd = new Date(); futureEnd.setFullYear(futureEnd.getFullYear() + 1);
+      const smsApiKey = process.env.GEEZSMS_API_KEY;
+      await runQuery(
+        `UPDATE gyms SET subscription_status='active', subscription_plan='pro', subscription_end=?, max_members=-1, sms_enabled=?, color_theme='purple' WHERE email='demo@afrofitness.com'`,
+        [futureEnd.toISOString().split('T')[0], smsApiKey ? 1 : 0]
+      );
+      return res.json({ message: 'Demo gym refreshed', email: 'demo@afrofitness.com', password: 'Demo1234' });
+    }
 
-        const gymId = uuidv4();
-        const userId = uuidv4();
-        const today = new Date();
-        const oneYearAgo = new Date(today);
-        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const gymId = uuidv4();
+    const userId = uuidv4();
+    const today = new Date();
+    const oneYearAgo = new Date(today); oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const oneYearAhead = new Date(today); oneYearAhead.setFullYear(oneYearAhead.getFullYear() + 1);
+    const smsApiKey = process.env.GEEZSMS_API_KEY || null;
 
-        const membershipDurations = { '1_month': 30, '2_months': 60, '3_months': 90, '6_months': 180, '1_year': 365, '3_days_week': 30 };
-        const ethiopianNames = [
-          'Abebe Tadesse', 'Tigist Haile', 'Mohammed Ali', 'Aster Demissie', 'John Smith',
-          'Fatima Omar', 'Samuel Girma', 'Helen Tesfaye', 'Tadesse Bekele', 'Birtukan Feyissa',
-          'Yonas Solomon', 'Mahlet Alemu', 'Dagmawi Habte', 'Selamawit Solomon', 'Henok Tadesse',
-          'Hiwot Girma', 'Kaleb Ayele', 'Emebet Bekele', 'Dawit Mengistu', 'Tigist Wolde',
-          'Abraham Kebede', 'Meselech Asrat', 'Samuel Hailu', 'Liya Teklu', 'Mikhael Dawit',
-          'Hana Kassa', 'Yosef Yirdaw', 'Frehiwot Amare', 'Daniel Girma', 'Almaz Seyoum',
-          'Abel Tesfaye', 'Mekdes Alemu', 'Zewdu Haile', 'Tigist Mengistu', 'Samrawit Girma',
-          'Bekele Demissie', 'Tigist Tadesse', 'Hailu Kebede', 'Frehiwot Belete', 'Tadesse Alemu',
-          'Mahlet Girma', 'Dagmawi Tadesse', 'Selamawit Hailu', 'Abraham Wolde', 'Helen Girma',
-          'Yonas Bekele', 'Aster Alemu', 'Samuel Tadesse', 'Mahlet Solomon'
-        ];
-        const membershipTypes = ['1_month', '2_months', '3_months', '6_months', '1_year', '3_days_week'];
-        const paymentMethods = ['cash', 'card', 'mobile'];
-        const smsApiKey = process.env.GEEZSMS_API_KEY || null;
+    await runQuery(`
+      INSERT INTO gyms (id, name, slug, email, phone, subscription_status, subscription_plan, subscription_start, subscription_end, max_members, sms_enabled, sms_api_key, color_theme, created_at)
+      VALUES (?, ?, ?, ?, ?, 'active', 'pro', ?, ?, -1, ?, ?, 'purple', ?)
+    `, [gymId, 'Afro Fitness Center', 'afro-fitness-center', 'demo@afrofitness.com', '+251911000000',
+        oneYearAgo.toISOString().split('T')[0], oneYearAhead.toISOString().split('T')[0],
+        smsApiKey ? 1 : 0, smsApiKey, today.toISOString()]);
 
-        try {
-          const oneYearAhead = new Date(today); oneYearAhead.setFullYear(oneYearAhead.getFullYear() + 1);
-          db.run(`
-            INSERT INTO gyms (id, name, slug, email, phone, subscription_status, subscription_plan, subscription_start, subscription_end, max_members, sms_enabled, sms_api_key, color_theme, created_at)
-            VALUES (?, ?, ?, ?, ?, 'active', 'pro', ?, ?, -1, ?, ?, 'purple', ?)
-          `, [gymId, 'Afro Fitness Center', 'afro-fitness-center', 'demo@afrofitness.com', '+251911000000',
-              oneYearAgo.toISOString().split('T')[0], oneYearAhead.toISOString().split('T')[0],
-              smsApiKey ? 1 : 0, smsApiKey, today.toISOString()]);
+    const hashedPassword = bcrypt.hashSync('Demo1234', 10);
+    await runQuery(
+      `INSERT INTO gym_users (id, gym_id, username, password, role, created_at) VALUES (?, ?, ?, ?, 'owner', ?)`,
+      [userId, gymId, 'demo@afrofitness.com', hashedPassword, today.toISOString()]
+    );
 
-          const hashedPassword = bcrypt.hashSync('Demo1234', 10);
-          db.run(`INSERT INTO gym_users (id, gym_id, username, name, email, password, role, created_at) VALUES (?, ?, ?, ?, ?, ?, 'owner', ?)`,
-            [userId, gymId, 'demo@afrofitness.com', 'Demo Owner', 'demo@afrofitness.com', hashedPassword, today.toISOString()]);
+    const membershipDurations = { '1_month': 30, '2_months': 60, '3_months': 90, '6_months': 180, '1_year': 365, '3_days_week': 30 };
+    const ethiopianNames = [
+      'Abebe Tadesse', 'Tigist Haile', 'Mohammed Ali', 'Aster Demissie', 'John Smith',
+      'Fatima Omar', 'Samuel Girma', 'Helen Tesfaye', 'Tadesse Bekele', 'Birtukan Feyissa',
+      'Yonas Solomon', 'Mahlet Alemu', 'Dagmawi Habte', 'Selamawit Solomon', 'Henok Tadesse',
+      'Hiwot Girma', 'Kaleb Ayele', 'Emebet Bekele', 'Dawit Mengistu', 'Tigist Wolde',
+      'Abraham Kebede', 'Meselech Asrat', 'Samuel Hailu', 'Liya Teklu', 'Mikhael Dawit',
+      'Hana Kassa', 'Yosef Yirdaw', 'Frehiwot Amare', 'Daniel Girma', 'Almaz Seyoum',
+      'Abel Tesfaye', 'Mekdes Alemu', 'Zewdu Haile', 'Tigist Mengistu', 'Samrawit Girma',
+      'Bekele Demissie', 'Tigist Tadesse', 'Hailu Kebede', 'Frehiwot Belete', 'Tadesse Alemu',
+      'Mahlet Girma', 'Dagmawi Tadesse', 'Selamawit Hailu', 'Abraham Wolde', 'Helen Girma',
+      'Yonas Bekele', 'Aster Alemu', 'Samuel Tadesse', 'Mahlet Solomon',
+    ];
+    const membershipTypes = ['1_month', '2_months', '3_months', '6_months', '1_year', '3_days_week'];
+    const paymentMethods = ['cash', 'card', 'mobile'];
 
-          for (let i = 0; i < 50; i++) {
-            const customerId = uuidv4();
-            const name = ethiopianNames[i % ethiopianNames.length] + (i >= ethiopianNames.length ? ` ${Math.floor(i / ethiopianNames.length) + 1}` : '');
-            const phone = `+251912${String(1000000 + Math.floor(Math.random() * 9000000))}`;
-            const membership_type = membershipTypes[Math.floor(Math.random() * membershipTypes.length)];
-            const duration = membershipDurations[membership_type];
+    for (let i = 0; i < 50; i++) {
+      const customerId = uuidv4();
+      const name = ethiopianNames[i % ethiopianNames.length] + (i >= ethiopianNames.length ? ` ${Math.floor(i / ethiopianNames.length) + 1}` : '');
+      const phone = `+251912${String(1000000 + Math.floor(Math.random() * 9000000))}`;
+      const membership_type = membershipTypes[Math.floor(Math.random() * membershipTypes.length)];
+      const duration = membershipDurations[membership_type];
+      const daysAgo = Math.floor(Math.random() * 365);
+      const membershipStart = new Date(today); membershipStart.setDate(membershipStart.getDate() - daysAgo);
+      const membershipEnd = new Date(membershipStart); membershipEnd.setDate(membershipEnd.getDate() + duration);
+      const status = membershipEnd < today ? 'expired' : 'active';
 
-            const daysAgo = Math.floor(Math.random() * 365);
-            const membershipStart = new Date(today);
-            membershipStart.setDate(membershipStart.getDate() - daysAgo);
-            const membershipEnd = new Date(membershipStart);
-            membershipEnd.setDate(membershipEnd.getDate() + duration);
-            const status = membershipEnd < today ? 'expired' : 'active';
+      await runQuery(
+        `INSERT INTO customers (id, gym_id, name, phone, email, membership_type, membership_start, membership_end, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [customerId, gymId, name, phone, `${name.toLowerCase().replace(/\s/g, '.')}@email.com`,
+         membership_type, membershipStart.toISOString().split('T')[0], membershipEnd.toISOString().split('T')[0], status, membershipStart.toISOString()]
+      );
 
-            db.run(`INSERT INTO customers (id, gym_id, name, phone, email, membership_type, membership_start, membership_end, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [customerId, gymId, name, phone, `${name.toLowerCase().replace(/\s/g, '.')}@email.com`,
-               membership_type, membershipStart.toISOString().split('T')[0], membershipEnd.toISOString().split('T')[0], status, membershipStart.toISOString()]);
+      const numPayments = 3 + Math.floor(Math.random() * 6);
+      for (let j = 0; j < numPayments; j++) {
+        const paymentDate = new Date(today);
+        paymentDate.setDate(paymentDate.getDate() - Math.floor(Math.random() * Math.min(daysAgo + 30, 365)));
+        const amountMap = { '1_year': 12000, '6_months': 7000, '3_months': 4000, '2_months': 2800 };
+        const amount = amountMap[membership_type] || 1500;
+        await runQuery(
+          `INSERT INTO payments (id, gym_id, customer_id, amount, payment_method, payment_date, membership_type, start_date, end_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [uuidv4(), gymId, customerId, amount, paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
+           paymentDate.toISOString().split('T')[0], membership_type, membershipStart.toISOString().split('T')[0], membershipEnd.toISOString().split('T')[0], paymentDate.toISOString()]
+        );
+      }
 
-            const numPayments = 3 + Math.floor(Math.random() * 6);
-            for (let j = 0; j < numPayments; j++) {
-              const paymentId = uuidv4();
-              const paymentDaysAgo = Math.floor(Math.random() * Math.min(daysAgo + 30, 365));
-              const paymentDate = new Date(today);
-              paymentDate.setDate(paymentDate.getDate() - paymentDaysAgo);
-              let amount = 1500;
-              if (membership_type === '1_year') amount = 12000;
-              else if (membership_type === '6_months') amount = 7000;
-              else if (membership_type === '3_months') amount = 4000;
-              else if (membership_type === '2_months') amount = 2800;
-
-              db.run(`INSERT INTO payments (id, gym_id, customer_id, amount, payment_method, payment_date, membership_type, start_date, end_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [paymentId, gymId, customerId, amount, paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
-                 paymentDate.toISOString().split('T')[0], membership_type, membershipStart.toISOString().split('T')[0], membershipEnd.toISOString().split('T')[0], paymentDate.toISOString()]);
-            }
-
-            if (status === 'active' || Math.random() > 0.5) {
-              const numCheckIns = 10 + Math.floor(Math.random() * 40);
-              for (let k = 0; k < numCheckIns; k++) {
-                const attendanceId = uuidv4();
-                const checkInDate = new Date(membershipStart);
-                checkInDate.setDate(checkInDate.getDate() + Math.floor(Math.random() * duration));
-                if (checkInDate > today) continue;
-                const checkInTime = new Date(checkInDate);
-                checkInTime.setHours(6 + Math.floor(Math.random() * 12));
-                checkInTime.setMinutes(Math.floor(Math.random() * 60));
-                let checkOut = null;
-                if (Math.random() > 0.3) {
-                  const co = new Date(checkInTime);
-                  co.setHours(checkInTime.getHours() + 1 + Math.floor(Math.random() * 2));
-                  checkOut = co.toISOString();
-                }
-                db.run(`INSERT INTO attendance (id, gym_id, customer_id, check_in, check_out) VALUES (?, ?, ?, ?, ?)`,
-                  [attendanceId, gymId, customerId, checkInTime.toISOString(), checkOut]);
-              }
-            }
+      if (status === 'active' || Math.random() > 0.5) {
+        const numCheckIns = 10 + Math.floor(Math.random() * 40);
+        for (let k = 0; k < numCheckIns; k++) {
+          const checkInDate = new Date(membershipStart);
+          checkInDate.setDate(checkInDate.getDate() + Math.floor(Math.random() * duration));
+          if (checkInDate > today) continue;
+          checkInDate.setHours(6 + Math.floor(Math.random() * 12), Math.floor(Math.random() * 60));
+          let checkOut = null;
+          if (Math.random() > 0.3) {
+            const co = new Date(checkInDate);
+            co.setHours(co.getHours() + 1 + Math.floor(Math.random() * 2));
+            checkOut = co.toISOString();
           }
-
-          saveDatabase();
-          res.json({
-            success: true,
-            message: 'Demo gym created successfully!',
-            gym: { name: 'Afro Fitness Center', email: 'demo@afrofitness.com', password: 'Demo1234', plan: 'Pro' },
-            stats: { customers: 50, dataRange: '1 year' }
-          });
-        } catch (error) {
-          console.error('Seed error:', error);
-          res.status(500).json({ error: 'Failed to seed demo data: ' + error.message });
+          await runQuery(
+            `INSERT INTO attendance (id, gym_id, customer_id, check_in, check_out) VALUES (?, ?, ?, ?, ?)`,
+            [uuidv4(), gymId, customerId, checkInDate.toISOString(), checkOut]
+          );
         }
-      });
-    }).catch(err => res.status(500).json({ error: 'Module import failed: ' + err.message }));
-  }).catch(err => res.status(500).json({ error: 'Module import failed: ' + err.message }));
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Demo gym created successfully!',
+      gym: { name: 'Afro Fitness Center', email: 'demo@afrofitness.com', password: 'Demo1234', plan: 'Pro' },
+      stats: { customers: 50, dataRange: '1 year' },
+    });
+  } catch (error) {
+    console.error('Seed error:', error);
+    res.status(500).json({ error: 'Failed to seed demo data: ' + error.message });
+  }
 });
 
 // Error handling middleware
