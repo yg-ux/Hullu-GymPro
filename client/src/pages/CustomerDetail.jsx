@@ -28,8 +28,6 @@ import {
   Printer,
   History,
   Receipt,
-  Image,
-  Plus,
   Share2,
   Copy,
   Check,
@@ -67,14 +65,6 @@ export default function CustomerDetail() {
   const [freezeHistory, setFreezeHistory] = useState([]);
   const [freezeHistoryLoading, setFreezeHistoryLoading] = useState(false);
 
-  // Progress photos state
-  const [progressPhotos, setProgressPhotos] = useState([]);
-  const [photosLoading, setPhotosLoading] = useState(false);
-  const [showPhotoUpload, setShowPhotoUpload] = useState(false);
-  const [photoForm, setPhotoForm] = useState({ angle: 'front', notes: '', weight: '', body_fat: '', photo_data: null });
-  const [photoUploading, setPhotoUploading] = useState(false);
-  const [viewPhoto, setViewPhoto] = useState(null);
-
   // Portal link state
   const [portalToken, setPortalToken] = useState(null);
   const [portalLoading, setPortalLoading] = useState(false);
@@ -98,18 +88,8 @@ export default function CustomerDetail() {
   useEffect(() => {
     loadCustomer();
     loadFreezeHistory();
-    loadProgressPhotos();
     loadPortalToken();
   }, [id]);
-
-  const loadProgressPhotos = async () => {
-    setPhotosLoading(true);
-    try {
-      const data = await api.get(`/progress/${id}`);
-      setProgressPhotos(data.data || []);
-    } catch { setProgressPhotos([]); }
-    finally { setPhotosLoading(false); }
-  };
 
   const loadPortalToken = async () => {
     try {
@@ -136,47 +116,6 @@ export default function CustomerDetail() {
       setPortalCopied(true);
       setTimeout(() => setPortalCopied(false), 2000);
     });
-  };
-
-  const handlePhotoFileChange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
-    try {
-      const compressed = await resizeImage(file, 800); // slightly larger for progress photos
-      setPhotoForm(p => ({ ...p, photo_data: compressed }));
-    } catch {
-      toast.error('Could not process image. Please try another file.');
-    }
-  };
-
-  const handlePhotoUpload = async (e) => {
-    e.preventDefault();
-    if (!photoForm.photo_data) { toast.error('Please select a photo'); return; }
-    setPhotoUploading(true);
-    try {
-      await api.post(`/progress/${id}`, {
-        photo_data: photoForm.photo_data,
-        angle: photoForm.angle,
-        notes: photoForm.notes || undefined,
-        weight: photoForm.weight ? parseFloat(photoForm.weight) : undefined,
-        body_fat: photoForm.body_fat ? parseFloat(photoForm.body_fat) : undefined,
-      });
-      toast.success('Progress photo added!');
-      setShowPhotoUpload(false);
-      setPhotoForm({ angle: 'front', notes: '', weight: '', body_fat: '', photo_data: null });
-      loadProgressPhotos();
-    } catch (err) { toast.error(err.message || 'Failed to upload photo'); }
-    finally { setPhotoUploading(false); }
-  };
-
-  const deleteProgressPhoto = async (photoId) => {
-    if (!confirm('Delete this progress photo?')) return;
-    try {
-      await api.delete(`/progress/${id}/${photoId}`);
-      toast.success('Photo deleted');
-      loadProgressPhotos();
-    } catch { toast.error('Failed to delete photo'); }
   };
 
   const loadFreezeHistory = async () => {
@@ -1105,122 +1044,8 @@ export default function CustomerDetail() {
             )}
           </div>
 
-          {/* Progress Photos */}
-          <div className="card p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Image className="w-4 h-4 text-purple-400" />
-                <h3 className="text-sm font-semibold text-white">Progress Photos</h3>
-                {progressPhotos.length > 0 && <span className="text-xs text-gray-500">({progressPhotos.length})</span>}
-              </div>
-              <button onClick={() => setShowPhotoUpload(true)} className="flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 transition-colors">
-                <Plus className="w-3 h-3" /> Add
-              </button>
-            </div>
-
-            {photosLoading ? (
-              <div className="grid grid-cols-2 gap-2">{[1,2].map(i => <div key={i} className="h-20 bg-gray-800 rounded-lg animate-pulse" />)}</div>
-            ) : progressPhotos.length === 0 ? (
-              <div className="text-center py-4">
-                <Camera className="w-8 h-8 mx-auto text-gray-700 mb-2" />
-                <p className="text-xs text-gray-600">No progress photos yet</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2">
-                {progressPhotos.slice(0, 4).map(photo => (
-                  <div key={photo.id} className="relative group cursor-pointer rounded-lg overflow-hidden bg-dark-200"
-                       onClick={() => setViewPhoto(photo)}>
-                    <div className="aspect-square bg-gray-800 flex items-center justify-center text-gray-600 text-xs">
-                      {photo.photo_preview ? <img src={photo.photo_preview} alt="" className="w-full h-full object-cover" onError={e => e.target.style.display='none'} /> : null}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Camera className="w-6 h-6 text-gray-600" />
-                      </div>
-                    </div>
-                    <div className="absolute bottom-0 inset-x-0 bg-black/60 p-1">
-                      <p className="text-xs text-white capitalize">{photo.angle}</p>
-                      <p className="text-xs text-gray-400">{photo.taken_at?.slice(0,10)}</p>
-                    </div>
-                    <button onClick={e => { e.stopPropagation(); deleteProgressPhoto(photo.id); }}
-                      className="absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full items-center justify-center hidden group-hover:flex transition-all">
-                      <X className="w-3 h-3 text-white" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       </div>
-
-      {/* Photo Upload Modal */}
-      {showPhotoUpload && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-dark-300 rounded-2xl p-6 w-full max-w-sm space-y-4 border border-gray-700">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">Add Progress Photo</h3>
-              <button onClick={() => setShowPhotoUpload(false)} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
-            <form onSubmit={handlePhotoUpload} className="space-y-3">
-              <label className="block">
-                <div className={clsx('border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors', photoForm.photo_data ? 'border-purple-500/50 bg-purple-500/5' : 'border-gray-700 hover:border-gray-600')}>
-                  {photoForm.photo_data ? (
-                    <img src={photoForm.photo_data} alt="preview" className="w-24 h-24 object-cover rounded-lg mx-auto" />
-                  ) : (
-                    <><Camera className="w-8 h-8 text-gray-600 mx-auto mb-1" /><p className="text-xs text-gray-500">Click to select photo</p></>
-                  )}
-                </div>
-                <input type="file" accept="image/*" onChange={handlePhotoFileChange} className="hidden" />
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1">Angle</label>
-                  <select value={photoForm.angle} onChange={e => setPhotoForm(p => ({...p, angle: e.target.value}))} className="input-field text-sm py-1.5">
-                    {['front','back','left','right','other'].map(a => <option key={a} value={a} className="capitalize">{a}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1">Weight (kg)</label>
-                  <input type="number" step="0.1" value={photoForm.weight} onChange={e => setPhotoForm(p => ({...p, weight: e.target.value}))} className="input-field text-sm py-1.5" placeholder="75.5" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Notes</label>
-                <input value={photoForm.notes} onChange={e => setPhotoForm(p => ({...p, notes: e.target.value}))} className="input-field text-sm" placeholder="Optional notes..." />
-              </div>
-              <div className="flex gap-2 pt-1">
-                <button type="button" onClick={() => setShowPhotoUpload(false)} className="btn-secondary flex-1">Cancel</button>
-                <button type="submit" disabled={photoUploading} className="btn-primary flex-1">{photoUploading ? 'Uploading...' : 'Save Photo'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* View Progress Photo Modal */}
-      {viewPhoto && (
-        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={() => setViewPhoto(null)}>
-          <button className="absolute top-4 right-4 p-2 text-white" onClick={() => setViewPhoto(null)}><X className="w-6 h-6" /></button>
-          <div className="bg-dark-300 rounded-2xl p-4 max-w-sm w-full space-y-3" onClick={e => e.stopPropagation()}>
-            <div className="text-center">
-              <span className="text-sm font-medium text-white capitalize">{viewPhoto.angle} view</span>
-              <span className="text-xs text-gray-500 ml-2">{viewPhoto.taken_at?.slice(0,10)}</span>
-            </div>
-            {viewPhoto.weight && <p className="text-xs text-center text-gym-400">⚖️ {viewPhoto.weight} kg</p>}
-            {viewPhoto.notes && <p className="text-xs text-center text-gray-400 italic">"{viewPhoto.notes}"</p>}
-            {viewPhoto.photo_data ? (
-              <img src={viewPhoto.photo_data} alt="Progress" className="w-full rounded-xl object-cover max-h-80" />
-            ) : (
-              <div className="text-center text-gray-500 text-xs py-6">
-                <Camera className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                <button onClick={async (e) => {
-                  e.stopPropagation();
-                  try { const full = await api.get(`/progress/${id}/${viewPhoto.id}`); setViewPhoto(full); } catch {}
-                }} className="text-gym-400 hover:underline text-xs">Load full photo</button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Photo Fullscreen Modal */}
       {photoFullscreen && customer.photo && (
