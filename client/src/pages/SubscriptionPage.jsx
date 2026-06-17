@@ -18,6 +18,8 @@ const PLANS = [
     nameKey: 'subscription.plan.free',
     price: 0,
     description: 'Get started at no cost',
+    icon: Lock,
+    color: 'from-gray-500 to-gray-600',
     featureKeys: [
       'subscription.feature.upTo10',
       'subscription.feature.customerMgmt',
@@ -32,6 +34,8 @@ const PLANS = [
     price: 1499,
     description: 'For gyms ready to grow',
     popular: true,
+    icon: Zap,
+    color: 'from-blue-500 to-cyan-600',
     featureKeys: [
       'subscription.feature.upTo100',
       'subscription.feature.everythingFree',
@@ -47,6 +51,8 @@ const PLANS = [
     nameKey: 'subscription.plan.pro',
     price: 3499,
     description: 'Full power, no limits',
+    icon: Crown,
+    color: 'from-purple-500 to-violet-600',
     featureKeys: [
       'subscription.feature.unlimited',
       'subscription.feature.everythingStarter',
