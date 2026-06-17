@@ -130,7 +130,7 @@ function ExpenseForm({ form, onChange, onSubmit, onClose, saving, staffList = []
   return (
     <>
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 w-full sm:w-[480px] bg-dark-200 border-l border-gray-800/60 z-50 flex flex-col shadow-2xl animate-slide-up">
+      <div className="fixed top-16 bottom-0 right-0 w-full sm:w-[480px] bg-dark-200 border-l border-gray-800/60 z-50 flex flex-col shadow-2xl animate-slide-up">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-800/60">
           <h2 className="text-lg font-semibold text-white flex items-center gap-2">
