@@ -634,9 +634,19 @@ export default function Landing() {
 
           <div className="pt-8 border-t border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-gray-600 text-sm">{t('landing.footer.copyright')} 🇪🇹</p>
-            <div className="flex gap-6 text-sm text-gray-600">
-              <span className="cursor-default hover:text-gray-400 transition-colors">Privacy Policy</span>
-              <span className="cursor-default hover:text-gray-400 transition-colors">Terms of Service</span>
+            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+              <a
+                href="https://aleqatech.million-designers.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-gray-500 hover:text-gray-300 transition-colors"
+              >
+                Developed by <span className="font-semibold text-gray-400 hover:text-white transition-colors">Aleqa Tech</span>
+              </a>
+              <div className="flex gap-6 text-sm text-gray-600">
+                <span className="cursor-default hover:text-gray-400 transition-colors">Privacy Policy</span>
+                <span className="cursor-default hover:text-gray-400 transition-colors">Terms of Service</span>
+              </div>
             </div>
           </div>
         </div>
