@@ -394,7 +394,7 @@ function EquipmentForm({ form, onChange, onSubmit, onClose, saving }) {
   return (
     <>
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 w-full sm:w-[500px] bg-dark-200 border-l border-gray-800/60 z-50 flex flex-col shadow-2xl">
+      <div className="fixed top-16 bottom-0 right-0 w-full sm:w-[500px] bg-dark-200 border-l border-gray-800/60 z-50 flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-800/60">
           <h2 className="text-lg font-semibold text-white flex items-center gap-2">
             <Dumbbell className="w-5 h-5 text-gym-400" />
