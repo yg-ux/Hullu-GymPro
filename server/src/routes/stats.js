@@ -251,15 +251,17 @@ router.get('/reports', authenticateToken, async (req, res) => {
     `, [gymId]);
 
     const monthlySummary = await getAll(`
-      SELECT
-        TO_CHAR(payment_date::date, 'YYYY-MM') as month,
-        SUM(amount) as total,
-        COUNT(*) as count
-      FROM payments
-      WHERE gym_id = ? AND payment_date::date >= CURRENT_DATE - INTERVAL '12 months'
-      GROUP BY TO_CHAR(payment_date::date, 'YYYY-MM')
-      ORDER BY month DESC
-      LIMIT 12
+      SELECT month, total, count FROM (
+        SELECT
+          TO_CHAR(payment_date::date, 'YYYY-MM') as month,
+          SUM(amount) as total,
+          COUNT(*) as count
+        FROM payments
+        WHERE gym_id = ? AND payment_date::date >= CURRENT_DATE - INTERVAL '12 months'
+        GROUP BY TO_CHAR(payment_date::date, 'YYYY-MM')
+        ORDER BY month DESC
+        LIMIT 12
+      ) t ORDER BY month ASC
     `, [gymId]);
 
     const maxMonth = monthlySummary.length > 0 ? Math.max(...monthlySummary.map(m => m.total)) : 1;
@@ -303,7 +305,9 @@ router.get('/reports', authenticateToken, async (req, res) => {
 
     const totalCheckIns = attendanceData.reduce((sum, d) => sum + parseInt(d.count), 0);
     const avgDaily = attendanceData.length > 0 ? Math.round(totalCheckIns / attendanceData.length) : 0;
-    const peakDay = attendanceData.length > 0 ? attendanceData[0].date : 'N/A';
+    const peakDay = attendanceData.length > 0
+      ? attendanceData.reduce((max, d) => parseInt(d.count) > parseInt(max.count) ? d : max).date
+      : 'N/A';
 
     const busiestHourResult = await getOne(`
       SELECT TO_CHAR(check_in, 'HH24') as hour, COUNT(*) as count

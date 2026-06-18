@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, formatDate, formatCurrency, getMembershipLabel, getPaymentMethodLabel } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useToast } from '../context/ToastContext';
 import {
   FileText,
   Download,
@@ -40,8 +41,10 @@ function ReportsContent() {
   const navigate = useNavigate();
   const { gym } = useAuth();
   const { t } = useLanguage();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [reportData, setReportData] = useState(null);
+  const [error, setError] = useState(null);
   const [dateRange, setDateRange] = useState('this_month');
   const [exporting, setExporting] = useState(false);
 
@@ -51,11 +54,13 @@ function ReportsContent() {
 
   const loadReportData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await api.get(`/stats/reports?range=${dateRange}`);
       setReportData(data);
-    } catch (error) {
-      console.error('Failed to load report data:', error);
+    } catch (err) {
+      console.error('Failed to load report data:', err);
+      setError(err.message || 'Failed to load report data');
     } finally {
       setLoading(false);
     }
@@ -96,8 +101,9 @@ function ReportsContent() {
       link.download = filename;
       link.click();
       URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Export failed:', error);
+    } catch (err) {
+      console.error('Export failed:', err);
+      toast.error(err.message || 'Export failed');
     } finally {
       setExporting(false);
     }
@@ -222,8 +228,9 @@ function ReportsContent() {
       printWindow.document.write(html);
       printWindow.document.close();
       printWindow.print();
-    } catch (error) {
-      console.error('PDF export failed:', error);
+    } catch (err) {
+      console.error('PDF export failed:', err);
+      toast.error(err.message || 'Failed to generate report');
     } finally {
       setExporting(false);
     }
@@ -233,6 +240,19 @@ function ReportsContent() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gym-500" />
+      </div>
+    );
+  }
+
+  if (error && !reportData) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <BarChart3 className="w-12 h-12 text-gray-600" />
+        <p className="text-gray-400 text-center">{error}</p>
+        <button onClick={loadReportData} className="btn-secondary inline-flex items-center gap-2">
+          <RefreshCw className="w-4 h-4" />
+          Try Again
+        </button>
       </div>
     );
   }
