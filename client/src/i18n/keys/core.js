@@ -20,7 +20,7 @@ export const core = {
     'nav.kiosk':         'Kiosk Mode',
     'nav.analytics':     'Analytics',
     'nav.forecast':      'Forecast',
-    'nav.retention':     'Retention',
+    'nav.retention':     'Follow Up',
     'nav.expenses':      'Expenses',
     'nav.equipment':     'Equipment',
     'nav.branches':      'Branches',

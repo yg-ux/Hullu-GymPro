@@ -343,9 +343,9 @@ export default function Retention() {
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
             <Activity className="w-6 h-6 text-gym-400" />
-            Retention
+            Follow Up
           </h1>
-          <p className="text-gray-400 text-sm mt-1">Smart alerts for member engagement</p>
+          <p className="text-gray-400 text-sm mt-1">Stay on top of members who need attention</p>
         </div>
         <button
           onClick={loadRetention}

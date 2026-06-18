@@ -48,7 +48,7 @@ const navigation = [
   { name: 'Staff',      i18n: 'nav.staff',     href: '/staff',        icon: UserCog,         roles: ['owner','admin','manager'], requiresPlan: 'starter' },
   { name: 'Reports',    i18n: 'nav.reports',   href: '/reports',      icon: BarChart3,       roles: ['owner','admin','manager'], requiresPlan: 'pro' },
   { name: 'Revenue',    i18n: 'nav.revenue',   href: '/revenue',      icon: TrendingUp,      roles: ['owner','admin','manager'], requiresPlan: 'pro' },
-  { name: 'Retention',  i18n: 'nav.retention', href: '/retention',    icon: UserMinus,       roles: ['owner','admin','manager'], requiresPlan: 'pro' },
+  { name: 'Follow Up',  i18n: 'nav.retention', href: '/retention',    icon: UserMinus,       roles: ['owner','admin','manager'], requiresPlan: 'pro' },
   { name: 'Expenses',   i18n: 'nav.expenses',  href: '/expenses',     icon: Receipt,         roles: ['owner','admin','manager'], requiresPlan: 'pro' },
   { name: 'Equipment',  i18n: 'nav.equipment', href: '/equipment',    icon: Wrench,          roles: ['owner','admin','manager'], requiresPlan: 'pro' },
   { name: 'Analytics',  i18n: 'nav.analytics', href: '/attendance-analytics', icon: Activity, roles: ['owner','admin','manager'] },

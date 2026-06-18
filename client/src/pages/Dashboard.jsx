@@ -226,7 +226,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHint id="dashboard">
-        Stat cards show today's check-ins, active members, expiring memberships, and this month's revenue. If any memberships expire within 7 days an alert appears — click it to go to the Retention page and send renewal reminders. The revenue chart tracks your last 6 months of income so you can spot trends at a glance. The activity feed at the bottom shows the latest check-ins, new members, and payments — use it as your daily opening routine.
+        Stat cards show today's check-ins, active members, expiring memberships, and this month's revenue. If any memberships expire within 7 days an alert appears — click it to go to the Follow Up page and send renewal reminders. The revenue chart tracks your last 6 months of income so you can spot trends at a glance. The activity feed at the bottom shows the latest check-ins, new members, and payments — use it as your daily opening routine.
       </PageHint>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

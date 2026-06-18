@@ -169,7 +169,7 @@ export default function CheckIn() {
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
       <PageHint id="check-in">
-        Type a member's name or phone number in the search box, then click Check In next to their name. Members with expired memberships are flagged with a red badge — you can still check them in, but it's a prompt to collect a renewal payment. Every check-in feeds into Attendance Analytics, the member's profile, and the Retention page, so consistent use gives you accurate data.
+        Type a member's name or phone number in the search box, then click Check In next to their name. Members with expired memberships are flagged with a red badge — you can still check them in, but it's a prompt to collect a renewal payment. Every check-in feeds into Attendance Analytics, the member's profile, and the Follow Up page, so consistent use gives you accurate data.
       </PageHint>
       {/* Header */}
       <div className="text-center">
