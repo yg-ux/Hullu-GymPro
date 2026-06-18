@@ -477,17 +477,8 @@ export default function Layout() {
           "absolute left-0 top-0 h-full w-72 bg-dark-100 border-r border-gray-800 transition-transform duration-300 overflow-y-auto overflow-x-hidden",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}>
-          <div className="flex items-center justify-between p-4 border-b border-gray-800">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gym-500/15 flex items-center justify-center">
-                <Dumbbell className="w-6 h-6 text-gym-400" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-white">{gym?.name || 'Hullu Gyms'}</h1>
-                <p className="text-xs text-gray-400 truncate max-w-[140px]">{t('layout.byHullu')}</p>
-              </div>
-            </div>
-            <button 
+          <div className="flex items-center justify-end p-3 border-b border-gray-800/50">
+            <button
               onClick={() => setSidebarOpen(false)}
               className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-dark-300 transition-colors"
             >
@@ -905,8 +896,8 @@ function SidebarContent({ onNavigate, recentActivity = [], getTimeAgo, gymCount 
           </div>
         )}
         <div>
-          <h1 className="text-lg font-bold text-white">Hullu Gyms</h1>
-          <p className="text-xs truncate max-w-[150px]" style={{ color: 'rgb(var(--gym-400-rgb))' }}>{gym?.name || t('layout.yourGym')}</p>
+          <h1 className="text-base font-bold text-white leading-tight truncate max-w-[150px]">{gym?.name || t('layout.yourGym')}</h1>
+          <p className="text-[11px] text-gray-500 mt-0.5">Powered by <span className="text-gray-400 font-medium">Hullu Gyms</span></p>
         </div>
       </div>
 
