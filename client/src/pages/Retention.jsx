@@ -18,6 +18,7 @@ import {
   Activity,
   Bell,
   ExternalLink,
+  Phone,
 } from 'lucide-react';
 import clsx from 'clsx';
 import PageHint from '../components/PageHint';
@@ -27,6 +28,90 @@ function timeAgoLabel(days) {
   if (days === 0) return 'Today';
   if (days === 1) return '1 day ago';
   return `${days} days ago`;
+}
+
+// Compute days since expiry client-side from membership_end so it
+// matches the date shown on the card and avoids server timezone skew.
+function daysExpiredLabel(membershipEnd) {
+  if (!membershipEnd) return '';
+  const end = new Date(membershipEnd);
+  const days = Math.max(0, Math.floor((Date.now() - end.getTime()) / 86400000));
+  if (days === 0) return 'Expired today';
+  if (days === 1) return 'Expired 1 day ago';
+  return `Expired ${days} days ago`;
+}
+
+// ── Renewal advisory dialog ───────────────────────────────────────────────────
+function RenewalDialog({ member, onSendSMS, onClose }) {
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50" onClick={onClose} />
+      <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+        <div className="bg-dark-200 border border-gray-800/60 rounded-2xl w-full max-w-md shadow-2xl animate-scale-in">
+
+          {/* Header */}
+          <div className="flex items-center gap-3 px-6 py-5 border-b border-gray-800/60">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+              <Phone className="w-5 h-5 text-amber-400" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-white">Call first — then follow up by text</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Reaching out to {member.name}</p>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="px-6 py-5 space-y-4">
+            <div className="bg-amber-500/8 border border-amber-500/20 rounded-xl p-4 space-y-3">
+              <p className="text-sm text-gray-200 leading-relaxed">
+                Members who've lapsed have already moved on. A text message is easy to swipe away — and most of the time, it is.
+              </p>
+              <p className="text-sm font-semibold text-white">
+                A personal phone call is far more powerful.
+              </p>
+              <p className="text-sm text-gray-300 leading-relaxed">
+                Two minutes on the phone — using their name, asking how they're doing, and offering something specific — brings people back at a rate no SMS can match. Use the text as a follow-up after the call, not your opening move.
+              </p>
+            </div>
+
+            {member.phone && (
+              <div className="flex items-center gap-3 px-4 py-3 bg-dark-300 rounded-xl border border-gray-700/50">
+                <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <span className="text-sm text-white font-medium tracking-wide">{member.phone}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-gray-800/60 flex flex-col gap-2">
+            {member.phone && (
+              <a
+                href={`tel:${member.phone}`}
+                onClick={onClose}
+                className="w-full flex items-center justify-center gap-2 py-3 bg-green-500 hover:bg-green-400 text-white rounded-xl font-semibold transition-all text-sm shadow-lg shadow-green-500/20"
+              >
+                <Phone className="w-4 h-4" />
+                Call {member.name}
+              </a>
+            )}
+            <button
+              onClick={onSendSMS}
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-dark-300 hover:bg-dark-400 text-gray-300 hover:text-white rounded-xl font-medium border border-gray-700 transition-all text-sm"
+            >
+              <Send className="w-4 h-4" />
+              Send renewal SMS instead
+            </button>
+            <button
+              onClick={onClose}
+              className="w-full py-2 text-xs text-gray-500 hover:text-gray-400 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
 }
 
 function MemberCard({ member, actionLabel, actionColor = 'gym', badge, onAction, sending }) {
@@ -150,6 +235,7 @@ export default function Retention() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('inactive');
   const [sendingId, setSendingId] = useState(null);
+  const [renewalTarget, setRenewalTarget] = useState(null);
   const toast = useToast();
 
   useEffect(() => {
@@ -183,8 +269,14 @@ export default function Retention() {
   }
 
   const handleSendSMS      = (member) => sendReminder(member, 'inactive');
-  const handleOfferRenewal = (member) => sendReminder(member, 'winback');
   const handleExpiringSMS  = (member) => sendReminder(member, 'expiring');
+  // Win-back: open advisory dialog first; SMS only if owner confirms
+  const handleOfferRenewal = (member) => setRenewalTarget(member);
+  const handleRenewalSMS   = () => {
+    const m = renewalTarget;
+    setRenewalTarget(null);
+    sendReminder(m, 'winback');
+  };
 
   if (loading) {
     return (
@@ -394,7 +486,7 @@ export default function Retention() {
                 <MemberCard key={m.id || i} member={m} actionLabel="Offer Renewal" actionColor="green" sending={sendingId}
                   badge={
                     <span className="flex-shrink-0 px-2 py-0.5 rounded-full text-xs bg-red-500/15 text-red-400 border border-red-500/20 font-medium whitespace-nowrap">
-                      Expired {m.days_expired != null ? `${m.days_expired}d ago` : ''}
+                      {daysExpiredLabel(m.membership_end)}
                     </span>
                   }
                   onAction={handleOfferRenewal}
@@ -570,6 +662,15 @@ export default function Retention() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Renewal advisory dialog */}
+      {renewalTarget && (
+        <RenewalDialog
+          member={renewalTarget}
+          onSendSMS={handleRenewalSMS}
+          onClose={() => setRenewalTarget(null)}
+        />
       )}
     </div>
   );
