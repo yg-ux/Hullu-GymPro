@@ -635,33 +635,29 @@ function RevenueChart({ data, period, onPeriodChange, animated, stats }) {
 
                   {/* Hover tooltip */}
                   {hov && (() => {
-                    const TW = 118, TH = 38;
+                    const TW = 80, TH = 24;
                     const tipX = Math.min(Math.max(pt.x - TW / 2, pad.left), VW - pad.right - TW);
-                    const tipY = Math.max(pt.y - r - TH - 10, pad.top);
-                    const carX = Math.min(Math.max(pt.x, tipX + 10), tipX + TW - 10);
+                    const tipY = Math.max(pt.y - r - TH - 8, pad.top);
+                    const carX = Math.min(Math.max(pt.x, tipX + 8), tipX + TW - 8);
                     return (
                       <g>
-                        <rect x={tipX + 1.5} y={tipY + 1.5} width={TW} height={TH}
-                          rx={6} fill="rgba(0,0,0,0.35)" />
                         <rect x={tipX} y={tipY} width={TW} height={TH}
-                          rx={6} fill="#0c1222"
-                          stroke={pt.color} strokeWidth="0.8" strokeOpacity="0.5" />
-                        <rect x={tipX} y={tipY + 4} width={2.5} height={TH - 8}
-                          rx={1} fill={pt.color} opacity="0.8" />
-                        <text x={tipX + 10} y={tipY + 13} fill={pt.color}
-                          fontSize="8.5" fontWeight="500"
+                          rx={5} fill="#0c1222"
+                          stroke={pt.color} strokeWidth="0.8" strokeOpacity="0.6" />
+                        <text x={tipX + TW / 2} y={tipY + 9} textAnchor="middle"
+                          fill={pt.color} fontSize="7.5" fontWeight="600"
                           fontFamily="ui-sans-serif,system-ui,sans-serif">
                           {long}
                         </text>
-                        <text x={tipX + 10} y={tipY + 29} fill="white"
-                          fontSize="12" fontWeight="800"
+                        <text x={tipX + TW / 2} y={tipY + 19} textAnchor="middle"
+                          fill="white" fontSize="9" fontWeight="800"
                           fontFamily="ui-sans-serif,system-ui,sans-serif">
-                          ETB {pt.total.toLocaleString()}
+                          {fmtVal(pt.total)}
                         </text>
                         <path
-                          d={`M${carX - 4},${tipY + TH} L${carX},${tipY + TH + 5} L${carX + 4},${tipY + TH}`}
+                          d={`M${carX - 3},${tipY + TH} L${carX},${tipY + TH + 4} L${carX + 3},${tipY + TH}`}
                           fill="#0c1222" stroke={pt.color}
-                          strokeOpacity="0.5" strokeWidth="0.8" strokeLinejoin="round" />
+                          strokeOpacity="0.6" strokeWidth="0.8" strokeLinejoin="round" />
                       </g>
                     );
                   })()}
