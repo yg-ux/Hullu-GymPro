@@ -555,17 +555,36 @@ router.get('/revenue', authenticateToken, async (req, res) => {
       ORDER BY label
     `, [gymId]);
 
-    const forecastResult = await getOne(`
-      SELECT COALESCE(SUM(amount), 0) as total FROM payments
-      WHERE gym_id = ? AND payment_date::date >= CURRENT_DATE - INTERVAL '30 days'
-    `, [gymId]);
+    const [lastMonthResult, lastWeekResult, yesterdayResult, forecastResult, prevPeriodResult, projCountResult] = await Promise.all([
+      getOne(`SELECT COALESCE(SUM(amount), 0) as total FROM payments
+        WHERE gym_id = ? AND TO_CHAR(payment_date::date, 'YYYY-MM') = TO_CHAR(NOW() - INTERVAL '1 month', 'YYYY-MM')`, [gymId]),
+      getOne(`SELECT COALESCE(SUM(amount), 0) as total FROM payments
+        WHERE gym_id = ? AND payment_date::date >= CURRENT_DATE - INTERVAL '14 days' AND payment_date::date < CURRENT_DATE - INTERVAL '7 days'`, [gymId]),
+      getOne(`SELECT COALESCE(SUM(amount), 0) as total FROM payments
+        WHERE gym_id = ? AND payment_date::date = CURRENT_DATE - INTERVAL '1 day'`, [gymId]),
+      getOne(`SELECT COALESCE(SUM(amount), 0) as total FROM payments
+        WHERE gym_id = ? AND payment_date::date >= CURRENT_DATE - INTERVAL '30 days'`, [gymId]),
+      getOne(`SELECT COALESCE(SUM(amount), 0) as total FROM payments
+        WHERE gym_id = ? AND payment_date::date >= CURRENT_DATE - INTERVAL '60 days' AND payment_date::date < CURRENT_DATE - INTERVAL '30 days'`, [gymId]),
+      getOne(`SELECT COUNT(*) as count FROM payments
+        WHERE gym_id = ? AND payment_date::date >= CURRENT_DATE - INTERVAL '30 days'`, [gymId]),
+    ]);
+
     const monthlyAvg = forecastResult?.total || 0;
+    const prevPeriodAvg = prevPeriodResult?.total || 0;
+    const growthRate = prevPeriodAvg > 0
+      ? Math.round(((monthlyAvg - prevPeriodAvg) / prevPeriodAvg) * 1000) / 10
+      : 0;
+    const projectedPayments = Math.round((projCountResult?.count || 0) * 1.05);
 
     res.json({
       total_revenue: totalResult?.total || 0,
       this_month: monthResult?.total || 0,
+      last_month: lastMonthResult?.total || 0,
       this_week: weekResult?.total || 0,
+      last_week: lastWeekResult?.total || 0,
       today: todayResult?.total || 0,
+      yesterday: yesterdayResult?.total || 0,
       payment_methods: paymentMethods,
       top_customers: topCustomers,
       recent_transactions: recentTransactions,
@@ -574,9 +593,9 @@ router.get('/revenue', authenticateToken, async (req, res) => {
       weekly_trend: weeklyTrend,
       yearly_trend: yearlyTrend,
       forecast: {
-        predicted_revenue: monthlyAvg * 1.1,
-        growth_rate: 8.5,
-        projected_payments: 25
+        predicted_revenue: Math.round(monthlyAvg * 1.05),
+        growth_rate: growthRate,
+        projected_payments: projectedPayments
       }
     });
   } catch (error) {
