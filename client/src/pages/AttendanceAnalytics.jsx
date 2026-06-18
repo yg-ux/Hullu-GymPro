@@ -639,9 +639,9 @@ function AttendanceHeatmap({ matrix, max }) {
   const peakDayIdx  = dayTotals.indexOf(Math.max(...dayTotals));
   const peakHourIdx = hourTotals.indexOf(Math.max(...hourTotals));
 
-  // Show 5 am–11 pm only; trim leading/trailing empty hours (±1 buffer)
-  const HOUR_RANGE = Array.from({ length: 19 }, (_, i) => i + 5); // 5..23
-  let firstActive = 23, lastActive = 5;
+  // Show 4 am–8 pm only; trim leading/trailing empty hours (±1 buffer)
+  const HOUR_RANGE = Array.from({ length: 17 }, (_, i) => i + 4); // 4..20
+  let firstActive = 20, lastActive = 4;
   HOUR_RANGE.forEach(h => {
     if (hourTotals[h] > 0) {
       if (h < firstActive) firstActive = h;
@@ -651,7 +651,7 @@ function AttendanceHeatmap({ matrix, max }) {
   const visibleHours = total === 0
     ? HOUR_RANGE
     : HOUR_RANGE.filter(h =>
-        h >= Math.max(5, firstActive - 1) && h <= Math.min(23, lastActive + 1)
+        h >= Math.max(4, firstActive - 1) && h <= Math.min(20, lastActive + 1)
       );
 
   return (
@@ -718,7 +718,11 @@ function AttendanceHeatmap({ matrix, max }) {
                     key={d}
                     onMouseEnter={e => {
                       const r = e.currentTarget.getBoundingClientRect();
-                      setTooltip({ x: r.left + r.width / 2, y: r.top, d, h, v });
+                      // Clamp x so tooltip never overflows left or right edge
+                      const x = Math.max(100, Math.min(r.left + r.width / 2, window.innerWidth - 100));
+                      // If cell is near the top of the viewport, show tooltip below instead
+                      const above = r.top > 80;
+                      setTooltip({ x, y: above ? r.top : r.bottom, above, d, h, v });
                     }}
                     onMouseLeave={() => setTooltip(null)}
                     className="h-7 rounded-[5px] flex items-center justify-center cursor-default
@@ -763,7 +767,15 @@ function AttendanceHeatmap({ matrix, max }) {
       {/* Tooltip */}
       {tooltip && (
         <div className="fixed z-50 pointer-events-none"
-          style={{ left: tooltip.x, top: tooltip.y - 8, transform: 'translate(-50%, -100%)' }}>
+          style={{
+            left: tooltip.x,
+            top: tooltip.above ? tooltip.y - 8 : tooltip.y + 8,
+            transform: tooltip.above ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+          }}>
+          {/* Caret — above tooltip when showing below cell */}
+          {!tooltip.above && (
+            <div className="w-2 h-2 bg-gray-900 border-t border-l border-gray-700 rotate-45 mx-auto mb-[-5px]" />
+          )}
           <div className="bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 shadow-2xl text-center whitespace-nowrap">
             <p className="text-white font-semibold text-sm">
               {tooltip.v > 0
@@ -774,7 +786,10 @@ function AttendanceHeatmap({ matrix, max }) {
               {DAY_LABELS[tooltip.d]} · {formatHour(tooltip.h)}–{formatHour((tooltip.h + 1) % 24)}
             </p>
           </div>
-          <div className="w-2 h-2 bg-gray-900 border-b border-r border-gray-700 rotate-45 mx-auto -mt-[5px]" />
+          {/* Caret — below tooltip when showing above cell */}
+          {tooltip.above && (
+            <div className="w-2 h-2 bg-gray-900 border-b border-r border-gray-700 rotate-45 mx-auto -mt-[5px]" />
+          )}
         </div>
       )}
     </div>
