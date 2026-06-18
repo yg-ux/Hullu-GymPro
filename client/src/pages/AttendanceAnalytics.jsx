@@ -639,6 +639,7 @@ function AttendanceHeatmap({ matrix, max }) {
   );
   const peakDayIdx  = dayTotals.indexOf(Math.max(...dayTotals));
   const peakHourIdx = hourTotals.indexOf(Math.max(...hourTotals));
+  const todayDayIdx = new Date().getDay(); // 0=Sun … 6=Sat, matches matrix index
 
   // Show 4 am–8 pm only; trim leading/trailing empty hours (±1 buffer)
   const HOUR_RANGE = Array.from({ length: 17 }, (_, i) => i + 4); // 4..20
@@ -678,15 +679,18 @@ function AttendanceHeatmap({ matrix, max }) {
         <div className="grid mb-2" style={{ gridTemplateColumns: '3rem repeat(7, 1fr) 2.5rem', gap: '3px' }}>
           <div /> {/* hour-label spacer */}
           {DAY_LABELS.map((day, d) => {
-            const isPeak = total > 0 && d === peakDayIdx;
+            const isToday = d === todayDayIdx;
             return (
               <div key={d} className="text-center leading-tight py-0.5">
-                <p className={clsx('text-xs font-semibold', isPeak ? 'text-yellow-400' : 'text-gray-400')}>
+                <p className={clsx('text-xs font-semibold', isToday ? 'text-gym-400' : 'text-gray-400')}>
                   {day}
                 </p>
-                <p className={clsx('text-[10px]', isPeak ? 'text-yellow-500/80' : 'text-gray-600')}>
+                <p className={clsx('text-[10px]', isToday ? 'text-gym-400/70' : 'text-gray-600')}>
                   {dayTotals[d] > 0 ? dayTotals[d] : ''}
                 </p>
+                {isToday && (
+                  <div className="w-1 h-1 rounded-full bg-gym-400 mx-auto mt-0.5" />
+                )}
               </div>
             );
           })}
