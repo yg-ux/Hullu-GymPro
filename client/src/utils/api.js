@@ -46,8 +46,10 @@ async function request(endpoint, options = {}) {
   }
   
   if (!response.ok) {
-    // Token missing or expired — clear storage and redirect to login
-    if (response.status === 401) {
+    // Token missing or expired — clear storage and redirect to login.
+    // Skip this for auth endpoints (login/register): a 401 there means wrong
+    // credentials, not an expired session, and the real error should be shown.
+    if (response.status === 401 && !endpoint.startsWith('/auth/')) {
       localStorage.removeItem('token');
       localStorage.removeItem('gym');
       localStorage.removeItem('subscription');
