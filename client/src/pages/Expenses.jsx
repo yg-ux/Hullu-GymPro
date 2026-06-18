@@ -923,7 +923,7 @@ export default function Expenses() {
           </h1>
           <p className="text-gray-400 mt-1">Track and manage your gym's operating costs</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <button onClick={loadExpenses} className="p-2.5 bg-dark-300 text-gray-400 hover:text-white rounded-xl border border-gray-700 hover:bg-dark-400 transition-all">
             <RefreshCw className="w-4 h-4" />
           </button>
@@ -933,15 +933,14 @@ export default function Expenses() {
                 onClick={handleExportCsv}
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-dark-300 hover:bg-dark-400 text-gray-300 hover:text-white rounded-xl font-medium border border-gray-700 transition-all"
               >
-                <Download className="w-4 h-4" />
-                Export CSV
+                <Download className="w-4 h-4" /><span className="hidden sm:inline">Export CSV</span>
               </button>
               {/* Monthly bills button — always visible on list tab */}
               {recurringStatus?.generated ? (
                 <div className="inline-flex items-center gap-1 rounded-xl overflow-hidden border border-emerald-500/30">
                   <span className="inline-flex items-center gap-2 px-3 py-2.5 bg-emerald-500/15 text-emerald-400 text-sm font-medium">
                     <span>✓</span>
-                    Bills logged
+                    <span className="hidden sm:inline">Bills logged</span>
                   </span>
                   <button
                     onClick={() => handleGenerateRecurring(true)}
@@ -969,15 +968,14 @@ export default function Expenses() {
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
                   ) : <Zap className="w-4 h-4" />}
-                  {recurringTemplates.length > 0 ? `Log ${getMonthLabel(cm)} Bills` : 'Set Up Monthly Bills'}
+                  <span className="hidden sm:inline">{recurringTemplates.length > 0 ? `Log ${getMonthLabel(cm)} Bills` : 'Set Up Monthly Bills'}</span><span className="sm:hidden">Log Bills</span>
                 </button>
               )}
               <button
                 onClick={openAddForm}
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-dark-300 hover:bg-dark-400 text-gray-300 hover:text-white rounded-xl font-medium border border-gray-700 transition-all"
               >
-                <Plus className="w-4 h-4" />
-                Add Expense
+                <Plus className="w-4 h-4" /><span className="hidden sm:inline">Add Expense</span>
               </button>
             </>
           )}
@@ -986,8 +984,7 @@ export default function Expenses() {
               onClick={openAddRecurringForm}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-gym-500 hover:bg-gym-400 text-white rounded-xl font-semibold transition-all shadow-lg shadow-gym-500/30"
             >
-              <Plus className="w-5 h-5" />
-              Add Monthly Bill
+              <Plus className="w-5 h-5" /><span className="hidden sm:inline">Add Monthly Bill</span>
             </button>
           )}
           {activeTab === 'history' && (
@@ -996,8 +993,7 @@ export default function Expenses() {
               disabled={!monthlyHistory.length}
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-dark-300 hover:bg-dark-400 text-gray-300 hover:text-white rounded-xl font-medium border border-gray-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <Download className="w-4 h-4" />
-              Export All (CSV)
+              <Download className="w-4 h-4" /><span className="hidden sm:inline">Export All (CSV)</span>
             </button>
           )}
         </div>
@@ -1007,9 +1003,9 @@ export default function Expenses() {
       {/* Tab bar */}
       <div className="flex items-center gap-1 bg-dark-300 rounded-2xl p-1 border border-gray-800/50 w-fit">
         {[
-          { id: 'list',      label: 'List',      icon: <Receipt className="w-4 h-4" /> },
-          { id: 'recurring', label: 'Monthly Bills', icon: <Repeat className="w-4 h-4" /> },
-          { id: 'history',   label: 'History',   icon: <History className="w-4 h-4" /> },
+          { id: 'list',      label: 'List',          icon: <Receipt className="w-4 h-4" /> },
+          { id: 'recurring', label: 'Monthly Bills',  shortLabel: 'Bills', icon: <Repeat className="w-4 h-4" /> },
+          { id: 'history',   label: 'History',        icon: <History className="w-4 h-4" /> },
         ].map(tab => (
           <button
             key={tab.id}
@@ -1022,7 +1018,7 @@ export default function Expenses() {
             )}
           >
             {tab.icon}
-            {tab.label}
+            <span className="hidden sm:inline">{tab.label}</span><span className="sm:hidden">{tab.shortLabel || tab.label}</span>
           </button>
         ))}
       </div>
@@ -1143,8 +1139,8 @@ export default function Expenses() {
                 )}
               </div>
             ) : (
-              <div className="divide-y divide-gray-800/50">
-                <div className="grid grid-cols-12 gap-3 px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <div>
+                <div className="hidden sm:grid grid-cols-12 gap-3 px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <div className="col-span-2">Date</div>
                   <div className="col-span-3">Category</div>
                   <div className="col-span-3">Description</div>
@@ -1156,53 +1152,87 @@ export default function Expenses() {
                 {filtered.map(expense => {
                   const cat = getCat(expense.category);
                   return (
-                    <div
-                      key={expense.id}
-                      className="grid grid-cols-12 gap-3 px-5 py-4 items-center hover:bg-dark-400/50 transition-colors group"
-                    >
-                      <div className="col-span-2">
-                        <span className="text-sm text-gray-400">{formatDate(expense.expense_date)}</span>
+                    <div key={expense.id} className="border-b border-gray-800/50 last:border-0">
+                      {/* Mobile card */}
+                      <div className="sm:hidden flex items-center gap-3 px-4 py-3.5 hover:bg-dark-400/30 transition-colors">
+                        <div className={clsx('w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0', cat.bg)}>
+                          {cat.emoji}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-sm font-medium text-gray-200 leading-snug line-clamp-2">{expense.description}</p>
+                            <span className="text-sm font-bold text-red-400 flex-shrink-0 ml-1">{formatCurrency(expense.amount)}</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                            <span className={clsx('text-[11px] font-medium px-1.5 py-0.5 rounded-md border', cat.bg, cat.color, cat.border)}>
+                              {cat.label}
+                            </span>
+                            <span className="text-xs text-gray-500">{formatDate(expense.expense_date)}</span>
+                            {expense.is_recurring && <span className="text-xs text-gym-400">🔄</span>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-0.5 flex-shrink-0">
+                          <button
+                            onClick={() => openEditForm(expense)}
+                            className="p-2 text-gray-500 hover:text-gym-400 hover:bg-gym-500/10 rounded-lg transition-all"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteTarget(expense)}
+                            className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
 
-                      <div className="col-span-3 flex items-center gap-2">
-                        <span className="text-lg">{cat.emoji}</span>
-                        <span className={clsx('text-xs font-medium px-2 py-0.5 rounded-lg border', cat.bg, cat.color, cat.border)}>
-                          {cat.label}
-                        </span>
-                      </div>
+                      {/* Desktop row */}
+                      <div className="hidden sm:grid grid-cols-12 gap-3 px-5 py-4 items-center hover:bg-dark-400/50 transition-colors group">
+                        <div className="col-span-2">
+                          <span className="text-sm text-gray-400">{formatDate(expense.expense_date)}</span>
+                        </div>
 
-                      <div className="col-span-3">
-                        <p className="text-sm text-gray-200 truncate">{expense.description}</p>
-                        {expense.is_recurring && (
-                          <span className="inline-flex items-center gap-1 text-xs text-gym-400 mt-0.5">
-                            🔄 Recurring
+                        <div className="col-span-3 flex items-center gap-2">
+                          <span className="text-lg">{cat.emoji}</span>
+                          <span className={clsx('text-xs font-medium px-2 py-0.5 rounded-lg border', cat.bg, cat.color, cat.border)}>
+                            {cat.label}
                           </span>
-                        )}
-                      </div>
+                        </div>
 
-                      <div className="col-span-2 text-right">
-                        <span className="text-sm font-semibold text-red-400">{formatCurrency(expense.amount)}</span>
-                      </div>
+                        <div className="col-span-3">
+                          <p className="text-sm text-gray-200 truncate">{expense.description}</p>
+                          {expense.is_recurring && (
+                            <span className="inline-flex items-center gap-1 text-xs text-gym-400 mt-0.5">
+                              🔄 Recurring
+                            </span>
+                          )}
+                        </div>
 
-                      <div className="col-span-1">
-                        <span className="text-xs text-gray-500 capitalize">{(expense.payment_method || 'cash').replace('_', ' ')}</span>
-                      </div>
+                        <div className="col-span-2 text-right">
+                          <span className="text-sm font-semibold text-red-400">{formatCurrency(expense.amount)}</span>
+                        </div>
 
-                      <div className="col-span-1 flex justify-end gap-1">
-                        <button
-                          onClick={() => openEditForm(expense)}
-                          className="p-1.5 text-gray-600 hover:text-gym-400 hover:bg-gym-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                          title="Edit expense"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteTarget(expense)}
-                          className="p-1.5 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                          title="Delete expense"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="col-span-1">
+                          <span className="text-xs text-gray-500 capitalize">{(expense.payment_method || 'cash').replace('_', ' ')}</span>
+                        </div>
+
+                        <div className="col-span-1 flex justify-end gap-1">
+                          <button
+                            onClick={() => openEditForm(expense)}
+                            className="p-1.5 text-gray-600 hover:text-gym-400 hover:bg-gym-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                            title="Edit expense"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteTarget(expense)}
+                            className="p-1.5 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                            title="Delete expense"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -1399,9 +1429,9 @@ export default function Expenses() {
               <p className="text-gray-500 text-sm">Monthly history will appear here once you have expenses recorded.</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-800/50">
+            <div>
               {/* Header */}
-              <div className="grid grid-cols-4 gap-3 px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <div className="hidden sm:grid grid-cols-4 gap-3 px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <div>Month</div>
                 <div className="text-right">Revenue</div>
                 <div className="text-right">Expenses</div>
@@ -1412,15 +1442,35 @@ export default function Expenses() {
                 const net = (row.revenue ?? 0) - (row.expenses ?? 0);
                 const isProfit = net >= 0;
                 return (
-                  <div
-                    key={row.month || i}
-                    className="grid grid-cols-4 gap-3 px-5 py-4 items-center hover:bg-dark-400/50 transition-colors"
-                  >
-                    <div className="text-sm font-medium text-white">{getMonthLabel(row.month)}</div>
-                    <div className="text-right text-sm font-semibold text-emerald-400">{formatCurrency(row.revenue ?? 0)}</div>
-                    <div className="text-right text-sm font-semibold text-red-400">{formatCurrency(row.expenses ?? 0)}</div>
-                    <div className={clsx('text-right text-sm font-bold', isProfit ? 'text-emerald-400' : 'text-red-400')}>
-                      {isProfit ? '+' : ''}{formatCurrency(net)}
+                  <div key={row.month || i} className="border-b border-gray-800/50 last:border-0 hover:bg-dark-400/50 transition-colors">
+                    {/* Mobile */}
+                    <div className="sm:hidden px-4 py-3.5">
+                      <p className="text-sm font-semibold text-white mb-2">{getMonthLabel(row.month)}</p>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <p className="text-xs text-gray-500 mb-0.5">Revenue</p>
+                          <p className="text-sm font-semibold text-emerald-400">{formatCurrency(row.revenue ?? 0)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 mb-0.5">Expenses</p>
+                          <p className="text-sm font-semibold text-red-400">{formatCurrency(row.expenses ?? 0)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 mb-0.5">Net</p>
+                          <p className={clsx('text-sm font-bold', isProfit ? 'text-emerald-400' : 'text-red-400')}>
+                            {isProfit ? '+' : ''}{formatCurrency(net)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Desktop */}
+                    <div className="hidden sm:grid grid-cols-4 gap-3 px-5 py-4 items-center">
+                      <div className="text-sm font-medium text-white">{getMonthLabel(row.month)}</div>
+                      <div className="text-right text-sm font-semibold text-emerald-400">{formatCurrency(row.revenue ?? 0)}</div>
+                      <div className="text-right text-sm font-semibold text-red-400">{formatCurrency(row.expenses ?? 0)}</div>
+                      <div className={clsx('text-right text-sm font-bold', isProfit ? 'text-emerald-400' : 'text-red-400')}>
+                        {isProfit ? '+' : ''}{formatCurrency(net)}
+                      </div>
                     </div>
                   </div>
                 );
