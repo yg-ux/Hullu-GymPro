@@ -354,6 +354,18 @@ export default function Layout() {
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
+  // Fast-poll gym occupancy every 10 seconds for the sidebar badge
+  useEffect(() => {
+    const fetchCount = () => {
+      api.get('/attendance/current')
+        .then(data => setGymCount((data.currently_present || []).length))
+        .catch(() => {});
+    };
+    fetchCount(); // immediate on mount
+    const interval = setInterval(fetchCount, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
   const getPlanBadgeClass = (plan) => {
     switch (plan?.toLowerCase()) {
       case 'enterprise':
