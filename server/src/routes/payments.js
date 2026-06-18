@@ -228,6 +228,8 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreatePay
         membership_start = ?,
         membership_end = ?,
         status = 'active',
+        total_sessions = 0,
+        sessions_used = 0,
         updated_at = NOW()
       WHERE id = ?
     `, [selectedType, newStartDate, newEndDate, customer_id]);

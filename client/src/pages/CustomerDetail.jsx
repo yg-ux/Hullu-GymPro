@@ -76,6 +76,7 @@ export default function CustomerDetail() {
   const [extendPaymentMethod, setExtendPaymentMethod] = useState('cash');
   const [customAmount, setCustomAmount] = useState('');
   const [totalDue, setTotalDue] = useState('');
+  const [extendMode, setExtendMode] = useState('daily'); // 'daily' | 'upgrade' — only used for daily members
 
   const THREE_DAYS_DURATIONS = [
     { value: '1_month',  label: t('membership.monthly'),    sessions: 12  },
@@ -848,7 +849,7 @@ export default function CustomerDetail() {
             <h2 className="text-lg font-semibold text-white mb-4">{t('customers.quickActions')}</h2>
             <div className="space-y-3">
               <button
-                onClick={() => setShowExtendModal(true)}
+                onClick={() => { setExtendMode('daily'); setExtendMembershipType(customer.membership_type); setShowExtendModal(true); }}
                 className="btn-primary w-full justify-center"
                 disabled={customer.is_frozen}
               >
@@ -1071,7 +1072,8 @@ export default function CustomerDetail() {
       {/* Extend Modal */}
       {showExtendModal && (
         <Modal onClose={() => setShowExtendModal(false)} title={
-          customer.membership_type === 'daily' ? t('customers.addDailyPass')
+          customer.membership_type === 'daily' && extendMode === 'upgrade' ? t('customers.extendMembership')
+          : customer.membership_type === 'daily' ? t('customers.addDailyPass')
           : customer.membership_type === '3_days_week' ? t('customers.addSessions')
           : t('customers.extendMembership')
         }>
@@ -1115,8 +1117,38 @@ export default function CustomerDetail() {
               )}
             </div>
 
-            {/* Daily: fixed — just 1 pass per payment */}
+            {/* Daily: toggle between "Add Daily Pass" and "Switch to Plan" */}
             {customer.membership_type === 'daily' && (
+              <div className="flex rounded-lg overflow-hidden border border-gray-700">
+                <button
+                  type="button"
+                  onClick={() => { setExtendMode('daily'); setExtendMembershipType('daily'); }}
+                  className={clsx(
+                    'flex-1 py-2 text-sm font-medium transition-colors border-r',
+                    extendMode === 'daily'
+                      ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                      : 'bg-dark-200 text-gray-400 hover:text-gray-200 border-gray-700'
+                  )}
+                >
+                  Add Daily Pass
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setExtendMode('upgrade'); setExtendMembershipType('1_month'); }}
+                  className={clsx(
+                    'flex-1 py-2 text-sm font-medium transition-colors',
+                    extendMode === 'upgrade'
+                      ? 'bg-gym-500/20 text-gym-400'
+                      : 'bg-dark-200 text-gray-400 hover:text-gray-200'
+                  )}
+                >
+                  Switch to Plan
+                </button>
+              </div>
+            )}
+
+            {/* Daily pass info — shown only when in daily mode */}
+            {customer.membership_type === 'daily' && extendMode === 'daily' && (
               <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-center">
                 <p className="text-amber-400 font-semibold text-lg">{t('customers.onePerPayment')}</p>
                 <p className="text-gray-400 text-sm mt-1">{t('customers.eachAddsSession')}</p>
@@ -1153,8 +1185,8 @@ export default function CustomerDetail() {
               </div>
             )}
 
-            {/* Other types: membership type selector + summary */}
-            {!['daily', '3_days_week'].includes(customer.membership_type) && (
+            {/* Other types + daily-upgrade: membership type selector + summary */}
+            {(!['daily', '3_days_week'].includes(customer.membership_type) || (customer.membership_type === 'daily' && extendMode === 'upgrade')) && (
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">{t('customers.membershipDuration')}</label>
@@ -1238,7 +1270,8 @@ export default function CustomerDetail() {
               </button>
               <button type="submit" disabled={actionLoading} className="btn-primary flex-1 bg-green-600 hover:bg-green-700 border-green-600">
                 {actionLoading ? t('customers.processing') :
-                  customer.membership_type === 'daily' ? t('customers.payAndAddPass')
+                  customer.membership_type === 'daily' && extendMode === 'upgrade' ? t('customers.payAndExtend')
+                  : customer.membership_type === 'daily' ? t('customers.payAndAddPass')
                   : customer.membership_type === '3_days_week' ? t('customers.payAndAddSessions')
                   : t('customers.payAndExtend')}
               </button>
