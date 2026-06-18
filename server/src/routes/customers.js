@@ -213,7 +213,7 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreateCus
     let membershipEnd, totalSessions;
     if (membership_type === 'daily') {
       totalSessions = 1;
-      membershipEnd = '2099-12-31'; // date is irrelevant — sessions govern expiry
+      membershipEnd = new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // valid today, expires tomorrow
     } else if (membership_type === '3_days_week') {
       totalSessions = SESSIONS_FOR_3DAYS[durationKey] || 12;
       // Expires on BOTH: sessions exhausted OR calendar end date (whichever comes first)
