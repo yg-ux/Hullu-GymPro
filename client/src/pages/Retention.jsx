@@ -55,8 +55,8 @@ function RenewalDialog({ member, onSendSMS, onClose }) {
               <Phone className="w-5 h-5 text-amber-400" />
             </div>
             <div>
-              <h3 className="font-semibold text-white">Call first — then follow up by text</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Reaching out to {member.name}</p>
+              <h3 className="font-semibold text-white">Try calling first</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Getting {member.name} back</p>
             </div>
           </div>
 
@@ -64,13 +64,13 @@ function RenewalDialog({ member, onSendSMS, onClose }) {
           <div className="px-6 py-5 space-y-4">
             <div className="bg-amber-500/8 border border-amber-500/20 rounded-xl p-4 space-y-3">
               <p className="text-sm text-gray-200 leading-relaxed">
-                Members who've lapsed have already moved on. A text message is easy to swipe away — and most of the time, it is.
+                Most people ignore text messages from businesses. They see it and move on.
               </p>
               <p className="text-sm font-semibold text-white">
-                A personal phone call is far more powerful.
+                📞 A phone call works much better.
               </p>
               <p className="text-sm text-gray-300 leading-relaxed">
-                Two minutes on the phone — using their name, asking how they're doing, and offering something specific — brings people back at a rate no SMS can match. Use the text as a follow-up after the call, not your opening move.
+                Call them, say hi, ask how they're doing, and offer them a deal to come back. People respond when someone takes the time to actually talk to them. You can still send the text — but call first.
               </p>
             </div>
 
@@ -397,7 +397,7 @@ export default function Retention() {
         <TabButton active={activeTab === 'churn'} onClick={() => setActiveTab('churn')}>
           <span className="flex items-center gap-2">
             <TrendingDown className="w-3.5 h-3.5" />
-            Churn Stats
+            Members Lost
           </span>
         </TabButton>
       </div>
@@ -504,14 +504,14 @@ export default function Retention() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <ChurnStatBox
               icon={TrendingDown}
-              label="Churned this month"
+              label="Lost this month"
               value={churn.this_month}
               sub="Memberships expired"
               color={churn.this_month > churn.last_month ? 'red' : 'gray'}
             />
             <ChurnStatBox
               icon={Clock}
-              label="Churned last month"
+              label="Lost last month"
               value={churn.last_month}
               sub="Previous period"
               color="gray"
@@ -536,7 +536,7 @@ export default function Retention() {
           <div className="bg-dark-300 rounded-2xl border border-gray-800/60 p-6">
             <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
               <TrendingDown className="w-4 h-4 text-gym-400" />
-              Churn Trend
+              Members Lost — This Month vs Last Month
             </h3>
             <div className="flex items-center justify-around gap-4">
               {/* Last month */}
@@ -604,10 +604,10 @@ export default function Retention() {
                 churnDelta > 0 ? 'text-red-300' : churnDelta < 0 ? 'text-green-300' : 'text-gray-400'
               )}>
                 {churnDelta > 0
-                  ? `Churn increased by ${churnDelta} compared to last month. Consider proactive outreach to at-risk members.`
+                  ? `${churnDelta} more members left this month than last month. Try reaching out to at-risk members before their membership ends.`
                   : churnDelta < 0
-                    ? `Churn decreased by ${Math.abs(churnDelta)} compared to last month. Retention efforts are paying off!`
-                    : `Churn is stable compared to last month.`}
+                    ? `${Math.abs(churnDelta)} fewer members left this month compared to last month. Keep it up!`
+                    : `Same as last month — no change.`}
               </p>
             </div>
           </div>
