@@ -368,7 +368,7 @@ function KpiCard({ title, value, trendPct, icon: Icon, accent, sparkData, delay,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// REVENUE CHART — smooth bezier area chart
+// REVENUE CHART — colored ring-dot line chart
 // ─────────────────────────────────────────────────────────────────────────────
 function RevenueChart({ data, period, onPeriodChange, animated, stats }) {
   const { lang } = useLanguage();
@@ -377,7 +377,6 @@ function RevenueChart({ data, period, onPeriodChange, animated, stats }) {
   const [revealed, setRevealed]     = useState(false);
   const svgRef = useRef(null);
 
-  // Trigger reveal animation whenever data or animated flag changes
   useEffect(() => {
     setRevealed(false);
     if (animated && data.length > 0) {
@@ -386,6 +385,13 @@ function RevenueChart({ data, period, onPeriodChange, animated, stats }) {
     }
   }, [data, animated]);
 
+  const POINT_COLORS = [
+    '#f97316', '#f43f5e', '#06b6d4', '#3b82f6',
+    '#fb7185', '#ef4444', '#a78bfa', '#1d4ed8',
+    '#10b981', '#fbbf24', '#14b8a6', '#8b5cf6',
+    '#fb923c', '#e879f9', '#34d399', '#60a5fa',
+  ];
+
   const periods = [
     { key: 'daily',   label: 'Day' },
     { key: 'weekly',  label: 'Week' },
@@ -393,73 +399,61 @@ function RevenueChart({ data, period, onPeriodChange, animated, stats }) {
     { key: 'yearly',  label: 'Year' },
   ];
 
-  const VW = 900, VH = 280;
-  const pad    = { top: 24, right: 20, bottom: 52, left: 64 };
-  const innerW = VW - pad.left - pad.right;
-  const innerH = VH - pad.top - pad.bottom;
-  const GRID   = 4;
-  const baseY  = pad.top + innerH;
+  const VW         = 900;
+  const dotR       = data.length > 25 ? 5 : data.length > 13 ? 9 : 13;
+  const showValues = data.length <= 14;
+  const botPad     = showValues ? 92 : 55;
+  const pad        = { top: 28, right: 20, bottom: botPad, left: 64 };
+  const VH         = 200 + pad.top + pad.bottom;
+  const innerW     = VW - pad.left - pad.right;
+  const innerH     = VH - pad.top - pad.bottom;
+  const GRID       = 4;
+  const baseY      = pad.top + innerH;
 
   const maxVal = data.length > 0
     ? Math.max(...data.map(d => parseFloat(d.total) || 0), 1)
     : 1;
 
-  // Evenly-spaced x positions (area chart, not slots)
   const pts = data.map((item, i) => ({
     x:     pad.left + (data.length > 1 ? (i / (data.length - 1)) * innerW : innerW / 2),
     y:     baseY - ((parseFloat(item.total) || 0) / maxVal) * innerH,
     total: parseFloat(item.total) || 0,
     label: item.label,
+    color: POINT_COLORS[i % POINT_COLORS.length],
   }));
 
-  // Catmull-Rom → cubic bezier smooth path
-  const buildLinePath = (points, tension = 0.35) => {
-    if (points.length === 0) return '';
-    if (points.length === 1) return `M${points[0].x},${points[0].y}`;
-    return points.reduce((d, pt, i) => {
-      if (i === 0) return `M${pt.x},${pt.y}`;
-      const p0 = points[Math.max(0, i - 2)];
-      const p1 = points[i - 1];
-      const p3 = points[Math.min(points.length - 1, i + 1)];
-      const cp1x = p1.x + (pt.x - p0.x) * tension;
-      const cp1y = p1.y + (pt.y - p0.y) * tension;
-      const cp2x = pt.x - (p3.x - p1.x) * tension;
-      const cp2y = pt.y - (p3.y - p1.y) * tension;
-      return `${d} C${cp1x},${cp1y} ${cp2x},${cp2y} ${pt.x},${pt.y}`;
-    }, '');
-  };
-
-  const linePath = buildLinePath(pts);
-  const areaPath = pts.length >= 2
-    ? `${linePath} L${pts[pts.length - 1].x},${baseY} L${pts[0].x},${baseY} Z`
+  // Straight-segment line
+  const linePath = pts.length > 1
+    ? pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')
     : '';
-
-  // Peak point index
-  const peakIdx = pts.length > 0
-    ? pts.reduce((mi, pt, i) => pt.total > pts[mi].total ? i : mi, 0)
-    : 0;
 
   const fmtY = v => {
     if (v === 0) return '0';
     if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-    if (v >= 1000)      return `${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k`;
+    if (v >= 1000) return `${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k`;
+    return Math.round(v).toString();
+  };
+
+  const fmtVal = v => {
+    if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+    if (v >= 100_000)   return `${Math.round(v / 1000)}k`;
+    if (v >= 1000)      return `${(v / 1000).toFixed(1)}k`;
     return Math.round(v).toString();
   };
 
   const periodTotal = data.reduce((s, d) => s + (parseFloat(d.total) || 0), 0);
 
-  // Mouse tracking → nearest point
   const handleMouseMove = (e) => {
     if (!svgRef.current || pts.length === 0) return;
     const rect = svgRef.current.getBoundingClientRect();
-    const svgX  = ((e.clientX - rect.left) / rect.width) * VW;
+    const svgX = ((e.clientX - rect.left) / rect.width) * VW;
     let near = 0, minD = Infinity;
     pts.forEach((p, i) => {
       const d = Math.abs(p.x - svgX);
       if (d < minD) { minD = d; near = i; }
     });
-    const tolerance = data.length > 1 ? (innerW / (data.length - 1)) * 0.6 : 60;
-    setHoveredIdx(minD < tolerance ? near : null);
+    const tol = data.length > 1 ? (innerW / (data.length - 1)) * 0.6 : 60;
+    setHoveredIdx(minD < tol ? near : null);
   };
 
   return (
@@ -505,8 +499,8 @@ function RevenueChart({ data, period, onPeriodChange, animated, stats }) {
         </div>
       </div>
 
-      {/* SVG area chart */}
-      <div className="px-2 pt-3 pb-1">
+      {/* Chart */}
+      <div className="px-2 pt-3 pb-2">
         {pts.length > 0 ? (
           <svg
             ref={svgRef}
@@ -517,59 +511,32 @@ function RevenueChart({ data, period, onPeriodChange, animated, stats }) {
             onMouseLeave={() => setHoveredIdx(null)}
           >
             <defs>
-              {/* Area gradient */}
-              <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%"   stopColor="#34d399" stopOpacity="0.28" />
-                <stop offset="55%"  stopColor="#10b981" stopOpacity="0.08" />
-                <stop offset="100%" stopColor="#065f46" stopOpacity="0" />
-              </linearGradient>
-              {/* Line gradient */}
-              <linearGradient id="lineCol" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%"   stopColor="#059669" />
-                <stop offset="45%"  stopColor="#34d399" />
-                <stop offset="100%" stopColor="#6ee7b7" />
-              </linearGradient>
-              {/* Glow filter for the line */}
-              <filter id="lineGlow" x="-20%" y="-60%" width="140%" height="220%">
-                <feGaussianBlur stdDeviation="3.5" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
+              <filter id="dotShadow" x="-40%" y="-40%" width="180%" height="180%">
+                <feDropShadow dx="2" dy="3" stdDeviation="3.5" floodOpacity="0.35" />
               </filter>
-              {/* Glow for dots */}
-              <filter id="dotGlow" x="-80%" y="-80%" width="260%" height="260%">
-                <feGaussianBlur stdDeviation="5" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
+              <filter id="dotGlowF" x="-80%" y="-80%" width="260%" height="260%">
+                <feGaussianBlur stdDeviation="5" result="b" />
+                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
               </filter>
-              {/* Clip: animate from left → right on mount */}
-              <clipPath id="revealClip">
-                <rect
-                  x={pad.left - 2} y={0}
-                  width={revealed ? innerW + 22 : 0}
-                  height={VH}
-                  style={{ transition: 'width 1.5s cubic-bezier(0.4,0,0.2,1)' }}
-                />
+              {/* Left-to-right reveal clip */}
+              <clipPath id="lineClip">
+                <rect x={pad.left - 2} y={0}
+                  width={revealed ? innerW + 22 : 0} height={VH}
+                  style={{ transition: 'width 1.4s cubic-bezier(0.4,0,0.2,1)' }} />
               </clipPath>
             </defs>
 
-            {/* Grid lines + Y labels */}
+            {/* Horizontal grid lines */}
             {Array.from({ length: GRID + 1 }, (_, i) => {
               const frac = i / GRID;
               const y    = pad.top + innerH * frac;
               return (
                 <g key={i}>
-                  <line
-                    x1={pad.left} y1={y} x2={VW - pad.right} y2={y}
-                    stroke={i === GRID ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.035)'}
-                    strokeWidth="1"
-                    strokeDasharray={i === GRID ? '' : '4 8'}
-                  />
+                  <line x1={pad.left} y1={y} x2={VW - pad.right} y2={y}
+                    stroke={i === GRID ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.045)'}
+                    strokeWidth="1" />
                   <text x={pad.left - 8} y={y + 4} textAnchor="end"
-                    fill="#374151" fontSize="11"
+                    fill="#4b5563" fontSize="11"
                     fontFamily="ui-sans-serif,system-ui,sans-serif">
                     {fmtY(maxVal * (1 - frac))}
                   </text>
@@ -577,148 +544,130 @@ function RevenueChart({ data, period, onPeriodChange, animated, stats }) {
               );
             })}
 
-            {/* X-axis labels */}
-            {pts.map((pt, i) => {
-              const step = Math.ceil(data.length / 12);
-              if (data.length > 12 && i % step !== 0 && i !== data.length - 1) return null;
-              const { short } = parseLabel(pt.label, period, locale);
-              return (
-                <text key={i} x={pt.x} y={baseY + 18} textAnchor="middle"
-                  fill={hoveredIdx === i ? '#9ca3af' : '#374151'}
-                  fontSize={data.length > 20 ? 8 : 10}
-                  fontWeight={hoveredIdx === i ? '600' : '400'}
-                  fontFamily="ui-sans-serif,system-ui,sans-serif">
-                  {short}
-                </text>
-              );
-            })}
+            {/* Vertical grid lines (square grid) */}
+            {pts.map((pt, i) => (
+              <line key={`v${i}`}
+                x1={pt.x} y1={pad.top} x2={pt.x} y2={baseY}
+                stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+            ))}
 
-            {/* Clipped: area fill + line */}
-            <g clipPath="url(#revealClip)">
-              {/* Subtle bar columns under area for readability */}
-              {pts.map((pt, i) => {
-                const colH = baseY - pt.y;
-                if (colH <= 0) return null;
-                return (
-                  <rect key={i}
-                    x={pt.x - 1} y={pt.y} width={2} height={colH}
-                    fill="#34d399" opacity={hoveredIdx === i ? 0.35 : 0.1}
-                    style={{ transition: 'opacity 0.15s' }}
-                  />
-                );
-              })}
-
-              {/* Area fill */}
-              <path d={areaPath} fill="url(#areaFill)" />
-
-              {/* Glowing line (blurred copy behind) */}
+            {/* Connecting line — charcoal, clipped for reveal */}
+            <g clipPath="url(#lineClip)">
               <path d={linePath} fill="none"
-                stroke="url(#lineCol)" strokeWidth="4" strokeOpacity="0.35"
-                strokeLinecap="round" strokeLinejoin="round"
-                filter="url(#lineGlow)" />
-              {/* Crisp line on top */}
-              <path d={linePath} fill="none"
-                stroke="url(#lineCol)" strokeWidth="2.5"
+                stroke="#4b5563" strokeWidth="2.5"
                 strokeLinecap="round" strokeLinejoin="round" />
-
-              {/* Data point dots */}
-              {pts.map((pt, i) => pt.total > 0 && (
-                <circle key={i} cx={pt.x} cy={pt.y}
-                  r={hoveredIdx === i ? 4.5 : 3}
-                  fill={hoveredIdx === i ? 'white' : '#34d399'}
-                  opacity={hoveredIdx !== null ? (hoveredIdx === i ? 1 : 0.25) : 0.55}
-                  style={{ transition: 'r 0.15s, opacity 0.15s' }}
-                />
-              ))}
             </g>
 
-            {/* Peak annotation — only shown when not hovering */}
-            {pts.length > 1 && pts[peakIdx]?.total > 0 && hoveredIdx === null && (
-              <g>
-                <circle cx={pts[peakIdx].x} cy={pts[peakIdx].y}
-                  r="6.5" fill="#34d399" opacity="0.85" filter="url(#dotGlow)" />
-                <circle cx={pts[peakIdx].x} cy={pts[peakIdx].y}
-                  r="3" fill="white" />
-                {/* Label pill */}
-                {(() => {
-                  const px = pts[peakIdx].x;
-                  const py = pts[peakIdx].y;
-                  const lx = Math.min(Math.max(px - 28, pad.left + 2), VW - pad.right - 60);
-                  return (
-                    <g>
-                      <rect x={lx} y={py - 26} width={58} height={16} rx={5}
-                        fill="rgba(52,211,153,0.14)" stroke="#34d399"
-                        strokeWidth="0.75" strokeOpacity="0.45" />
-                      <text x={lx + 29} y={py - 14} textAnchor="middle"
-                        fill="#6ee7b7" fontSize="8.5" fontWeight="700"
-                        fontFamily="ui-sans-serif,system-ui,sans-serif">
-                        ↑ Peak
-                      </text>
-                    </g>
-                  );
-                })()}
-              </g>
-            )}
+            {/* Ring dots + labels */}
+            {pts.map((pt, i) => {
+              const hov   = hoveredIdx === i;
+              const r     = hov ? dotR + 2.5 : dotR;
+              const step  = Math.ceil(data.length / 14);
+              const showL = data.length <= 14 || i % step === 0 || i === data.length - 1;
+              const trend = i > 0 ? pts[i].total - pts[i - 1].total : null;
+              const { short, long } = parseLabel(pt.label, period, locale);
 
-            {/* Hover: crosshair + enlarged dot + tooltip */}
-            {hoveredIdx !== null && pts[hoveredIdx] && (
-              <g>
-                {/* Vertical line */}
-                <line
-                  x1={pts[hoveredIdx].x} y1={pad.top}
-                  x2={pts[hoveredIdx].x} y2={baseY}
-                  stroke="rgba(52,211,153,0.2)" strokeWidth="1"
-                  strokeDasharray="4 5"
-                />
-                {/* Bottom tick */}
-                <line
-                  x1={pts[hoveredIdx].x} y1={baseY}
-                  x2={pts[hoveredIdx].x} y2={baseY + 4}
-                  stroke="#34d399" strokeWidth="1.5" strokeOpacity="0.5"
-                />
-                {/* Dot rings */}
-                <circle cx={pts[hoveredIdx].x} cy={pts[hoveredIdx].y}
-                  r="10" fill="#34d399" opacity="0.1" />
-                <circle cx={pts[hoveredIdx].x} cy={pts[hoveredIdx].y}
-                  r="5.5" fill="#34d399" filter="url(#dotGlow)" opacity="0.9" />
-                <circle cx={pts[hoveredIdx].x} cy={pts[hoveredIdx].y}
-                  r="2.5" fill="white" />
+              return (
+                <g key={i} style={{
+                  opacity: animated ? 1 : 0,
+                  transition: `opacity 0.5s ease ${Math.min(i * 55, 600)}ms`,
+                }}>
+                  {/* Outer glow halo on hover */}
+                  {hov && (
+                    <circle cx={pt.x} cy={pt.y} r={r + 7}
+                      fill={pt.color} opacity="0.12" />
+                  )}
 
-                {/* Tooltip */}
-                {(() => {
-                  const pt  = pts[hoveredIdx];
-                  const { long } = parseLabel(pt.label, period, locale);
-                  const TW = 158, TH = 56;
-                  const tipX = Math.min(Math.max(pt.x - TW / 2, pad.left), VW - pad.right - TW);
-                  const tipY = Math.max(pt.y - TH - 16, pad.top);
-                  const carX = Math.min(Math.max(pt.x, tipX + 14), tipX + TW - 14);
-                  return (
-                    <g>
-                      <rect x={tipX + 2.5} y={tipY + 2.5} width={TW} height={TH}
-                        rx={9} fill="rgba(0,0,0,0.45)" />
-                      <rect x={tipX} y={tipY} width={TW} height={TH}
-                        rx={9} fill="#0c1222"
-                        stroke="#34d399" strokeWidth="1" strokeOpacity="0.3" />
-                      {/* Accent bar on left */}
-                      <rect x={tipX} y={tipY + 6} width={3} height={TH - 12}
-                        rx={1.5} fill="#34d399" opacity="0.7" />
-                      <text x={tipX + 14} y={tipY + 20} fill="#6ee7b7"
-                        fontSize="9.5" fontWeight="500"
-                        fontFamily="ui-sans-serif,system-ui,sans-serif">{long}</text>
-                      <text x={tipX + 14} y={tipY + 41} fill="white"
-                        fontSize="15" fontWeight="800"
-                        fontFamily="ui-sans-serif,system-ui,sans-serif">
-                        ETB {pt.total.toLocaleString()}
-                      </text>
-                      {/* Caret */}
-                      <path d={`M${carX - 5},${tipY + TH} L${carX},${tipY + TH + 7} L${carX + 5},${tipY + TH}`}
-                        fill="#0c1222" stroke="#34d399"
-                        strokeOpacity="0.3" strokeWidth="1" strokeLinejoin="round" />
-                    </g>
-                  );
-                })()}
-              </g>
-            )}
+                  {/* Drop shadow circle */}
+                  <circle cx={pt.x + 2.5} cy={pt.y + 3}
+                    r={r} fill={pt.color} opacity="0.18" />
+
+                  {/* Main colored circle */}
+                  <circle cx={pt.x} cy={pt.y} r={r}
+                    fill={pt.color}
+                    filter={hov ? 'url(#dotShadow)' : undefined}
+                    style={{ transition: 'r 0.15s' }} />
+
+                  {/* Inner hole (dark bg) */}
+                  <circle cx={pt.x} cy={pt.y} r={r * 0.46}
+                    fill={hov ? '#1e293b' : '#0c1222'} />
+
+                  {/* Value label below dot (in chart area) */}
+                  {showValues && pt.total > 0 && (
+                    <text
+                      x={pt.x}
+                      y={pt.y + r + 15}
+                      textAnchor="middle"
+                      fill={pt.color}
+                      fontSize={dotR >= 13 ? '13' : '10'}
+                      fontWeight="800"
+                      fontFamily="ui-sans-serif,system-ui,sans-serif">
+                      {fmtVal(pt.total)}
+                    </text>
+                  )}
+
+                  {/* Trend arrow (at baseline) */}
+                  {showL && trend !== null && (
+                    <text x={pt.x} y={baseY + 16}
+                      textAnchor="middle"
+                      fill={trend >= 0 ? '#34d399' : '#f87171'}
+                      fontSize="11" fontWeight="700"
+                      fontFamily="ui-sans-serif,system-ui,sans-serif">
+                      {trend >= 0 ? '↑' : '↓'}
+                    </text>
+                  )}
+
+                  {/* X-axis label (rotated -90°) */}
+                  {showL && (
+                    <text
+                      x={pt.x}
+                      y={baseY + (showValues ? 50 : 26)}
+                      textAnchor="middle"
+                      fill={hov ? 'white' : pt.color}
+                      fontSize={data.length > 20 ? 8 : 10}
+                      fontWeight="700"
+                      fontFamily="ui-sans-serif,system-ui,sans-serif"
+                      transform={`rotate(-90,${pt.x},${baseY + (showValues ? 50 : 26)})`}
+                      style={{ transition: 'fill 0.15s' }}>
+                      {short}
+                    </text>
+                  )}
+
+                  {/* Hover tooltip */}
+                  {hov && (() => {
+                    const TW = 160, TH = 54;
+                    const tipX = Math.min(Math.max(pt.x - TW / 2, pad.left), VW - pad.right - TW);
+                    const tipY = Math.max(pt.y - r - TH - 14, pad.top);
+                    const carX = Math.min(Math.max(pt.x, tipX + 14), tipX + TW - 14);
+                    return (
+                      <g>
+                        <rect x={tipX + 2} y={tipY + 2} width={TW} height={TH}
+                          rx={8} fill="rgba(0,0,0,0.4)" />
+                        <rect x={tipX} y={tipY} width={TW} height={TH}
+                          rx={8} fill="#0c1222"
+                          stroke={pt.color} strokeWidth="1" strokeOpacity="0.5" />
+                        <rect x={tipX} y={tipY + 6} width={3} height={TH - 12}
+                          rx={1.5} fill={pt.color} opacity="0.8" />
+                        <text x={tipX + 14} y={tipY + 19} fill={pt.color}
+                          fontSize="9.5" fontWeight="500"
+                          fontFamily="ui-sans-serif,system-ui,sans-serif">
+                          {long}
+                        </text>
+                        <text x={tipX + 14} y={tipY + 40} fill="white"
+                          fontSize="14" fontWeight="800"
+                          fontFamily="ui-sans-serif,system-ui,sans-serif">
+                          ETB {pt.total.toLocaleString()}
+                        </text>
+                        <path
+                          d={`M${carX - 5},${tipY + TH} L${carX},${tipY + TH + 7} L${carX + 5},${tipY + TH}`}
+                          fill="#0c1222" stroke={pt.color}
+                          strokeOpacity="0.5" strokeWidth="1" strokeLinejoin="round" />
+                      </g>
+                    );
+                  })()}
+                </g>
+              );
+            })}
           </svg>
         ) : (
           <div className="h-52 flex items-center justify-center">
