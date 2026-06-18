@@ -368,12 +368,23 @@ function KpiCard({ title, value, trendPct, icon: Icon, accent, sparkData, delay,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// REVENUE CHART
+// REVENUE CHART — smooth bezier area chart
 // ─────────────────────────────────────────────────────────────────────────────
 function RevenueChart({ data, period, onPeriodChange, animated, stats }) {
-  const { t, lang } = useLanguage();
-  const locale = lang === 'am' ? 'am-ET' : 'en-US';
+  const { lang } = useLanguage();
+  const locale   = lang === 'am' ? 'am-ET' : 'en-US';
   const [hoveredIdx, setHoveredIdx] = useState(null);
+  const [revealed, setRevealed]     = useState(false);
+  const svgRef = useRef(null);
+
+  // Trigger reveal animation whenever data or animated flag changes
+  useEffect(() => {
+    setRevealed(false);
+    if (animated && data.length > 0) {
+      const t = setTimeout(() => setRevealed(true), 60);
+      return () => clearTimeout(t);
+    }
+  }, [data, animated]);
 
   const periods = [
     { key: 'daily',   label: 'Day' },
@@ -382,34 +393,74 @@ function RevenueChart({ data, period, onPeriodChange, animated, stats }) {
     { key: 'yearly',  label: 'Year' },
   ];
 
-  const VW = 900, VH = 260;
-  const pad = { top: 16, right: 16, bottom: 48, left: 60 };
+  const VW = 900, VH = 280;
+  const pad    = { top: 24, right: 20, bottom: 52, left: 64 };
   const innerW = VW - pad.left - pad.right;
   const innerH = VH - pad.top - pad.bottom;
   const GRID   = 4;
-
-  const maxVal = data.length > 0 ? Math.max(...data.map(d => d.total), 1) : 1;
-  const slotW  = data.length > 0 ? innerW / data.length : innerW;
-  const barW   = Math.min(slotW * 0.55, 40);
-  const xOf    = i => pad.left + slotW * i + slotW / 2;
   const baseY  = pad.top + innerH;
 
-  const barPath = (cx, y, w, h, r) => {
-    if (h <= 0) return '';
-    const x  = cx - w / 2;
-    const cr = Math.min(r, w / 2, h);
-    return `M${x},${y + h} L${x},${y + cr} Q${x},${y} ${x + cr},${y} L${x + w - cr},${y} Q${x + w},${y} ${x + w},${y + cr} L${x + w},${y + h} Z`;
+  const maxVal = data.length > 0
+    ? Math.max(...data.map(d => parseFloat(d.total) || 0), 1)
+    : 1;
+
+  // Evenly-spaced x positions (area chart, not slots)
+  const pts = data.map((item, i) => ({
+    x:     pad.left + (data.length > 1 ? (i / (data.length - 1)) * innerW : innerW / 2),
+    y:     baseY - ((parseFloat(item.total) || 0) / maxVal) * innerH,
+    total: parseFloat(item.total) || 0,
+    label: item.label,
+  }));
+
+  // Catmull-Rom → cubic bezier smooth path
+  const buildLinePath = (points, tension = 0.35) => {
+    if (points.length === 0) return '';
+    if (points.length === 1) return `M${points[0].x},${points[0].y}`;
+    return points.reduce((d, pt, i) => {
+      if (i === 0) return `M${pt.x},${pt.y}`;
+      const p0 = points[Math.max(0, i - 2)];
+      const p1 = points[i - 1];
+      const p3 = points[Math.min(points.length - 1, i + 1)];
+      const cp1x = p1.x + (pt.x - p0.x) * tension;
+      const cp1y = p1.y + (pt.y - p0.y) * tension;
+      const cp2x = pt.x - (p3.x - p1.x) * tension;
+      const cp2y = pt.y - (p3.y - p1.y) * tension;
+      return `${d} C${cp1x},${cp1y} ${cp2x},${cp2y} ${pt.x},${pt.y}`;
+    }, '');
   };
+
+  const linePath = buildLinePath(pts);
+  const areaPath = pts.length >= 2
+    ? `${linePath} L${pts[pts.length - 1].x},${baseY} L${pts[0].x},${baseY} Z`
+    : '';
+
+  // Peak point index
+  const peakIdx = pts.length > 0
+    ? pts.reduce((mi, pt, i) => pt.total > pts[mi].total ? i : mi, 0)
+    : 0;
 
   const fmtY = v => {
     if (v === 0) return '0';
     if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-    if (v >= 1000) return `${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k`;
+    if (v >= 1000)      return `${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k`;
     return Math.round(v).toString();
   };
 
-  // Compute totals for the period header
   const periodTotal = data.reduce((s, d) => s + (parseFloat(d.total) || 0), 0);
+
+  // Mouse tracking → nearest point
+  const handleMouseMove = (e) => {
+    if (!svgRef.current || pts.length === 0) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const svgX  = ((e.clientX - rect.left) / rect.width) * VW;
+    let near = 0, minD = Infinity;
+    pts.forEach((p, i) => {
+      const d = Math.abs(p.x - svgX);
+      if (d < minD) { minD = d; near = i; }
+    });
+    const tolerance = data.length > 1 ? (innerW / (data.length - 1)) * 0.6 : 60;
+    setHoveredIdx(minD < tolerance ? near : null);
+  };
 
   return (
     <div className="glass-card overflow-hidden">
@@ -422,10 +473,10 @@ function RevenueChart({ data, period, onPeriodChange, animated, stats }) {
           </h2>
           {periodTotal > 0 && (
             <p className="text-xs text-gray-500 mt-0.5">
-              {period === 'daily'   && 'Last 30 days: '}
-              {period === 'weekly'  && 'Last 13 weeks: '}
-              {period === 'monthly' && 'Last 12 months: '}
-              {period === 'yearly'  && 'All time: '}
+              {period === 'daily'   && 'Last 30 days · '}
+              {period === 'weekly'  && 'Last 13 weeks · '}
+              {period === 'monthly' && 'Last 12 months · '}
+              {period === 'yearly'  && 'All time · '}
               <span className="text-gray-300 font-medium">{formatCurrency(periodTotal)}</span>
             </p>
           )}
@@ -454,116 +505,223 @@ function RevenueChart({ data, period, onPeriodChange, animated, stats }) {
         </div>
       </div>
 
-      {/* SVG Chart */}
-      <div className="px-2 py-3">
-        {data.length > 0 ? (
-          <svg viewBox={`0 0 ${VW} ${VH}`} className="w-full" style={{ height: 'auto', display: 'block' }}>
+      {/* SVG area chart */}
+      <div className="px-2 pt-3 pb-1">
+        {pts.length > 0 ? (
+          <svg
+            ref={svgRef}
+            viewBox={`0 0 ${VW} ${VH}`}
+            className="w-full"
+            style={{ height: 'auto', display: 'block', cursor: 'crosshair' }}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={() => setHoveredIdx(null)}
+          >
             <defs>
-              <linearGradient id="barG" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%"   stopColor="#34d399" stopOpacity="1" />
-                <stop offset="70%"  stopColor="#10b981" stopOpacity="0.85" />
-                <stop offset="100%" stopColor="#065f46" stopOpacity="0.7" />
+              {/* Area gradient */}
+              <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"   stopColor="#34d399" stopOpacity="0.28" />
+                <stop offset="55%"  stopColor="#10b981" stopOpacity="0.08" />
+                <stop offset="100%" stopColor="#065f46" stopOpacity="0" />
               </linearGradient>
-              <linearGradient id="barGH" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%"   stopColor="#6ee7b7" stopOpacity="1" />
-                <stop offset="60%"  stopColor="#34d399" stopOpacity="1" />
-                <stop offset="100%" stopColor="#10b981" stopOpacity="0.9" />
+              {/* Line gradient */}
+              <linearGradient id="lineCol" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%"   stopColor="#059669" />
+                <stop offset="45%"  stopColor="#34d399" />
+                <stop offset="100%" stopColor="#6ee7b7" />
               </linearGradient>
-              <filter id="glow">
-                <feGaussianBlur stdDeviation="5" result="blur" />
-                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              {/* Glow filter for the line */}
+              <filter id="lineGlow" x="-20%" y="-60%" width="140%" height="220%">
+                <feGaussianBlur stdDeviation="3.5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
               </filter>
+              {/* Glow for dots */}
+              <filter id="dotGlow" x="-80%" y="-80%" width="260%" height="260%">
+                <feGaussianBlur stdDeviation="5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              {/* Clip: animate from left → right on mount */}
+              <clipPath id="revealClip">
+                <rect
+                  x={pad.left - 2} y={0}
+                  width={revealed ? innerW + 22 : 0}
+                  height={VH}
+                  style={{ transition: 'width 1.5s cubic-bezier(0.4,0,0.2,1)' }}
+                />
+              </clipPath>
             </defs>
 
-            {/* Grid */}
+            {/* Grid lines + Y labels */}
             {Array.from({ length: GRID + 1 }, (_, i) => {
               const frac = i / GRID;
               const y    = pad.top + innerH * frac;
               return (
                 <g key={i}>
-                  <line x1={pad.left} y1={y} x2={VW - pad.right} y2={y}
-                    stroke={i === GRID ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)'}
-                    strokeWidth={i === GRID ? 1.5 : 1}
-                    strokeDasharray={i === GRID ? '' : '3 6'} />
-                  <text x={pad.left - 8} y={y + 4} textAnchor="end" fill="#374151"
-                    fontSize="11" fontFamily="ui-sans-serif,system-ui,sans-serif">
+                  <line
+                    x1={pad.left} y1={y} x2={VW - pad.right} y2={y}
+                    stroke={i === GRID ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.035)'}
+                    strokeWidth="1"
+                    strokeDasharray={i === GRID ? '' : '4 8'}
+                  />
+                  <text x={pad.left - 8} y={y + 4} textAnchor="end"
+                    fill="#374151" fontSize="11"
+                    fontFamily="ui-sans-serif,system-ui,sans-serif">
                     {fmtY(maxVal * (1 - frac))}
                   </text>
                 </g>
               );
             })}
 
-            {/* Bars */}
-            {data.map((item, i) => {
-              const cx   = xOf(i);
-              const rawH = (item.total / maxVal) * innerH;
-              const barH = animated ? Math.max(rawH, item.total > 0 ? 3 : 0) : 0;
-              const barY = baseY - barH;
-              const hov  = hoveredIdx === i;
-              const { short, long } = parseLabel(item.label, period, locale);
-
-              const TW = 148, TH = 48;
-              const tipX  = Math.min(Math.max(cx - TW / 2, pad.left), VW - pad.right - TW);
-              const tipY  = Math.max(barY - TH - 12, pad.top);
-              const carX  = Math.min(Math.max(cx, tipX + 12), tipX + TW - 12);
-
+            {/* X-axis labels */}
+            {pts.map((pt, i) => {
+              const step = Math.ceil(data.length / 12);
+              if (data.length > 12 && i % step !== 0 && i !== data.length - 1) return null;
+              const { short } = parseLabel(pt.label, period, locale);
               return (
-                <g key={item.label || i}
-                  onMouseEnter={() => setHoveredIdx(i)}
-                  onMouseLeave={() => setHoveredIdx(null)}
-                  style={{ cursor: 'pointer' }}>
-
-                  <rect x={cx - slotW / 2} y={pad.top} width={slotW} height={innerH} fill="transparent" />
-
-                  {hov && (
-                    <rect x={cx - barW / 2 - 6} y={pad.top} width={barW + 12} height={innerH}
-                      rx={8} fill="rgba(52,211,153,0.07)" />
-                  )}
-
-                  {barH > 0 && (
-                    <path d={barPath(cx, barY, barW, barH, 5)}
-                      fill={hov ? 'url(#barGH)' : 'url(#barG)'}
-                      opacity={hov ? 1 : 0.8}
-                      filter={hov ? 'url(#glow)' : undefined}
-                      style={{ transition: 'opacity 0.15s' }} />
-                  )}
-
-                  {barH > 6 && (
-                    <line x1={cx - barW / 2 + 4} y1={barY + 1.5}
-                      x2={cx + barW / 2 - 4} y2={barY + 1.5}
-                      stroke={hov ? '#a7f3d0' : '#6ee7b7'}
-                      strokeWidth="1.5" strokeLinecap="round"
-                      opacity={hov ? 0.9 : 0.35} />
-                  )}
-
-                  <text x={cx} y={baseY + 16} textAnchor="middle"
-                    fill={hov ? '#9ca3af' : '#374151'}
-                    fontSize={data.length > 20 ? 8 : data.length > 12 ? 9 : 10}
-                    fontWeight={hov ? '600' : '400'}
-                    fontFamily="ui-sans-serif,system-ui,sans-serif">
-                    {short}
-                  </text>
-
-                  {hov && (
-                    <g>
-                      <rect x={tipX + 3} y={tipY + 3} width={TW} height={TH} rx={8} fill="rgba(0,0,0,0.35)" />
-                      <rect x={tipX} y={tipY} width={TW} height={TH} rx={8}
-                        fill="#0f172a" stroke="#34d399" strokeWidth="1" strokeOpacity="0.4" />
-                      <circle cx={tipX + 13} cy={tipY + 15} r="3.5" fill="#34d399" />
-                      <text x={tipX + 24} y={tipY + 19} fill="#6ee7b7" fontSize="9" fontWeight="500"
-                        fontFamily="ui-sans-serif,system-ui,sans-serif">{long}</text>
-                      <text x={tipX + 13} y={tipY + 37} fill="white" fontSize="13" fontWeight="800"
-                        fontFamily="ui-sans-serif,system-ui,sans-serif">
-                        ETB {(item.total || 0).toLocaleString()}
-                      </text>
-                    </g>
-                  )}
-                </g>
+                <text key={i} x={pt.x} y={baseY + 18} textAnchor="middle"
+                  fill={hoveredIdx === i ? '#9ca3af' : '#374151'}
+                  fontSize={data.length > 20 ? 8 : 10}
+                  fontWeight={hoveredIdx === i ? '600' : '400'}
+                  fontFamily="ui-sans-serif,system-ui,sans-serif">
+                  {short}
+                </text>
               );
             })}
+
+            {/* Clipped: area fill + line */}
+            <g clipPath="url(#revealClip)">
+              {/* Subtle bar columns under area for readability */}
+              {pts.map((pt, i) => {
+                const colH = baseY - pt.y;
+                if (colH <= 0) return null;
+                return (
+                  <rect key={i}
+                    x={pt.x - 1} y={pt.y} width={2} height={colH}
+                    fill="#34d399" opacity={hoveredIdx === i ? 0.35 : 0.1}
+                    style={{ transition: 'opacity 0.15s' }}
+                  />
+                );
+              })}
+
+              {/* Area fill */}
+              <path d={areaPath} fill="url(#areaFill)" />
+
+              {/* Glowing line (blurred copy behind) */}
+              <path d={linePath} fill="none"
+                stroke="url(#lineCol)" strokeWidth="4" strokeOpacity="0.35"
+                strokeLinecap="round" strokeLinejoin="round"
+                filter="url(#lineGlow)" />
+              {/* Crisp line on top */}
+              <path d={linePath} fill="none"
+                stroke="url(#lineCol)" strokeWidth="2.5"
+                strokeLinecap="round" strokeLinejoin="round" />
+
+              {/* Data point dots */}
+              {pts.map((pt, i) => pt.total > 0 && (
+                <circle key={i} cx={pt.x} cy={pt.y}
+                  r={hoveredIdx === i ? 4.5 : 3}
+                  fill={hoveredIdx === i ? 'white' : '#34d399'}
+                  opacity={hoveredIdx !== null ? (hoveredIdx === i ? 1 : 0.25) : 0.55}
+                  style={{ transition: 'r 0.15s, opacity 0.15s' }}
+                />
+              ))}
+            </g>
+
+            {/* Peak annotation — only shown when not hovering */}
+            {pts.length > 1 && pts[peakIdx]?.total > 0 && hoveredIdx === null && (
+              <g>
+                <circle cx={pts[peakIdx].x} cy={pts[peakIdx].y}
+                  r="6.5" fill="#34d399" opacity="0.85" filter="url(#dotGlow)" />
+                <circle cx={pts[peakIdx].x} cy={pts[peakIdx].y}
+                  r="3" fill="white" />
+                {/* Label pill */}
+                {(() => {
+                  const px = pts[peakIdx].x;
+                  const py = pts[peakIdx].y;
+                  const lx = Math.min(Math.max(px - 28, pad.left + 2), VW - pad.right - 60);
+                  return (
+                    <g>
+                      <rect x={lx} y={py - 26} width={58} height={16} rx={5}
+                        fill="rgba(52,211,153,0.14)" stroke="#34d399"
+                        strokeWidth="0.75" strokeOpacity="0.45" />
+                      <text x={lx + 29} y={py - 14} textAnchor="middle"
+                        fill="#6ee7b7" fontSize="8.5" fontWeight="700"
+                        fontFamily="ui-sans-serif,system-ui,sans-serif">
+                        ↑ Peak
+                      </text>
+                    </g>
+                  );
+                })()}
+              </g>
+            )}
+
+            {/* Hover: crosshair + enlarged dot + tooltip */}
+            {hoveredIdx !== null && pts[hoveredIdx] && (
+              <g>
+                {/* Vertical line */}
+                <line
+                  x1={pts[hoveredIdx].x} y1={pad.top}
+                  x2={pts[hoveredIdx].x} y2={baseY}
+                  stroke="rgba(52,211,153,0.2)" strokeWidth="1"
+                  strokeDasharray="4 5"
+                />
+                {/* Bottom tick */}
+                <line
+                  x1={pts[hoveredIdx].x} y1={baseY}
+                  x2={pts[hoveredIdx].x} y2={baseY + 4}
+                  stroke="#34d399" strokeWidth="1.5" strokeOpacity="0.5"
+                />
+                {/* Dot rings */}
+                <circle cx={pts[hoveredIdx].x} cy={pts[hoveredIdx].y}
+                  r="10" fill="#34d399" opacity="0.1" />
+                <circle cx={pts[hoveredIdx].x} cy={pts[hoveredIdx].y}
+                  r="5.5" fill="#34d399" filter="url(#dotGlow)" opacity="0.9" />
+                <circle cx={pts[hoveredIdx].x} cy={pts[hoveredIdx].y}
+                  r="2.5" fill="white" />
+
+                {/* Tooltip */}
+                {(() => {
+                  const pt  = pts[hoveredIdx];
+                  const { long } = parseLabel(pt.label, period, locale);
+                  const TW = 158, TH = 56;
+                  const tipX = Math.min(Math.max(pt.x - TW / 2, pad.left), VW - pad.right - TW);
+                  const tipY = Math.max(pt.y - TH - 16, pad.top);
+                  const carX = Math.min(Math.max(pt.x, tipX + 14), tipX + TW - 14);
+                  return (
+                    <g>
+                      <rect x={tipX + 2.5} y={tipY + 2.5} width={TW} height={TH}
+                        rx={9} fill="rgba(0,0,0,0.45)" />
+                      <rect x={tipX} y={tipY} width={TW} height={TH}
+                        rx={9} fill="#0c1222"
+                        stroke="#34d399" strokeWidth="1" strokeOpacity="0.3" />
+                      {/* Accent bar on left */}
+                      <rect x={tipX} y={tipY + 6} width={3} height={TH - 12}
+                        rx={1.5} fill="#34d399" opacity="0.7" />
+                      <text x={tipX + 14} y={tipY + 20} fill="#6ee7b7"
+                        fontSize="9.5" fontWeight="500"
+                        fontFamily="ui-sans-serif,system-ui,sans-serif">{long}</text>
+                      <text x={tipX + 14} y={tipY + 41} fill="white"
+                        fontSize="15" fontWeight="800"
+                        fontFamily="ui-sans-serif,system-ui,sans-serif">
+                        ETB {pt.total.toLocaleString()}
+                      </text>
+                      {/* Caret */}
+                      <path d={`M${carX - 5},${tipY + TH} L${carX},${tipY + TH + 7} L${carX + 5},${tipY + TH}`}
+                        fill="#0c1222" stroke="#34d399"
+                        strokeOpacity="0.3" strokeWidth="1" strokeLinejoin="round" />
+                    </g>
+                  );
+                })()}
+              </g>
+            )}
           </svg>
         ) : (
-          <div className="h-48 flex items-center justify-center">
+          <div className="h-52 flex items-center justify-center">
             <div className="text-center">
               <BarChart3 className="w-10 h-10 mx-auto mb-3 text-gray-700" />
               <p className="text-sm text-gray-500">No data for this period</p>
