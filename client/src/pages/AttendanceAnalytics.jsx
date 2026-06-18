@@ -458,7 +458,8 @@ function DailyChart({ data, t }) {
   const values = data.map(d => parseInt(d.visits) || 0);
   const maxVisits = Math.max(...values, 1);
   const totalVisits = values.reduce((a, b) => a + b, 0);
-  const todayStr = new Date().toISOString().split('T')[0];
+  const _now = new Date();
+  const todayStr = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`;
 
   // Chart dimensions
   const W = 420, H = 140, PAD_LEFT = 28, PAD_BOTTOM = 32, PAD_TOP = 20;

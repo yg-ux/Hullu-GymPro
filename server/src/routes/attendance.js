@@ -372,6 +372,7 @@ router.get('/history/:customerId', authenticateToken, async (req, res) => {
 router.get('/stats', authenticateToken, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
+    const tz = process.env.GYM_TIMEZONE || 'Africa/Addis_Ababa';
 
     const todayStats = await getOne(`
       SELECT
@@ -379,24 +380,24 @@ router.get('/stats', authenticateToken, async (req, res) => {
         SUM(CASE WHEN check_out IS NULL THEN 1 ELSE 0 END) as currently_present,
         SUM(CASE WHEN check_out IS NOT NULL THEN 1 ELSE 0 END) as completed
       FROM attendance
-      WHERE gym_id = ? AND check_in::date = CURRENT_DATE
-    `, [gymId]);
+      WHERE gym_id = ? AND (check_in AT TIME ZONE ?)::date = (NOW() AT TIME ZONE ?)::date
+    `, [gymId, tz, tz]);
 
     const weeklyStats = await getOne(`
       SELECT
         COUNT(*) as total_visits,
         COUNT(DISTINCT customer_id) as unique_visitors
       FROM attendance
-      WHERE gym_id = ? AND check_in::date >= CURRENT_DATE - INTERVAL '7 days'
-    `, [gymId]);
+      WHERE gym_id = ? AND (check_in AT TIME ZONE ?)::date >= (NOW() AT TIME ZONE ?)::date - INTERVAL '7 days'
+    `, [gymId, tz, tz]);
 
     const monthlyStats = await getOne(`
       SELECT
         COUNT(*) as total_visits,
         COUNT(DISTINCT customer_id) as unique_visitors
       FROM attendance
-      WHERE gym_id = ? AND TO_CHAR(check_in, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')
-    `, [gymId]);
+      WHERE gym_id = ? AND TO_CHAR(check_in AT TIME ZONE ?, 'YYYY-MM') = TO_CHAR(NOW() AT TIME ZONE ?, 'YYYY-MM')
+    `, [gymId, tz, tz]);
 
     const dailyBreakdown = await getAll(`
       SELECT
@@ -404,15 +405,15 @@ router.get('/stats', authenticateToken, async (req, res) => {
         COALESCE(COUNT(a.id), 0) AS visits,
         COALESCE(COUNT(DISTINCT a.customer_id), 0) AS unique_visitors
       FROM generate_series(
-        CURRENT_DATE - INTERVAL '6 days',
-        CURRENT_DATE,
+        (NOW() AT TIME ZONE ?)::date - INTERVAL '6 days',
+        (NOW() AT TIME ZONE ?)::date,
         '1 day'::interval
       ) AS gs(day)
       LEFT JOIN attendance a
-        ON a.check_in::date = gs.day AND a.gym_id = ?
+        ON (a.check_in AT TIME ZONE ?)::date = gs.day AND a.gym_id = ?
       GROUP BY gs.day
       ORDER BY gs.day ASC
-    `, [gymId]);
+    `, [tz, tz, tz, gymId]);
 
     const peakHours = await getAll(`
       SELECT
