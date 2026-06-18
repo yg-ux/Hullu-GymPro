@@ -625,7 +625,6 @@ function formatHour(h) {
 
 function AttendanceHeatmap({ matrix, max }) {
   const { t } = useLanguage();
-  const [tooltip, setTooltip] = useState(null);
 
   const DAY_LABELS = [
     t('day.sun'), t('day.mon'), t('day.tue'), t('day.wed'),
@@ -721,17 +720,10 @@ function AttendanceHeatmap({ matrix, max }) {
                 return (
                   <div
                     key={d}
-                    onMouseEnter={e => {
-                      const r = e.currentTarget.getBoundingClientRect();
-                      // Clamp x so tooltip never overflows left or right edge
-                      const x = Math.max(100, Math.min(r.left + r.width / 2, window.innerWidth - 100));
-                      // If cell is near the top of the viewport, show tooltip below instead
-                      const above = r.top > 80;
-                      setTooltip({ x, y: above ? r.top : r.bottom, above, d, h, v });
-                    }}
-                    onMouseLeave={() => setTooltip(null)}
-                    className="h-7 rounded-[5px] flex items-center justify-center cursor-default
-                      transition-all duration-100 hover:scale-110 hover:ring-1 hover:ring-white/25 relative"
+                    className={clsx(
+                      'group/cell h-7 rounded-[5px] flex items-center justify-center cursor-default relative',
+                      'transition-all duration-100 hover:ring-2 hover:ring-white/30',
+                    )}
                     style={{ background: heatmapColor(v, max) }}
                   >
                     {showNum && (
@@ -739,6 +731,20 @@ function AttendanceHeatmap({ matrix, max }) {
                         {v}
                       </span>
                     )}
+                    {/* Inline tooltip — avoids backdrop-filter stacking context that breaks fixed positioning */}
+                    <div className={clsx(
+                      'absolute z-50 bottom-[calc(100%+5px)] pointer-events-none',
+                      'invisible group-hover/cell:visible opacity-0 group-hover/cell:opacity-100 transition-opacity duration-100',
+                      'bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 shadow-2xl whitespace-nowrap text-center',
+                      d <= 1 ? 'left-0' : d >= 5 ? 'right-0' : 'left-1/2 -translate-x-1/2',
+                    )}>
+                      <p className="text-white font-semibold text-sm">
+                        {v > 0 ? `${v} ${t('dashboard.heatmapCheckIns')}` : t('dashboard.heatmapNone')}
+                      </p>
+                      <p className="text-gray-400 text-xs mt-0.5">
+                        {DAY_LABELS[d]} · {formatHour(h)}–{formatHour((h + 1) % 24)}
+                      </p>
+                    </div>
                   </div>
                 );
               })}
@@ -769,34 +775,6 @@ function AttendanceHeatmap({ matrix, max }) {
         </div>
       </div>
 
-      {/* Tooltip */}
-      {tooltip && (
-        <div className="fixed z-50 pointer-events-none"
-          style={{
-            left: tooltip.x,
-            top: tooltip.above ? tooltip.y - 8 : tooltip.y + 8,
-            transform: tooltip.above ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
-          }}>
-          {/* Caret — above tooltip when showing below cell */}
-          {!tooltip.above && (
-            <div className="w-2 h-2 bg-gray-900 border-t border-l border-gray-700 rotate-45 mx-auto mb-[-5px]" />
-          )}
-          <div className="bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 shadow-2xl text-center whitespace-nowrap">
-            <p className="text-white font-semibold text-sm">
-              {tooltip.v > 0
-                ? `${tooltip.v} ${t('dashboard.heatmapCheckIns')}`
-                : t('dashboard.heatmapNone')}
-            </p>
-            <p className="text-gray-400 text-xs mt-0.5">
-              {DAY_LABELS[tooltip.d]} · {formatHour(tooltip.h)}–{formatHour((tooltip.h + 1) % 24)}
-            </p>
-          </div>
-          {/* Caret — below tooltip when showing above cell */}
-          {tooltip.above && (
-            <div className="w-2 h-2 bg-gray-900 border-b border-r border-gray-700 rotate-45 mx-auto -mt-[5px]" />
-          )}
-        </div>
-      )}
     </div>
   );
 }
