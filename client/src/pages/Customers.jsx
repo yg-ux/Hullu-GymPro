@@ -71,12 +71,13 @@ export default function Customers() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('membership_end');
+  const [sortBy, setSortBy] = useState('recent_activity');
   const [viewMode, setViewMode] = useLocalStorage('customerViewMode', 'grid');
   const [selectedCustomers, setSelectedCustomers] = useState([]);
   const [bulkActionOpen, setBulkActionOpen] = useState(false);
   const navigate = useNavigate();
   const searchDebounceRef = useRef(null);
+  const sortByRef = useRef(sortBy);
   const [checkedInIds, setCheckedInIds] = useState(new Set());
 
   // Load currently checked-in customers on mount
@@ -111,26 +112,30 @@ export default function Customers() {
     }
   };
 
+  // Keep ref in sync so debounce always uses the latest sort value
+  useEffect(() => { sortByRef.current = sortBy; }, [sortBy]);
+
   useEffect(() => {
-    loadCustomers(page, statusFilter, search);
-  }, [page, statusFilter]);
+    loadCustomers(page, statusFilter, search, sortBy);
+  }, [page, statusFilter, sortBy]);
 
   // Debounce search
   useEffect(() => {
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(() => {
       setPage(1);
-      loadCustomers(1, statusFilter, search);
+      loadCustomers(1, statusFilter, search, sortByRef.current);
     }, 300);
     return () => clearTimeout(searchDebounceRef.current);
   }, [search]);
 
-  const loadCustomers = async (p = 1, status = 'all', q = '') => {
+  const loadCustomers = async (p = 1, status = 'all', q = '', sort = 'recent_activity') => {
     try {
       setLoading(true);
       const params = new URLSearchParams({ page: p, limit: 50 });
       if (status && status !== 'all') params.set('status', status);
       if (q) params.set('search', q);
+      params.set('sort', sort);
       const data = await api.get(`/customers?${params}`);
       setCustomers(data.data || []);
       setPagination(data.pagination || null);
@@ -170,6 +175,8 @@ export default function Customers() {
   };
 
   const filteredCustomers = useMemo(() => {
+    // Server already returned data in the correct order for recent_activity
+    if (sortBy === 'recent_activity') return customers;
     const list = [...customers];
     if (sortBy === 'name') {
       list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -345,9 +352,10 @@ export default function Customers() {
           <div className="relative">
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
+              onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
               className="input-field pr-8 appearance-none cursor-pointer"
             >
+              <option value="recent_activity">Most Recently Active</option>
               <option value="membership_end">{t('customers.sortByExpiry')}</option>
               <option value="name">{t('customers.sortByName')}</option>
               <option value="created_at">{t('customers.sortNewest')}</option>

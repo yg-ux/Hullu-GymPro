@@ -160,6 +160,38 @@ export default function CheckOut() {
         )}
       </div>
 
+      {/* Live Member Count */}
+      <div className={clsx(
+        "flex items-center gap-5 p-5 rounded-2xl border transition-all",
+        checkedInCustomers.length > 0
+          ? "bg-green-500/10 border-green-500/30 shadow-lg shadow-green-500/10"
+          : "bg-dark-200/40 border-gray-700/50"
+      )}>
+        <div className="relative flex-shrink-0">
+          <div className={clsx(
+            "w-20 h-20 rounded-2xl flex items-center justify-center text-4xl font-black text-white shadow-xl select-none",
+            checkedInCustomers.length > 0
+              ? "bg-gradient-to-br from-green-400 to-emerald-600 shadow-green-500/40"
+              : "bg-gradient-to-br from-gray-600 to-gray-700 shadow-gray-700/30"
+          )}>
+            {loading && checkedInCustomers.length === 0 ? '…' : checkedInCustomers.length}
+          </div>
+          {checkedInCustomers.length > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-green-400 border-2 border-dark-100 animate-pulse" />
+          )}
+        </div>
+        <div className="min-w-0">
+          <p className="text-2xl font-bold text-white leading-tight">
+            {checkedInCustomers.length === 1 ? 'Member Inside' : 'Members Inside'}
+          </p>
+          <p className={clsx("text-sm mt-1", checkedInCustomers.length > 0 ? "text-green-400" : "text-gray-500")}>
+            {checkedInCustomers.length > 0
+              ? `${checkedInCustomers.length} ${checkedInCustomers.length === 1 ? 'person is' : 'people are'} in the gym right now · live`
+              : 'Gym is currently empty'}
+          </p>
+        </div>
+      </div>
+
       {/* Messages */}
       {success && (
         <div className="flex items-center gap-3 p-4 bg-green-500/10 border border-green-500/30 rounded-xl animate-slide-up">

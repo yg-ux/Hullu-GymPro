@@ -33,7 +33,7 @@ const SESSIONS_FOR_3DAYS = {
 // Get all customers
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { status, search } = req.query;
+    const { status, search, sort } = req.query;
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 50));
     const offset = (page - 1) * limit;
@@ -76,7 +76,8 @@ router.get('/', authenticateToken, async (req, res) => {
 
     let countSql = 'SELECT COUNT(*) as total FROM customers WHERE gym_id = ?';
     let sql = `SELECT *,
-      FLOOR(EXTRACT(EPOCH FROM (membership_end::timestamp - NOW())) / 86400)::integer as days_until_expiry
+      FLOOR(EXTRACT(EPOCH FROM (membership_end::timestamp - NOW())) / 86400)::integer as days_until_expiry,
+      (SELECT MAX(a.check_in) FROM attendance a WHERE a.customer_id = customers.id AND a.gym_id = customers.gym_id) as last_check_in
       FROM customers WHERE gym_id = ?`;
     const params = [gymId];
     const countParams = [gymId];
@@ -95,16 +96,20 @@ router.get('/', authenticateToken, async (req, res) => {
       countParams.push(`%${search}%`, `%${search}%`);
     }
 
-    sql += ` ORDER BY
-      CASE status
-        WHEN 'active' THEN 1
-        WHEN 'expiring' THEN 2
-        WHEN 'expired' THEN 3
-        WHEN 'inactive' THEN 4
-      END ASC,
-      CASE WHEN status = 'active' OR status = 'expiring' THEN membership_end END ASC,
-      name ASC
-      LIMIT ? OFFSET ?`;
+    if (sort === 'recent_activity') {
+      sql += ` ORDER BY last_check_in DESC NULLS LAST, name ASC LIMIT ? OFFSET ?`;
+    } else {
+      sql += ` ORDER BY
+        CASE status
+          WHEN 'active' THEN 1
+          WHEN 'expiring' THEN 2
+          WHEN 'expired' THEN 3
+          WHEN 'inactive' THEN 4
+        END ASC,
+        CASE WHEN status = 'active' OR status = 'expiring' THEN membership_end END ASC,
+        name ASC
+        LIMIT ? OFFSET ?`;
+    }
     params.push(limit, offset);
 
     const customers = await getAll(sql, params);
