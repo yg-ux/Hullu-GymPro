@@ -367,6 +367,47 @@ function KpiCard({ title, value, trendPct, icon: Icon, accent, sparkData, delay,
   );
 }
 
+// ── Color palette derived from the active gym theme ───────────────────────────
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h /= 6;
+  }
+  return [h * 360, s * 100, l * 100];
+}
+
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1)))))
+      .toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+function buildThemePalette(r, g, b, count = 16) {
+  const [h, s, l] = rgbToHsl(r, g, b);
+  const shifts = [0, 28, -28, 56, -56, 42, -42, 18, -18, 70, -70, 14, -14, 50, -50, 35];
+  return shifts.slice(0, count).map((shift, i) => {
+    const nh = ((h + shift) % 360 + 360) % 360;
+    const nl = Math.max(44, Math.min(68, l + (i % 2 === 0 ? 6 : -4)));
+    const ns = Math.max(55, Math.min(92, s));
+    return hslToHex(nh, ns, nl);
+  });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // REVENUE CHART — colored ring-dot line chart
 // ─────────────────────────────────────────────────────────────────────────────
@@ -377,6 +418,17 @@ function RevenueChart({ data, period, onPeriodChange, animated, stats }) {
   const [revealed, setRevealed]     = useState(false);
   const svgRef = useRef(null);
 
+  // Read the active gym theme color and build an analogous palette
+  const [themePalette, setThemePalette] = useState(null);
+  useEffect(() => {
+    const raw = getComputedStyle(document.documentElement)
+      .getPropertyValue('--gym-500-rgb').trim();
+    const parts = raw.split(' ').map(Number);
+    if (parts.length === 3 && parts.every(n => !isNaN(n))) {
+      setThemePalette(buildThemePalette(...parts));
+    }
+  }, []);
+
   useEffect(() => {
     setRevealed(false);
     if (animated && data.length > 0) {
@@ -385,12 +437,14 @@ function RevenueChart({ data, period, onPeriodChange, animated, stats }) {
     }
   }, [data, animated]);
 
-  const POINT_COLORS = [
+  // Fallback palette (used before CSS variable is read)
+  const FALLBACK_COLORS = [
     '#f97316', '#f43f5e', '#06b6d4', '#3b82f6',
     '#fb7185', '#ef4444', '#a78bfa', '#1d4ed8',
     '#10b981', '#fbbf24', '#14b8a6', '#8b5cf6',
     '#fb923c', '#e879f9', '#34d399', '#60a5fa',
   ];
+  const POINT_COLORS = themePalette || FALLBACK_COLORS;
 
   const periods = [
     { key: 'daily',   label: 'Day' },
