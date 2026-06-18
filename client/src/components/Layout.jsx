@@ -221,6 +221,7 @@ export default function Layout() {
   const [notifications, setNotifications] = useState([]);
   const [notifLoading, setNotifLoading] = useState(true);
   const [recentActivity, setRecentActivity] = useState([]);
+  const [gymCount, setGymCount] = useState(0);
 
   const getTimeAgo = (dateStr) => {
     if (!dateStr) return '';
@@ -273,6 +274,13 @@ export default function Layout() {
           time: p.created_at || p.payment_date,
         });
       });
+
+      // Live gym occupancy count for sidebar badge
+      setGymCount(
+        attendanceRes.status === 'fulfilled'
+          ? (attendanceRes.value?.currently_present || []).length
+          : 0
+      );
 
       // Today's check-ins (currently present first, then checked-out)
       if (attendanceRes.status === 'fulfilled' && attendanceRes.value) {
@@ -474,13 +482,13 @@ export default function Layout() {
               <X className="w-5 h-5" />
             </button>
           </div>
-          <SidebarContent onNavigate={() => setSidebarOpen(false)} recentActivity={recentActivity} getTimeAgo={getTimeAgo} />
+          <SidebarContent onNavigate={() => setSidebarOpen(false)} recentActivity={recentActivity} getTimeAgo={getTimeAgo} gymCount={gymCount} />
         </div>
       </div>
 
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col">
-        <SidebarContent recentActivity={recentActivity} getTimeAgo={getTimeAgo} />
+        <SidebarContent recentActivity={recentActivity} getTimeAgo={getTimeAgo} gymCount={gymCount} />
       </div>
 
       {/* Main content */}
@@ -843,7 +851,7 @@ export default function Layout() {
   );
 }
 
-function SidebarContent({ onNavigate, recentActivity = [], getTimeAgo }) {
+function SidebarContent({ onNavigate, recentActivity = [], getTimeAgo, gymCount = 0 }) {
   const { gym, subscription, user } = useAuth();
   const location = useLocation();
   const { t } = useLanguage();
@@ -861,12 +869,6 @@ function SidebarContent({ onNavigate, recentActivity = [], getTimeAgo }) {
   const visibleNav = navigation.filter(item =>
     !item.roles || item.roles.includes(userRole)
   );
-
-  const getPlanBadge = (requiredPlan) => {
-    if (!requiredPlan) return null;
-    if (hasPlanAccess(requiredPlan)) return null; // no badge if they have access
-    return <span className="ml-auto text-xs px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full">{t('layout.locked')}</span>;
-  };
 
   return (
     <div className="flex flex-col h-full bg-dark-100 border-r border-gray-800/50 relative overflow-y-auto overflow-x-hidden">
@@ -929,10 +931,19 @@ function SidebarContent({ onNavigate, recentActivity = [], getTimeAgo }) {
                 {planOk ? <item.icon className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
               </div>
               <span className="text-sm">{item.i18n ? t(item.i18n) : item.name}</span>
-              {getPlanBadge(item.requiresPlan)}
-              {isActive && (
-                <div className="ml-auto w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'rgb(var(--gym-400-rgb))' }} />
-              )}
+              <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
+                {item.href === '/check-out' && gymCount > 0 && (
+                  <span className="min-w-[20px] h-5 px-1.5 bg-green-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center leading-none shadow-sm shadow-green-500/40">
+                    {gymCount > 99 ? '99+' : gymCount}
+                  </span>
+                )}
+                {item.requiresPlan && !hasPlanAccess(item.requiresPlan) && (
+                  <span className="text-xs px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full">{t('layout.locked')}</span>
+                )}
+                {isActive && (
+                  <div className="w-1.5 h-1.5 rounded-full animate-pulse flex-shrink-0" style={{ background: 'rgb(var(--gym-400-rgb))' }} />
+                )}
+              </div>
             </NavLink>
           );
         })}
