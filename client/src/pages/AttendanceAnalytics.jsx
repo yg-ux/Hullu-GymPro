@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { api, formatDate } from '../utils/api';
 import { useLanguage } from '../context/LanguageContext';
 import { StatCardSkeleton } from '../components/Skeleton';
@@ -19,6 +19,7 @@ export default function AttendanceAnalytics() {
   const [heatmapMonth, setHeatmapMonth] = useState('');
   const [heatmapLoading, setHeatmapLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const heatmapMonthRef = useRef('');
 
   const loadStats = useCallback(async () => {
     try {
@@ -31,48 +32,54 @@ export default function AttendanceAnalytics() {
     }
   }, []);
 
+  // Defined before refreshAll so it can be included in the Promise.all
+  const loadHeatmap = useCallback(async (month) => {
+    setHeatmapLoading(true);
+    try {
+      const query = month ? `?month=${month}` : '';
+      const data = await api.get(`/attendance/heatmap${query}`);
+      setHeatmap(data);
+      if (!month) {
+        setHeatmapMonth(data.month);
+        heatmapMonthRef.current = data.month;
+      }
+    } catch (e) {
+      console.warn('Failed to load heatmap:', e);
+    } finally {
+      setHeatmapLoading(false);
+    }
+  }, []);
+
   const refreshAll = useCallback(async (showSpinner = true) => {
     if (showSpinner) setRefreshing(true);
     try {
       await Promise.all([
         loadStats(),
+        loadHeatmap(heatmapMonthRef.current),
         api.get('/stats').then(d => setGenderData(d.gender_breakdown || [])).catch(() => {}),
       ]);
     } finally {
       if (showSpinner) setRefreshing(false);
     }
-  }, [loadStats]);
+  }, [loadStats, loadHeatmap]);
 
   // Load on mount
   useEffect(() => {
     loadStats();
     loadHeatmap('');
     api.get('/stats').then(d => setGenderData(d.gender_breakdown || [])).catch(() => {});
-  }, [loadStats]);
+  }, [loadStats, loadHeatmap]);
 
-  // Re-fetch stats when tab becomes visible again
+  // Re-fetch stats + heatmap when tab becomes visible again
   useEffect(() => {
     const onVisible = () => { if (document.visibilityState === 'visible') refreshAll(false); };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [refreshAll]);
 
-  const loadHeatmap = async (month) => {
-    setHeatmapLoading(true);
-    try {
-      const query = month ? `?month=${month}` : '';
-      const data = await api.get(`/attendance/heatmap${query}`);
-      setHeatmap(data);
-      if (!month) setHeatmapMonth(data.month);
-    } catch (e) {
-      console.warn('Failed to load heatmap:', e);
-    } finally {
-      setHeatmapLoading(false);
-    }
-  };
-
   const handleHeatmapMonthChange = (month) => {
     setHeatmapMonth(month);
+    heatmapMonthRef.current = month;
     loadHeatmap(month);
   };
 
@@ -619,32 +626,42 @@ function AttendanceHeatmap({ matrix, max }) {
   const { t } = useLanguage();
   const [tooltip, setTooltip] = useState(null);
 
-  const dayLabels = [
+  const DAY_LABELS = [
     t('day.sun'), t('day.mon'), t('day.tue'), t('day.wed'),
     t('day.thu'), t('day.fri'), t('day.sat'),
   ];
 
   const total      = matrix.flat().reduce((s, v) => s + v, 0);
   const dayTotals  = matrix.map(row => row.reduce((s, v) => s + v, 0));
-  const hourTotals = Array.from({ length: 24 }, (_, h) => matrix.reduce((s, row) => s + row[h], 0));
+  const hourTotals = Array.from({ length: 24 }, (_, h) =>
+    matrix.reduce((s, row) => s + row[h], 0)
+  );
   const peakDayIdx  = dayTotals.indexOf(Math.max(...dayTotals));
   const peakHourIdx = hourTotals.indexOf(Math.max(...hourTotals));
 
-  const showTooltip = (e, d, h, v) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    setTooltip({ x: r.left + r.width / 2, y: r.top, d, h, v });
-  };
-  const hideTooltip = () => setTooltip(null);
-
-  const markedHours = [0, 3, 6, 9, 12, 15, 18, 21];
+  // Show 5 am–11 pm only; trim leading/trailing empty hours (±1 buffer)
+  const HOUR_RANGE = Array.from({ length: 19 }, (_, i) => i + 5); // 5..23
+  let firstActive = 23, lastActive = 5;
+  HOUR_RANGE.forEach(h => {
+    if (hourTotals[h] > 0) {
+      if (h < firstActive) firstActive = h;
+      if (h > lastActive)  lastActive  = h;
+    }
+  });
+  const visibleHours = total === 0
+    ? HOUR_RANGE
+    : HOUR_RANGE.filter(h =>
+        h >= Math.max(5, firstActive - 1) && h <= Math.min(23, lastActive + 1)
+      );
 
   return (
     <div>
+      {/* Summary stats row */}
       <div className="grid grid-cols-3 gap-3 mb-5">
         {[
-          { value: total,                                      label: t('dashboard.heatmapTotal'),      sub: t('dashboard.heatmapCheckIns'), color: 'text-gym-400' },
-          { value: total > 0 ? dayLabels[peakDayIdx]  : '—',  label: t('dashboard.heatmapBusiestDay'), sub: null,                           color: 'text-yellow-400' },
-          { value: total > 0 ? formatHour(peakHourIdx): '—',  label: t('dashboard.heatmapPeakHour'),   sub: null,                           color: 'text-orange-400' },
+          { value: total,                                        label: t('dashboard.heatmapTotal'),      sub: t('dashboard.heatmapCheckIns'), color: 'text-gym-400'    },
+          { value: total > 0 ? DAY_LABELS[peakDayIdx]  : '—',  label: t('dashboard.heatmapBusiestDay'), sub: null,                           color: 'text-yellow-400' },
+          { value: total > 0 ? formatHour(peakHourIdx) : '—',  label: t('dashboard.heatmapPeakHour'),   sub: null,                           color: 'text-orange-400' },
         ].map(({ value, label, sub, color }) => (
           <div key={label} className="bg-dark-300/60 border border-gray-800/60 rounded-xl p-3 text-center">
             <p className={`text-xl font-bold ${color} leading-tight`}>{value}</p>
@@ -654,65 +671,107 @@ function AttendanceHeatmap({ matrix, max }) {
         ))}
       </div>
 
-      <div className="overflow-x-auto">
-        <div className="inline-block min-w-full">
-          <div className="flex pl-10 mb-1">
-            {Array.from({ length: 24 }, (_, h) => (
-              <div key={h} className="flex-1 min-w-[20px] text-center text-[9px] text-gray-500 font-medium">
-                {markedHours.includes(h) ? formatHour(h) : ''}
-              </div>
-            ))}
-          </div>
-
-          {matrix.map((row, d) => {
-            const isPeakDay = total > 0 && d === peakDayIdx;
+      {/* Grid — rows = hours, cols = days (fits any screen without scroll) */}
+      <div style={{ minWidth: '260px' }}>
+        {/* Column headers: spacer | 7 days | total */}
+        <div className="grid mb-2" style={{ gridTemplateColumns: '3rem repeat(7, 1fr) 2.5rem', gap: '3px' }}>
+          <div /> {/* hour-label spacer */}
+          {DAY_LABELS.map((day, d) => {
+            const isPeak = total > 0 && d === peakDayIdx;
             return (
-              <div key={d} className="flex items-center mb-[3px] group">
-                <div className={`w-10 text-[11px] pr-2 shrink-0 flex items-center gap-1 ${isPeakDay ? 'text-yellow-400 font-semibold' : 'text-gray-500 font-medium'}`}>
-                  {isPeakDay && <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shrink-0" />}
-                  {dayLabels[d]}
-                </div>
-                {row.map((v, h) => {
-                  const isPeakHour = total > 0 && h === peakHourIdx;
-                  return (
-                    <div
-                      key={h}
-                      onMouseEnter={e => showTooltip(e, d, h, v)}
-                      onMouseLeave={hideTooltip}
-                      className={`flex-1 min-w-[20px] aspect-square mx-[1.5px] rounded-[4px] cursor-pointer
-                        transition-all duration-150 hover:scale-125 hover:z-10 hover:ring-1 hover:ring-white/20
-                        ${isPeakHour ? 'ring-1 ring-white/10' : ''}`}
-                      style={{ background: heatmapColor(v, max) }}
-                    />
-                  );
-                })}
+              <div key={d} className="text-center leading-tight py-0.5">
+                <p className={clsx('text-xs font-semibold', isPeak ? 'text-yellow-400' : 'text-gray-400')}>
+                  {day}
+                </p>
+                <p className={clsx('text-[10px]', isPeak ? 'text-yellow-500/80' : 'text-gray-600')}>
+                  {dayTotals[d] > 0 ? dayTotals[d] : ''}
+                </p>
               </div>
             );
           })}
+          <div className="text-[9px] text-gray-600 text-center self-end pb-0.5 select-none">∑</div>
+        </div>
 
-          <div className="flex items-center justify-end gap-2 mt-4">
-            <span className="text-[10px] text-gray-500">{t('dashboard.heatmapLow')}</span>
-            <div className="w-28 h-2.5 rounded-full" style={{
-              background: 'linear-gradient(to right, ' + [
-                'hsla(120,75%,50%,0.25)', 'hsla(105,77%,48%,0.45)', 'hsla(80,80%,47%,0.60)',
-                'hsla(60,82%,47%,0.70)',  'hsla(35,84%,46%,0.80)',  'hsla(10,86%,46%,0.88)',
-                'hsla(0,87%,44%,0.92)',
-              ].join(', ') + ')',
-            }} />
-            <span className="text-[10px] text-gray-500">{t('dashboard.heatmapHigh')}</span>
-          </div>
+        {/* Hour rows */}
+        {visibleHours.map(h => {
+          const isPeakHour = total > 0 && h === peakHourIdx;
+          const rowTotal   = hourTotals[h];
+
+          return (
+            <div key={h} className="grid mb-[3px]"
+              style={{ gridTemplateColumns: '3rem repeat(7, 1fr) 2.5rem', gap: '3px' }}>
+
+              {/* Hour label */}
+              <div className={clsx(
+                'text-right pr-2 self-center text-[10px] font-medium leading-none',
+                isPeakHour ? 'text-orange-400' : 'text-gray-500'
+              )}>
+                {formatHour(h)}
+              </div>
+
+              {/* 7 day cells */}
+              {matrix.map((dayRow, d) => {
+                const v = dayRow[h];
+                const showNum = v > 0 && max > 0 && v >= max * 0.35;
+                return (
+                  <div
+                    key={d}
+                    onMouseEnter={e => {
+                      const r = e.currentTarget.getBoundingClientRect();
+                      setTooltip({ x: r.left + r.width / 2, y: r.top, d, h, v });
+                    }}
+                    onMouseLeave={() => setTooltip(null)}
+                    className="h-7 rounded-[5px] flex items-center justify-center cursor-default
+                      transition-all duration-100 hover:scale-110 hover:ring-1 hover:ring-white/25 relative"
+                    style={{ background: heatmapColor(v, max) }}
+                  >
+                    {showNum && (
+                      <span className="text-[9px] font-bold text-white/85 pointer-events-none select-none">
+                        {v}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Row total */}
+              <div className={clsx(
+                'self-center text-center text-[10px] leading-none font-medium',
+                isPeakHour ? 'text-orange-400' : 'text-gray-600'
+              )}>
+                {rowTotal > 0 ? rowTotal : ''}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Legend */}
+        <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-gray-800/40">
+          <span className="text-[10px] text-gray-500">{t('dashboard.heatmapLow')}</span>
+          <div className="w-24 h-2 rounded-full" style={{
+            background: 'linear-gradient(to right, ' + [
+              'hsla(120,75%,50%,0.22)',
+              'hsla(80,80%,47%,0.55)',
+              'hsla(40,84%,46%,0.75)',
+              'hsla(0,87%,44%,0.92)',
+            ].join(', ') + ')',
+          }} />
+          <span className="text-[10px] text-gray-500">{t('dashboard.heatmapHigh')}</span>
         </div>
       </div>
 
+      {/* Tooltip */}
       {tooltip && (
         <div className="fixed z-50 pointer-events-none"
           style={{ left: tooltip.x, top: tooltip.y - 8, transform: 'translate(-50%, -100%)' }}>
           <div className="bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 shadow-2xl text-center whitespace-nowrap">
             <p className="text-white font-semibold text-sm">
-              {tooltip.v > 0 ? `${tooltip.v} ${t('dashboard.heatmapCheckIns')}` : t('dashboard.heatmapNone')}
+              {tooltip.v > 0
+                ? `${tooltip.v} ${t('dashboard.heatmapCheckIns')}`
+                : t('dashboard.heatmapNone')}
             </p>
             <p className="text-gray-400 text-xs mt-0.5">
-              {dayLabels[tooltip.d]} · {formatHour(tooltip.h)}–{formatHour((tooltip.h + 1) % 24)}
+              {DAY_LABELS[tooltip.d]} · {formatHour(tooltip.h)}–{formatHour((tooltip.h + 1) % 24)}
             </p>
           </div>
           <div className="w-2 h-2 bg-gray-900 border-b border-r border-gray-700 rotate-45 mx-auto -mt-[5px]" />
