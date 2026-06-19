@@ -525,7 +525,7 @@ export default function Landing() {
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { icon: '⚡', label: 'Instant launch', sub: 'No loading screens' },
-                    { icon: '📴', label: 'Works offline', sub: 'View data without internet' },
+                    { icon: '📴', label: 'Offline shell', sub: 'App opens without internet' },
                     { icon: '🔔', label: 'Push-ready', sub: 'Future notifications' },
                     { icon: '💾', label: 'No updates', sub: 'Always latest version' },
                   ].map((item, i) => (

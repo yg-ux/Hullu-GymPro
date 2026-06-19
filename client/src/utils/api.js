@@ -21,7 +21,17 @@ async function request(endpoint, options = {}) {
 
   const url = `${API_BASE}${endpoint}`;
 
-  const response = await fetch(url, config);
+  let response;
+  try {
+    response = await fetch(url, config);
+  } catch (networkErr) {
+    // TypeError: Failed to fetch — typically means no internet connection
+    const offline = !navigator.onLine || networkErr.message === 'Failed to fetch';
+    throw new Error(offline
+      ? 'No internet connection. Please check your network and try again.'
+      : `Network error: ${networkErr.message}`
+    );
+  }
   
   // Check response type first
   const contentType = response.headers.get('content-type') || '';
