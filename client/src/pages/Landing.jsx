@@ -237,7 +237,7 @@ export default function Landing() {
                 {t('landing.hero.subtitle')}
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4 mb-6">
+              <div className="flex flex-col sm:flex-row gap-4 mb-5">
                 <button onClick={() => setShowRegister(true)}
                   className="flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-2xl font-semibold text-lg transition-all shadow-2xl shadow-blue-500/30 hover:scale-[1.02]">
                   {t('landing.hero.ctaStart')}
@@ -250,26 +250,32 @@ export default function Landing() {
                 </button>
               </div>
 
-              {/* Live demo button */}
+              {/* Live demo — prominent card */}
               <div className="mb-12">
                 <button
                   onClick={handleDemo}
                   disabled={demoLoading}
-                  className="group inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-60"
+                  className="group w-full sm:w-auto flex items-center gap-4 px-6 py-4 rounded-2xl bg-gradient-to-r from-green-500/15 to-emerald-500/15 border border-green-500/40 hover:border-green-400/70 hover:from-green-500/20 hover:to-emerald-500/20 transition-all disabled:opacity-60"
                 >
                   {demoLoading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-gray-500 border-t-white rounded-full animate-spin" />
-                      Setting up demo…
-                    </>
+                    <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
                   ) : (
-                    <>
-                      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-green-500/20 border border-green-500/40">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                    <span className="relative flex-shrink-0">
+                      <span className="flex w-5 h-5 rounded-full bg-green-500/30 border border-green-500/60 items-center justify-center">
+                        <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                       </span>
-                      Try the live demo — no account needed
-                      <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                    </>
+                    </span>
+                  )}
+                  <div className="text-left">
+                    <p className="text-white font-semibold text-sm leading-tight">
+                      {demoLoading ? 'Setting up your demo…' : 'Try the live demo'}
+                    </p>
+                    <p className="text-green-400/80 text-xs mt-0.5">
+                      {demoLoading ? 'Loading 20 members, staff & equipment…' : 'Instant access — no account needed'}
+                    </p>
+                  </div>
+                  {!demoLoading && (
+                    <ArrowRight className="w-4 h-4 text-green-400 ml-auto flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
                   )}
                 </button>
               </div>

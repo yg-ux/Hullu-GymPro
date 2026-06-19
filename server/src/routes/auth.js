@@ -744,78 +744,115 @@ router.post('/demo', async (req, res) => {
     const email  = `demo-${tag}@demo.hullugyms.com`;
     const now    = new Date();
     const subEnd = new Date(now); subEnd.setFullYear(subEnd.getFullYear() + 1);
+    const rng    = (n) => Math.floor(Math.random() * n);
+    const daysAgo = (d) => { const x = new Date(now); x.setDate(x.getDate() - d); return x; };
+    const daysFrom = (d) => { const x = new Date(now); x.setDate(x.getDate() + d); return x; };
+    const fmt = (d) => d.toISOString().split('T')[0];
 
-    // Pro gym with SMS disabled (never send real messages from demo)
+    // Pro gym — SMS disabled (never send real messages from demo)
     await runQuery(`
       INSERT INTO gyms (id, name, slug, email, subscription_status, subscription_plan,
                         subscription_start, subscription_end, color_theme, max_members, sms_enabled)
       VALUES (?, 'Hullu Demo Gym', ?, ?, 'active', 'pro', ?, ?, 'default', 999, 0)
-    `, [gymId, slug, email, now.toISOString().split('T')[0], subEnd.toISOString().split('T')[0]]);
+    `, [gymId, slug, email, fmt(now), fmt(subEnd)]);
 
+    // Owner account
     await runQuery(
-      `INSERT INTO gym_users (id, gym_id, username, password, role) VALUES (?, ?, ?, ?, 'owner')`,
+      `INSERT INTO gym_users (id, gym_id, username, password, role, name) VALUES (?, ?, ?, ?, 'owner', 'Demo Owner')`,
       [userId, gymId, email, bcrypt.hashSync('demo1234', 8)]
     );
 
-    // ── Seed members ───────────────────────────────────────────────────────
+    // ── Staff accounts ─────────────────────────────────────────────────────
+    const STAFF = [
+      { name: 'Kebede Alemu',   role: 'manager',      phone: '0912000001' },
+      { name: 'Tigist Worku',   role: 'receptionist', phone: '0912000002' },
+      { name: 'Samuel Tesfaye', role: 'trainer',      phone: '0912000003' },
+    ];
+    for (const s of STAFF) {
+      const sEmail = `${s.name.toLowerCase().replace(' ', '.')}.${tag}@demo.com`;
+      await runQuery(
+        `INSERT INTO gym_users (id, gym_id, username, password, role, name) VALUES (?, ?, ?, ?, ?, ?)`,
+        [uuidv4(), gymId, sEmail, bcrypt.hashSync('demo1234', 8), s.role, s.name]
+      );
+    }
+
+    // ── Members ────────────────────────────────────────────────────────────
     const AMOUNTS = { daily: 50, '3_days_week': 600, '1_month': 800,
                       '2_months': 1400, '3_months': 1900, '6_months': 3200, '1_year': 5500 };
-
     const MEMBERS = [
-      { name: 'Abebe Tadesse',   phone: '0911100001', type: '1_month',     ago: 15,  left: 15,   st: 'active'   },
-      { name: 'Meron Hailu',     phone: '0911100002', type: '3_months',    ago: 20,  left: 70,   st: 'active'   },
-      { name: 'Dawit Kebede',    phone: '0911100003', type: '6_months',    ago: 30,  left: 150,  st: 'active'   },
-      { name: 'Sara Alemu',      phone: '0911100004', type: '1_month',     ago: 28,  left: 2,    st: 'expiring' },
-      { name: 'Yonas Girma',     phone: '0911100005', type: '1_year',      ago: 5,   left: 360,  st: 'active'   },
-      { name: 'Hana Tesfaye',    phone: '0911100006', type: '3_days_week', ago: 10,  left: 20,   st: 'active'   },
-      { name: 'Bekele Worku',    phone: '0911100007', type: '1_month',     ago: 45,  left: -15,  st: 'expired'  },
-      { name: 'Tigist Ayele',    phone: '0911100008', type: '2_months',    ago: 25,  left: 35,   st: 'active'   },
-      { name: 'Almaz Bekele',    phone: '0911100009', type: '1_month',     ago: 12,  left: 18,   st: 'active'   },
-      { name: 'Kirubel Haile',   phone: '0911100010', type: '3_months',    ago: 45,  left: 45,   st: 'active'   },
-      { name: 'Bethlehem Girma', phone: '0911100011', type: '6_months',    ago: 177, left: 3,    st: 'expiring' },
-      { name: 'Natnael Assefa',  phone: '0911100012', type: '1_month',     ago: 40,  left: -10,  st: 'expired'  },
-      { name: 'Selam Tesfaye',   phone: '0911100013', type: '1_year',      ago: 60,  left: 305,  st: 'active'   },
-      { name: 'Biruk Alemu',     phone: '0911100014', type: '3_days_week', ago: 8,   left: 22,   st: 'active'   },
-      { name: 'Firehiwot Dagne', phone: '0911100015', type: '1_month',     ago: 70,  left: -40,  st: 'inactive' },
+      // active — regular members
+      { name: 'Abebe Tadesse',    phone: '0911100001', type: '1_month',     ago: 15,  left: 15,   st: 'active',   gender: 'male'   },
+      { name: 'Meron Hailu',      phone: '0911100002', type: '3_months',    ago: 20,  left: 70,   st: 'active',   gender: 'female' },
+      { name: 'Dawit Kebede',     phone: '0911100003', type: '6_months',    ago: 30,  left: 150,  st: 'active',   gender: 'male'   },
+      { name: 'Yonas Girma',      phone: '0911100004', type: '1_year',      ago: 5,   left: 360,  st: 'active',   gender: 'male'   },
+      { name: 'Hana Tesfaye',     phone: '0911100005', type: '3_days_week', ago: 10,  left: 20,   st: 'active',   gender: 'female' },
+      { name: 'Tigist Ayele',     phone: '0911100006', type: '2_months',    ago: 25,  left: 35,   st: 'active',   gender: 'female' },
+      { name: 'Almaz Bekele',     phone: '0911100007', type: '1_month',     ago: 12,  left: 18,   st: 'active',   gender: 'female' },
+      { name: 'Kirubel Haile',    phone: '0911100008', type: '3_months',    ago: 45,  left: 45,   st: 'active',   gender: 'male'   },
+      { name: 'Selam Tesfaye',    phone: '0911100009', type: '1_year',      ago: 60,  left: 305,  st: 'active',   gender: 'female' },
+      { name: 'Biruk Alemu',      phone: '0911100010', type: '3_days_week', ago: 8,   left: 22,   st: 'active',   gender: 'male'   },
+      { name: 'Lidya Girma',      phone: '0911100011', type: '1_month',     ago: 3,   left: 27,   st: 'active',   gender: 'female' },
+      { name: 'Robel Mengistu',   phone: '0911100012', type: '6_months',    ago: 90,  left: 90,   st: 'active',   gender: 'male'   },
+      // expiring soon — good for retention view
+      { name: 'Sara Alemu',       phone: '0911100013', type: '1_month',     ago: 28,  left: 2,    st: 'expiring', gender: 'female' },
+      { name: 'Bethlehem Girma',  phone: '0911100014', type: '6_months',    ago: 177, left: 3,    st: 'expiring', gender: 'female' },
+      { name: 'Henok Tadesse',    phone: '0911100015', type: '3_months',    ago: 88,  left: 2,    st: 'expiring', gender: 'male'   },
+      // expired — shows churn / retention needs
+      { name: 'Bekele Worku',     phone: '0911100016', type: '1_month',     ago: 45,  left: -15,  st: 'expired',  gender: 'male'   },
+      { name: 'Natnael Assefa',   phone: '0911100017', type: '1_month',     ago: 40,  left: -10,  st: 'expired',  gender: 'male'   },
+      { name: 'Selamawit Hailu',  phone: '0911100018', type: '3_months',    ago: 100, left: -10,  st: 'expired',  gender: 'female' },
+      // inactive
+      { name: 'Firehiwot Dagne',  phone: '0911100019', type: '1_month',     ago: 70,  left: -40,  st: 'inactive', gender: 'female' },
+      { name: 'Amanuel Bekele',   phone: '0911100020', type: '2_months',    ago: 120, left: -60,  st: 'inactive', gender: 'male'   },
     ];
 
     const seeded = [];
     for (const m of MEMBERS) {
-      const cid   = uuidv4();
-      const start = new Date(now); start.setDate(start.getDate() - m.ago);
-      const end   = new Date(now); end.setDate(end.getDate() + m.left);
+      const cid    = uuidv4();
+      const start  = daysAgo(m.ago);
+      const end    = daysFrom(m.left);
       const isSess = ['daily', '3_days_week'].includes(m.type);
+      seeded.push({ id: cid, st: m.st, name: m.name });
 
       await runQuery(`
         INSERT INTO customers (id, gym_id, name, phone, membership_type, membership_start,
-                               membership_end, status, total_sessions, sessions_used, welcome_sms_sent)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-      `, [cid, gymId, m.name, m.phone, m.type,
-          start.toISOString().split('T')[0], end.toISOString().split('T')[0],
-          m.st, isSess ? 12 : 0, isSess ? 4 : 0]);
+                               membership_end, status, total_sessions, sessions_used,
+                               welcome_sms_sent, gender)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+      `, [cid, gymId, m.name, m.phone, m.type, fmt(start), fmt(end),
+          m.st, isSess ? 12 : 0, isSess ? 4 : 0, m.gender]);
 
-      // Payment at registration time
+      // Primary payment (at registration)
       await runQuery(`
         INSERT INTO payments (id, gym_id, customer_id, amount, payment_method, payment_date,
                               membership_type, start_date, end_date)
         VALUES (?, ?, ?, ?, 'cash', ?, ?, ?, ?)
       `, [uuidv4(), gymId, cid, AMOUNTS[m.type] || 800,
-          start.toISOString().split('T')[0], m.type,
-          start.toISOString().split('T')[0], end.toISOString().split('T')[0]]);
+          fmt(start), m.type, fmt(start), fmt(end)]);
 
-      if (m.st !== 'inactive') seeded.push({ id: cid, st: m.st });
+      // Renewal payments for long-standing active members (adds revenue history)
+      if (m.st === 'active' && m.ago > 35 && m.type !== '1_year' && m.type !== '6_months') {
+        const prevEnd   = daysAgo(m.ago);
+        const prevStart = daysAgo(m.ago + 30);
+        await runQuery(`
+          INSERT INTO payments (id, gym_id, customer_id, amount, payment_method, payment_date,
+                                membership_type, start_date, end_date)
+          VALUES (?, ?, ?, ?, 'mobile_transfer', ?, ?, ?, ?)
+        `, [uuidv4(), gymId, cid, AMOUNTS['1_month'],
+            fmt(prevStart), '1_month', fmt(prevStart), fmt(prevEnd)]);
+      }
     }
 
-    // ── Seed attendance (14 days, 4-9 check-ins/day) ──────────────────────
+    // ── Attendance — 30 days of realistic daily check-ins ─────────────────
     const active = seeded.filter(m => m.st === 'active' || m.st === 'expiring');
-    const rng = (n) => Math.floor(Math.random() * n);
-    for (let day = 0; day < 14; day++) {
-      const base = new Date(now); base.setDate(base.getDate() - day);
-      const count = 4 + rng(6);
+    for (let day = 0; day < 30; day++) {
+      const base  = daysAgo(day);
+      const isWkd = [0, 6].includes(base.getDay()); // fewer on weekends
+      const count = isWkd ? 2 + rng(4) : 5 + rng(7);
       const picks = [...active].sort(() => Math.random() - 0.5).slice(0, count);
       for (const m of picks) {
-        const cin = new Date(base); cin.setHours(6 + rng(14), rng(60), 0, 0);
-        const cout = new Date(cin); cout.setMinutes(cout.getMinutes() + 45 + rng(75));
+        const cin  = new Date(base); cin.setHours(6 + rng(14), rng(60), 0, 0);
+        const cout = new Date(cin);  cout.setMinutes(cout.getMinutes() + 45 + rng(75));
         await runQuery(
           `INSERT INTO attendance (id, gym_id, customer_id, check_in, check_out) VALUES (?, ?, ?, ?, ?)`,
           [uuidv4(), gymId, m.id, cin.toISOString(), cout.toISOString()]
@@ -823,18 +860,52 @@ router.post('/demo', async (req, res) => {
       }
     }
 
-    // ── Seed a few expenses ────────────────────────────────────────────────
-    const expenseData = [
-      ['Rent',            4500, -30], ['Electricity',      850, -25],
-      ['Equipment repair', 1200, -18], ['Cleaning supplies', 300, -10],
+    // ── Equipment ─────────────────────────────────────────────────────────
+    const EQUIPMENT = [
+      { name: 'Treadmill Pro X3',      cat: 'Cardio',    price: 45000, ago: 400, svcAgo: 30,  nextSvc: 60,  status: 'operational', cond: 'good'      },
+      { name: 'Treadmill Pro X3 #2',   cat: 'Cardio',    price: 45000, ago: 200, svcAgo: 20,  nextSvc: 70,  status: 'operational', cond: 'excellent'  },
+      { name: 'Stationary Bike',        cat: 'Cardio',    price: 18000, ago: 500, svcAgo: 60,  nextSvc: 30,  status: 'operational', cond: 'fair'       },
+      { name: 'Rowing Machine',         cat: 'Cardio',    price: 22000, ago: 300, svcAgo: 15,  nextSvc: 75,  status: 'operational', cond: 'good'       },
+      { name: 'Barbell Set (Olympic)',  cat: 'Free Weights', price: 32000, ago: 600, svcAgo: 90, nextSvc: 90, status: 'operational', cond: 'good'      },
+      { name: 'Dumbbell Rack 5-50kg',  cat: 'Free Weights', price: 28000, ago: 600, svcAgo: 90, nextSvc: 90, status: 'operational', cond: 'good'      },
+      { name: 'Squat Rack',            cat: 'Strength',  price: 35000, ago: 450, svcAgo: 45,  nextSvc: 45,  status: 'operational', cond: 'good'       },
+      { name: 'Leg Press Machine',     cat: 'Strength',  price: 40000, ago: 350, svcAgo: 30,  nextSvc: 60,  status: 'operational', cond: 'excellent'  },
+      { name: 'Cable Crossover',       cat: 'Strength',  price: 55000, ago: 250, svcAgo: 25,  nextSvc: 65,  status: 'maintenance', cond: 'fair'       },
+      { name: 'Smith Machine',         cat: 'Strength',  price: 48000, ago: 500, svcAgo: 60,  nextSvc: 30,  status: 'operational', cond: 'good'       },
+      { name: 'Pull-up / Dip Station', cat: 'Bodyweight',price: 12000, ago: 700, svcAgo: 120, nextSvc: 60,  status: 'operational', cond: 'fair'       },
+      { name: 'Battle Ropes (15m)',    cat: 'Cardio',    price: 4500,  ago: 200, svcAgo: 60,  nextSvc: 120, status: 'operational', cond: 'good'       },
     ];
-    for (const [desc, amt, daysAgo] of expenseData) {
-      const d = new Date(now); d.setDate(d.getDate() + daysAgo);
+    for (const eq of EQUIPMENT) {
+      const purchased  = daysAgo(eq.ago);
+      const lastSvc    = daysAgo(eq.svcAgo);
+      const nextSvc    = daysFrom(eq.nextSvc);
+      const warranty   = new Date(purchased); warranty.setFullYear(warranty.getFullYear() + 2);
+      await runQuery(`
+        INSERT INTO equipment (id, gym_id, name, category, purchase_date, purchase_price,
+                               warranty_expiry, last_service_date, next_service_date, status, condition)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [uuidv4(), gymId, eq.name, eq.cat, fmt(purchased), eq.price,
+          fmt(warranty), fmt(lastSvc), fmt(nextSvc), eq.status, eq.cond]);
+    }
+
+    // ── Expenses ──────────────────────────────────────────────────────────
+    const EXPENSES = [
+      ['Rent',              5000, 30, 'rent'],
+      ['Electricity',        920, 25, 'utilities'],
+      ['Water',              280, 25, 'utilities'],
+      ['Equipment repair',  1800, 18, 'maintenance'],
+      ['Cleaning supplies',  350, 10, 'supplies'],
+      ['Rent',              5000, 60, 'rent'],
+      ['Electricity',        870, 55, 'utilities'],
+      ['Internet',           600, 28, 'utilities'],
+      ['Staff refreshments', 450, 5,  'supplies'],
+    ];
+    for (const [desc, amt, dAgo, cat] of EXPENSES) {
       await runQuery(
         `INSERT INTO expenses (id, gym_id, description, amount, expense_date, category)
-         VALUES (?, ?, ?, ?, ?, 'operational')`,
-        [uuidv4(), gymId, desc, amt, d.toISOString().split('T')[0]]
-      ).catch(() => {}); // skip if expenses table structure differs
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [uuidv4(), gymId, desc, amt, fmt(daysAgo(dAgo)), cat]
+      ).catch(() => {});
     }
 
     // ── JWT (3-hour expiry — demo only) ───────────────────────────────────
