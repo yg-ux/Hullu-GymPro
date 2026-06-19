@@ -1,22 +1,15 @@
 /**
  * GeezSMS Integration Service
  * Handles all SMS notifications for GymPro
+ *
+ * IMPORTANT — keep every outgoing message under 160 chars and use only
+ * GSM-7 characters (plain ASCII + a small set of accented letters).
+ * A single non-GSM-7 character (e.g. em dash —, smart quotes, emoji)
+ * switches the whole message to UCS-2 encoding where each segment is
+ * only 67 chars instead of 153, multiplying the cost by ~3-4x.
  */
 
 const GEEZSMS_BASE_URL = 'https://api.geezsms.com/api/v1/sms';
-
-// Convert ASCII letters/digits to Unicode Mathematical Bold Italic equivalents
-// so they render as bold+italic on modern smartphones.
-// Non-ASCII characters (e.g. Amharic) are passed through unchanged.
-function bi(text) {
-  return String(text).split('').map(c => {
-    const code = c.charCodeAt(0);
-    if (code >= 65 && code <= 90) return String.fromCodePoint(0x1D468 + code - 65); // A-Z
-    if (code >= 97 && code <= 122) return String.fromCodePoint(0x1D482 + code - 97); // a-z
-    if (code >= 48 && code <= 57)  return String.fromCodePoint(0x1D7CE + code - 48); // 0-9
-    return c;
-  }).join('');
-}
 
 class SmsService {
   /**
@@ -106,17 +99,18 @@ class SmsService {
       ? customer.membership_type.replace(/_/g, ' ')
       : 'monthly';
 
+    // Use plain ASCII hyphens only — em dashes (U+2014) trigger UCS-2 encoding
+    // which cuts segment capacity from 160 to 67 chars, multiplying cost ~3-4x.
     let message = `Hi ${customer.name}, welcome to ${gym.name}!`;
     if (isDaily) {
-      if (amount) message += ` Daily pass — ${amount} received. Valid today only.`;
-      message += ` See you on the floor!`;
+      if (amount) message += ` Daily pass - ${amount} received. Valid today.`;
     } else {
-      if (amount) message += ` Your ${duration} membership is active — ${amount} received.`;
+      if (amount) message += ` ${duration} membership - ${amount} received.`;
       if (end) message += ` Valid until ${end}.`;
-      message += ` Keep showing up!`;
     }
     if (gym.phone) message += ` Call us: ${gym.phone}.`;
-    if (portalUrl) message += ` Check your info here: ${portalUrl}`;
+    // Portal URL skipped — it adds 40-60 chars and can push the message
+    // into a second or third segment, doubling/tripling the SMS cost.
 
     return await this.sendSms(customer.phone, message);
   }
@@ -134,11 +128,9 @@ class SmsService {
       ? new Date(payment.end_date).toLocaleDateString('en-ET', { day: 'numeric', month: 'short', year: 'numeric' })
       : null;
 
-    let message = `Hi ${customer.name}, payment confirmed! ETB ${amount} received for your ${duration} at ${gym.name}.`;
+    let message = `Hi ${customer.name}, payment confirmed at ${gym.name}! ETB ${amount} received for ${duration}.`;
     if (endDate) message += ` Valid until ${endDate}.`;
-    message += ` Keep it up!`;
     if (gym.phone) message += ` Call us: ${gym.phone}.`;
-    if (portalUrl) message += ` Check your info here: ${portalUrl}`;
 
     return await this.sendSms(customer.phone, message);
   }
@@ -153,14 +145,13 @@ class SmsService {
   async sendMembershipExpiryReminder(customer, gym, daysLeft, portalUrl = null) {
     let message;
     if (daysLeft <= 0) {
-      message = `Hi ${customer.name}, your membership at ${gym.name} has expired. Renew now to keep going!`;
+      message = `Hi ${customer.name}, your ${gym.name} membership has expired. Renew now!`;
     } else if (daysLeft === 1) {
-      message = `Hi ${customer.name}, your membership at ${gym.name} expires tomorrow. Renew today!`;
+      message = `Hi ${customer.name}, your ${gym.name} membership expires tomorrow. Renew today!`;
     } else {
-      message = `Hi ${customer.name}, your membership at ${gym.name} expires in ${daysLeft} days. Renew soon!`;
+      message = `Hi ${customer.name}, your ${gym.name} membership expires in ${daysLeft} days. Renew soon!`;
     }
     if (gym.phone) message += ` Call us: ${gym.phone}.`;
-    if (portalUrl) message += ` Check your status here: ${portalUrl}`;
     return await this.sendSms(customer.phone, message);
   }
 
@@ -170,7 +161,7 @@ class SmsService {
    * @param {number} daysLeft - Days until subscription expires
    */
   async sendSubscriptionRenewalReminder(gym, daysLeft) {
-    const message = `Hullu Gyms: Your subscription expires in ${daysLeft} days. Renew now to keep your gym active and avoid service interruption. - Hullu Gyms`;
+    const message = `Hullu Gyms: Your subscription expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'}. Renew now to keep your gym active. - Hullu Gyms`;
     return await this.sendSms(gym.phone, message);
   }
 }
