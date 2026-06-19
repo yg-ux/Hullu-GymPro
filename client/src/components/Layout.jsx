@@ -403,6 +403,27 @@ export default function Layout() {
         </div>
       )}
 
+      {/* Demo mode banner */}
+      {gym?.slug?.startsWith('demo-') && (
+        <div className="bg-gradient-to-r from-amber-500/15 to-orange-500/15 border-b border-amber-500/30 px-4 py-2">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-amber-300 text-sm">
+              <Zap className="w-4 h-4 text-amber-400 flex-shrink-0" />
+              <span>
+                <span className="font-semibold text-white">You're in demo mode</span>
+                {' '}— explore freely. This session expires in 3 hours.{' '}
+                <button
+                  onClick={() => { window.location.href = '/'; }}
+                  className="underline text-amber-400 hover:text-amber-300 font-medium"
+                >
+                  Create your free account →
+                </button>
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Free Plan Info Banner */}
       {showFreePlanBanner && (
         <div className="bg-gradient-to-r from-blue-500/8 to-indigo-500/8 border-b border-blue-500/20 px-4 py-2">

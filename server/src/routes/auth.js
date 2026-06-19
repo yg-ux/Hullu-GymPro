@@ -727,5 +727,141 @@ router.post('/change-password', authenticateToken, validateChangePassword, async
   }
 });
 
+// ── Demo account ─────────────────────────────────────────────────────────────
+// POST /demo — spin up a fresh isolated demo gym with realistic seed data.
+// Each visitor gets their own copy so nobody interferes with anyone else.
+// Demo gyms are silently purged after 3 hours.
+router.post('/demo', async (req, res) => {
+  try {
+    // Fire-and-forget cleanup of demo gyms older than 3 hours
+    runQuery(`DELETE FROM gyms WHERE slug LIKE 'demo-%' AND created_at < NOW() - INTERVAL '3 hours'`)
+      .catch(() => {});
+
+    const gymId  = uuidv4();
+    const userId = uuidv4();
+    const tag    = gymId.slice(0, 8);
+    const slug   = `demo-${tag}`;
+    const email  = `demo-${tag}@demo.hullugyms.com`;
+    const now    = new Date();
+    const subEnd = new Date(now); subEnd.setFullYear(subEnd.getFullYear() + 1);
+
+    // Pro gym with SMS disabled (never send real messages from demo)
+    await runQuery(`
+      INSERT INTO gyms (id, name, slug, email, subscription_status, subscription_plan,
+                        subscription_start, subscription_end, color_theme, max_members, sms_enabled)
+      VALUES (?, 'Hullu Demo Gym', ?, ?, 'active', 'pro', ?, ?, 'default', 999, 0)
+    `, [gymId, slug, email, now.toISOString().split('T')[0], subEnd.toISOString().split('T')[0]]);
+
+    await runQuery(
+      `INSERT INTO gym_users (id, gym_id, username, password, role) VALUES (?, ?, ?, ?, 'owner')`,
+      [userId, gymId, email, bcrypt.hashSync('demo1234', 8)]
+    );
+
+    // ── Seed members ───────────────────────────────────────────────────────
+    const AMOUNTS = { daily: 50, '3_days_week': 600, '1_month': 800,
+                      '2_months': 1400, '3_months': 1900, '6_months': 3200, '1_year': 5500 };
+
+    const MEMBERS = [
+      { name: 'Abebe Tadesse',   phone: '0911100001', type: '1_month',     ago: 15,  left: 15,   st: 'active'   },
+      { name: 'Meron Hailu',     phone: '0911100002', type: '3_months',    ago: 20,  left: 70,   st: 'active'   },
+      { name: 'Dawit Kebede',    phone: '0911100003', type: '6_months',    ago: 30,  left: 150,  st: 'active'   },
+      { name: 'Sara Alemu',      phone: '0911100004', type: '1_month',     ago: 28,  left: 2,    st: 'expiring' },
+      { name: 'Yonas Girma',     phone: '0911100005', type: '1_year',      ago: 5,   left: 360,  st: 'active'   },
+      { name: 'Hana Tesfaye',    phone: '0911100006', type: '3_days_week', ago: 10,  left: 20,   st: 'active'   },
+      { name: 'Bekele Worku',    phone: '0911100007', type: '1_month',     ago: 45,  left: -15,  st: 'expired'  },
+      { name: 'Tigist Ayele',    phone: '0911100008', type: '2_months',    ago: 25,  left: 35,   st: 'active'   },
+      { name: 'Almaz Bekele',    phone: '0911100009', type: '1_month',     ago: 12,  left: 18,   st: 'active'   },
+      { name: 'Kirubel Haile',   phone: '0911100010', type: '3_months',    ago: 45,  left: 45,   st: 'active'   },
+      { name: 'Bethlehem Girma', phone: '0911100011', type: '6_months',    ago: 177, left: 3,    st: 'expiring' },
+      { name: 'Natnael Assefa',  phone: '0911100012', type: '1_month',     ago: 40,  left: -10,  st: 'expired'  },
+      { name: 'Selam Tesfaye',   phone: '0911100013', type: '1_year',      ago: 60,  left: 305,  st: 'active'   },
+      { name: 'Biruk Alemu',     phone: '0911100014', type: '3_days_week', ago: 8,   left: 22,   st: 'active'   },
+      { name: 'Firehiwot Dagne', phone: '0911100015', type: '1_month',     ago: 70,  left: -40,  st: 'inactive' },
+    ];
+
+    const seeded = [];
+    for (const m of MEMBERS) {
+      const cid   = uuidv4();
+      const start = new Date(now); start.setDate(start.getDate() - m.ago);
+      const end   = new Date(now); end.setDate(end.getDate() + m.left);
+      const isSess = ['daily', '3_days_week'].includes(m.type);
+
+      await runQuery(`
+        INSERT INTO customers (id, gym_id, name, phone, membership_type, membership_start,
+                               membership_end, status, total_sessions, sessions_used, welcome_sms_sent)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+      `, [cid, gymId, m.name, m.phone, m.type,
+          start.toISOString().split('T')[0], end.toISOString().split('T')[0],
+          m.st, isSess ? 12 : 0, isSess ? 4 : 0]);
+
+      // Payment at registration time
+      await runQuery(`
+        INSERT INTO payments (id, gym_id, customer_id, amount, payment_method, payment_date,
+                              membership_type, start_date, end_date)
+        VALUES (?, ?, ?, ?, 'cash', ?, ?, ?, ?)
+      `, [uuidv4(), gymId, cid, AMOUNTS[m.type] || 800,
+          start.toISOString().split('T')[0], m.type,
+          start.toISOString().split('T')[0], end.toISOString().split('T')[0]]);
+
+      if (m.st !== 'inactive') seeded.push({ id: cid, st: m.st });
+    }
+
+    // ── Seed attendance (14 days, 4-9 check-ins/day) ──────────────────────
+    const active = seeded.filter(m => m.st === 'active' || m.st === 'expiring');
+    const rng = (n) => Math.floor(Math.random() * n);
+    for (let day = 0; day < 14; day++) {
+      const base = new Date(now); base.setDate(base.getDate() - day);
+      const count = 4 + rng(6);
+      const picks = [...active].sort(() => Math.random() - 0.5).slice(0, count);
+      for (const m of picks) {
+        const cin = new Date(base); cin.setHours(6 + rng(14), rng(60), 0, 0);
+        const cout = new Date(cin); cout.setMinutes(cout.getMinutes() + 45 + rng(75));
+        await runQuery(
+          `INSERT INTO attendance (id, gym_id, customer_id, check_in, check_out) VALUES (?, ?, ?, ?, ?)`,
+          [uuidv4(), gymId, m.id, cin.toISOString(), cout.toISOString()]
+        );
+      }
+    }
+
+    // ── Seed a few expenses ────────────────────────────────────────────────
+    const expenseData = [
+      ['Rent',            4500, -30], ['Electricity',      850, -25],
+      ['Equipment repair', 1200, -18], ['Cleaning supplies', 300, -10],
+    ];
+    for (const [desc, amt, daysAgo] of expenseData) {
+      const d = new Date(now); d.setDate(d.getDate() + daysAgo);
+      await runQuery(
+        `INSERT INTO expenses (id, gym_id, description, amount, expense_date, category)
+         VALUES (?, ?, ?, ?, ?, 'operational')`,
+        [uuidv4(), gymId, desc, amt, d.toISOString().split('T')[0]]
+      ).catch(() => {}); // skip if expenses table structure differs
+    }
+
+    // ── JWT (3-hour expiry — demo only) ───────────────────────────────────
+    const token = jwt.sign(
+      { id: userId, gym_id: gymId, username: email, role: 'owner', is_demo: true },
+      JWT_SECRET,
+      { expiresIn: '3h' }
+    );
+
+    res.json({
+      token,
+      gym: {
+        id: gymId, name: 'Hullu Demo Gym', slug, email,
+        color_theme: 'default', logo: null,
+        subscription_status: 'active', subscription_plan: 'pro', max_members: 999,
+        sms_enabled: 0,
+      },
+      user: { id: userId, username: email, role: 'owner' },
+      subscription: { valid: true, status: 'active', daysLeft: 365, plan: 'pro' },
+      features: getFeatures('pro'),
+      is_demo: true,
+    });
+  } catch (error) {
+    console.error('Demo account error:', error.message);
+    res.status(500).json({ error: 'Failed to create demo: ' + error.message });
+  }
+});
+
 export { authenticateToken, JWT_SECRET };
 export default router;

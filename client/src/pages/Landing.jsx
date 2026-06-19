@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { resizeImage } from '../utils/imageUtils';
+import { api } from '../utils/api';
 import clsx from 'clsx';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -107,6 +108,7 @@ export default function Landing() {
   const [error, setError] = useState('');
   const [showStickyCTA, setShowStickyCTA] = useState(false);
   const [openFaq, setOpenFaq] = useState(null);
+  const [demoLoading, setDemoLoading] = useState(false);
 
   // Lock scroll when modal open
   useEffect(() => {
@@ -120,6 +122,21 @@ export default function Landing() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const handleDemo = async () => {
+    setDemoLoading(true);
+    try {
+      const data = await api.post('/auth/demo', {});
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('gym', JSON.stringify(data.gym));
+      localStorage.setItem('subscription', JSON.stringify(data.subscription));
+      window.location.href = '/dashboard';
+    } catch {
+      setDemoLoading(false);
+      setError('Could not start demo. Please try again.');
+      setShowRegister(false);
+    }
+  };
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -220,7 +237,7 @@ export default function Landing() {
                 {t('landing.hero.subtitle')}
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4 mb-12">
+              <div className="flex flex-col sm:flex-row gap-4 mb-6">
                 <button onClick={() => setShowRegister(true)}
                   className="flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-2xl font-semibold text-lg transition-all shadow-2xl shadow-blue-500/30 hover:scale-[1.02]">
                   {t('landing.hero.ctaStart')}
@@ -230,6 +247,30 @@ export default function Landing() {
                   className="flex items-center justify-center gap-2 px-8 py-4 bg-gray-800 hover:bg-gray-700 text-white rounded-2xl font-semibold text-lg transition-all border border-gray-700">
                   {t('landing.hero.ctaHaveAccount')}
                   <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Live demo button */}
+              <div className="mb-12">
+                <button
+                  onClick={handleDemo}
+                  disabled={demoLoading}
+                  className="group inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-60"
+                >
+                  {demoLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-gray-500 border-t-white rounded-full animate-spin" />
+                      Setting up demo…
+                    </>
+                  ) : (
+                    <>
+                      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-green-500/20 border border-green-500/40">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                      </span>
+                      Try the live demo — no account needed
+                      <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                    </>
+                  )}
                 </button>
               </div>
 
