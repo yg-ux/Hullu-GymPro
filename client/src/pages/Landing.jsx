@@ -190,6 +190,14 @@ export default function Landing() {
             <button onClick={() => navigate('/login')} className="text-sm text-gray-400 hover:text-white transition-colors px-4 py-2">
               {t('landing.nav.signIn')}
             </button>
+            <button
+              onClick={handleDemo}
+              disabled={demoLoading}
+              className="text-sm px-4 py-2.5 bg-green-500/15 hover:bg-green-500/25 text-green-400 rounded-xl font-medium transition-all border border-green-500/30 disabled:opacity-60 flex items-center gap-2"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
+              {demoLoading ? 'Loading…' : 'Live Demo'}
+            </button>
             <button onClick={() => setShowRegister(true)} className="text-sm px-5 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl font-medium transition-all shadow-lg shadow-blue-500/20">
               {t('landing.nav.startFreeTrial')}
             </button>
@@ -207,6 +215,14 @@ export default function Landing() {
             <a href="#pricing" className="block text-gray-400 hover:text-white py-2" onClick={() => setMobileMenuOpen(false)}>{t('landing.nav.pricing')}</a>
             <a href="#faq" className="block text-gray-400 hover:text-white py-2" onClick={() => setMobileMenuOpen(false)}>FAQ</a>
             <button onClick={() => { navigate('/login'); setMobileMenuOpen(false); }} className="w-full py-3 border border-gray-700 rounded-xl text-white font-medium">{t('landing.nav.signIn')}</button>
+            <button
+              onClick={() => { handleDemo(); setMobileMenuOpen(false); }}
+              disabled={demoLoading}
+              className="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-white font-medium flex items-center justify-center gap-2 disabled:opacity-60"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+              {demoLoading ? 'Loading demo…' : 'Try Live Demo'}
+            </button>
             <button onClick={() => { setShowRegister(true); setMobileMenuOpen(false); }} className="w-full py-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl text-white font-medium">{t('landing.nav.startFreeTrial')}</button>
           </div>
         )}
@@ -243,42 +259,26 @@ export default function Landing() {
                   {t('landing.hero.ctaStart')}
                   <ArrowRight className="w-5 h-5" />
                 </button>
-                <button onClick={() => navigate('/login')}
-                  className="flex items-center justify-center gap-2 px-8 py-4 bg-gray-800 hover:bg-gray-700 text-white rounded-2xl font-semibold text-lg transition-all border border-gray-700">
-                  {t('landing.hero.ctaHaveAccount')}
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Live demo — prominent card */}
-              <div className="mb-12">
                 <button
                   onClick={handleDemo}
                   disabled={demoLoading}
-                  className="group w-full sm:w-auto flex items-center gap-4 px-6 py-4 rounded-2xl bg-gradient-to-r from-green-500/15 to-emerald-500/15 border border-green-500/40 hover:border-green-400/70 hover:from-green-500/20 hover:to-emerald-500/20 transition-all disabled:opacity-60"
+                  className="group flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 text-white rounded-2xl font-semibold text-lg transition-all border border-green-500/50 hover:border-green-400/70 disabled:opacity-60"
                 >
                   {demoLoading ? (
-                    <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                    <div className="w-5 h-5 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    <span className="relative flex-shrink-0">
-                      <span className="flex w-5 h-5 rounded-full bg-green-500/30 border border-green-500/60 items-center justify-center">
-                        <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                      </span>
+                    <span className="flex w-5 h-5 rounded-full bg-green-500/30 border border-green-500/60 items-center justify-center flex-shrink-0">
+                      <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                     </span>
                   )}
-                  <div className="text-left">
-                    <p className="text-white font-semibold text-sm leading-tight">
-                      {demoLoading ? 'Setting up your demo…' : 'Try the live demo'}
-                    </p>
-                    <p className="text-green-400/80 text-xs mt-0.5">
-                      {demoLoading ? 'Loading 20 members, staff & equipment…' : 'Instant access — no account needed'}
-                    </p>
-                  </div>
-                  {!demoLoading && (
-                    <ArrowRight className="w-4 h-4 text-green-400 ml-auto flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
-                  )}
+                  <span className="text-green-300">
+                    {demoLoading ? 'Setting up demo…' : 'Try Live Demo'}
+                  </span>
+                  {!demoLoading && <ChevronRight className="w-5 h-5 text-green-400 group-hover:translate-x-0.5 transition-transform" />}
                 </button>
               </div>
+
+              <p className="text-xs text-gray-600 mb-10">No credit card · No signup required for demo · Free plan forever</p>
 
               <div className="grid grid-cols-3 gap-6">
                 {[
@@ -331,6 +331,85 @@ export default function Landing() {
                 <p className="text-gray-400 text-sm leading-relaxed">{f.desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── SEE IT IN ACTION ── */}
+      <section className="py-24 px-4 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-green-950/30 via-transparent to-transparent pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-green-600/8 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="max-w-6xl mx-auto relative">
+          <div className="grid lg:grid-cols-2 gap-14 items-center">
+            {/* Left — copy */}
+            <div>
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/20 rounded-full text-green-400 text-sm mb-6">
+                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                Live interactive demo
+              </div>
+
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight">
+                See the full dashboard<br />
+                <span className="text-green-400">before you commit to anything</span>
+              </h2>
+              <p className="text-gray-400 text-lg mb-8 leading-relaxed">
+                Click once and you're inside a real gym account — pre-loaded with members, payments,
+                staff, and 30 days of attendance history. No form to fill out.
+              </p>
+
+              {/* What's pre-loaded */}
+              <div className="grid grid-cols-2 gap-3 mb-8">
+                {[
+                  { icon: '👥', label: '20 Ethiopian members', sub: 'Active, expiring & daily passes' },
+                  { icon: '📅', label: '30 days of history',   sub: 'Attendance & check-in trends' },
+                  { icon: '👷', label: '3 staff accounts',      sub: 'Manager, receptionist, trainer' },
+                  { icon: '🏋️', label: '12 equipment items',   sub: 'Cardio, weights & strength' },
+                  { icon: '💰', label: 'Revenue & analytics',  sub: 'Charts, plan breakdown & more' },
+                  { icon: '📊', label: 'Retention insights',   sub: 'At-risk members highlighted' },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-gray-900 border border-gray-800 hover:border-green-500/30 transition-colors">
+                    <span className="text-lg flex-shrink-0 mt-0.5">{item.icon}</span>
+                    <div>
+                      <p className="text-white text-sm font-medium leading-tight">{item.label}</p>
+                      <p className="text-gray-500 text-xs mt-0.5">{item.sub}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Trust strip */}
+              <div className="flex flex-wrap gap-4 text-xs text-gray-500 mb-8">
+                {['No signup', 'No credit card', 'Full Pro features', '3-hour session', 'Fresh data every time'].map(t => (
+                  <span key={t} className="flex items-center gap-1.5">
+                    <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                    {t}
+                  </span>
+                ))}
+              </div>
+
+              <button
+                onClick={handleDemo}
+                disabled={demoLoading}
+                className="group inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white rounded-2xl font-bold text-lg transition-all shadow-2xl shadow-green-500/30 hover:scale-[1.02] disabled:opacity-60"
+              >
+                {demoLoading ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Zap className="w-5 h-5" />
+                )}
+                {demoLoading ? 'Setting up your demo…' : 'Launch Live Demo'}
+                {!demoLoading && <ArrowRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />}
+              </button>
+              {demoLoading && (
+                <p className="text-green-400/70 text-xs mt-2 ml-1">Loading 20 members, staff & equipment…</p>
+              )}
+            </div>
+
+            {/* Right — enhanced mockup */}
+            <div className="hidden lg:block">
+              <DemoPreviewMockup />
+            </div>
           </div>
         </div>
       </section>
@@ -608,11 +687,22 @@ export default function Landing() {
           <div className="text-center">
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{t('landing.finalCta.title')}</h2>
             <p className="text-gray-400 text-lg mb-8">{t('landing.finalCta.subtitle')}</p>
-            <button onClick={() => setShowRegister(true)}
-              className="inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-2xl font-semibold text-lg transition-all shadow-2xl shadow-blue-500/30 hover:scale-[1.02]">
-              {t('landing.finalCta.button')}
-              <ArrowRight className="w-5 h-5" />
-            </button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <button onClick={() => setShowRegister(true)}
+                className="inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-2xl font-semibold text-lg transition-all shadow-2xl shadow-blue-500/30 hover:scale-[1.02]">
+                {t('landing.finalCta.button')}
+                <ArrowRight className="w-5 h-5" />
+              </button>
+              <button
+                onClick={handleDemo}
+                disabled={demoLoading}
+                className="inline-flex items-center gap-3 px-8 py-5 bg-green-500/15 hover:bg-green-500/25 text-green-300 rounded-2xl font-semibold text-lg transition-all border border-green-500/40 hover:border-green-400/60 disabled:opacity-60"
+              >
+                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
+                {demoLoading ? 'Starting demo…' : 'Or try the live demo first'}
+              </button>
+            </div>
+            <p className="text-gray-600 text-sm mt-5">No credit card required for either option</p>
           </div>
         </div>
       </section>
@@ -826,6 +916,98 @@ export default function Landing() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Demo section mockup — richer than hero version ───────────────────────────
+function DemoPreviewMockup() {
+  return (
+    <div className="relative select-none">
+      <div className="absolute inset-0 bg-gradient-to-br from-green-500/15 to-emerald-500/10 rounded-3xl blur-2xl scale-105 pointer-events-none" />
+
+      <div className="relative bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden shadow-2xl">
+        {/* Title bar */}
+        <div className="flex items-center gap-2 px-4 py-3 bg-gray-900 border-b border-gray-700">
+          <div className="w-3 h-3 rounded-full bg-red-500/60" />
+          <div className="w-3 h-3 rounded-full bg-yellow-500/60" />
+          <div className="w-3 h-3 rounded-full bg-green-500/60" />
+          <div className="flex-1 mx-3 h-6 bg-gray-800 rounded-md flex items-center px-3 gap-2">
+            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
+            <span className="text-[10px] text-gray-400">hullugyms.app/dashboard — Demo Mode</span>
+          </div>
+        </div>
+
+        <div className="p-4 bg-gray-950 space-y-3">
+          {/* Stat row */}
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { label: 'Total Members',     value: '20',        color: 'text-blue-400' },
+              { label: "Today's Check-ins", value: '7',         color: 'text-green-400' },
+              { label: 'Monthly Revenue',   value: 'ETB 23.5K', color: 'text-purple-400' },
+              { label: 'Active Now',        value: '3',         color: 'text-amber-400' },
+            ].map(s => (
+              <div key={s.label} className="bg-gray-800 rounded-xl p-2.5 border border-gray-700">
+                <p className={`text-sm font-bold ${s.color}`}>{s.value}</p>
+                <p className="text-[8px] text-gray-500 mt-0.5 leading-tight">{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Members list */}
+          <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+            <div className="px-3 py-2 border-b border-gray-700 flex items-center justify-between">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Members</p>
+              <span className="text-[9px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full font-medium">20 total</span>
+            </div>
+            {[
+              { name: 'Abebe Tadesse', plan: 'Monthly',  status: 'active',   exp: 'Jul 15' },
+              { name: 'Meron Hailu',   plan: 'Quarterly',status: 'active',   exp: 'Sep 30' },
+              { name: 'Dawit Kebede',  plan: 'Monthly',  status: 'expiring', exp: 'Jun 21' },
+              { name: 'Sara Alemu',    plan: 'Daily',    status: 'active',   exp: 'Today' },
+            ].map((m, i) => (
+              <div key={i} className="flex items-center gap-2.5 px-3 py-2 border-b border-gray-700/50 last:border-0">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-[8px] font-bold flex-shrink-0">
+                  {m.name.split(' ').map(w => w[0]).join('')}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-white truncate font-medium">{m.name}</p>
+                  <p className="text-[8px] text-gray-500">{m.plan} · expires {m.exp}</p>
+                </div>
+                <span className={`text-[7px] px-1.5 py-0.5 rounded-full font-semibold ${
+                  m.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-amber-500/20 text-amber-400'
+                }`}>{m.status}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Revenue bar */}
+          <div className="bg-gray-800 rounded-xl border border-gray-700 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">Revenue — Last 4 Weeks</p>
+              <p className="text-[9px] text-green-400 font-semibold">+18%</p>
+            </div>
+            <div className="flex items-end gap-1 h-10">
+              {[55, 70, 60, 90].map((h, i) => (
+                <div key={i} className="flex-1 rounded-sm" style={{
+                  height: `${h}%`,
+                  background: i === 3
+                    ? 'linear-gradient(to top, rgb(34,197,94), rgb(16,185,129))'
+                    : 'rgb(55,65,81)'
+                }} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Floating badges */}
+      <div className="absolute -bottom-3 -left-4 bg-green-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-xl shadow-lg shadow-green-500/30 whitespace-nowrap">
+        ✓ 20 members pre-loaded
+      </div>
+      <div className="absolute -top-3 -right-4 bg-purple-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-xl shadow-lg shadow-purple-500/30 whitespace-nowrap">
+        Full Pro features unlocked
+      </div>
     </div>
   );
 }
