@@ -5,6 +5,7 @@ import { authenticateToken, requireActiveSubscription } from './auth.js';
 import { smsService } from '../services/smsService.js';
 import { validateCreateCustomer, validateUpdateCustomer } from '../middleware/validate.js';
 import { logCustomerAdded, logCustomerUpdated, logCustomerDeleted, logCheckIn, logCheckOut } from '../services/activityService.js';
+import { generateShortCode } from './portal.js';
 
 const router = express.Router();
 
@@ -243,21 +244,26 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreateCus
     const customer = await getOne('SELECT * FROM customers WHERE id = ?', [customerId]);
     logCustomerAdded(gymId, req.user.id, customerId, name);
 
-    // Generate portal token once at registration
+    // Generate portal token + short code once at registration
     const portalTokenId = uuidv4();
     const portalToken = uuidv4();
+    const shortCode = generateShortCode();
     const portalExpiry = new Date();
     portalExpiry.setFullYear(portalExpiry.getFullYear() + 10); // effectively permanent
     await runQuery(
-      `INSERT INTO portal_tokens (id, gym_id, customer_id, token, expires_at) VALUES (?, ?, ?, ?, ?)`,
-      [portalTokenId, gymId, customerId, portalToken, portalExpiry.toISOString()]
+      `INSERT INTO portal_tokens (id, gym_id, customer_id, token, short_code, expires_at) VALUES (?, ?, ?, ?, ?, ?)`,
+      [portalTokenId, gymId, customerId, portalToken, shortCode, portalExpiry.toISOString()]
     );
     const clientUrl = process.env.CLIENT_URL?.split(',')[0]?.trim() || 'http://localhost:5173';
     const portalUrl = `${clientUrl}/portal/${portalToken}`;
+    // Short URL sent in SMS — strips https:// so the phone detects it as a link
+    // while using fewer chars (e.g. hullu.app/p/abc1234 instead of full UUID URL)
+    const clientDomain = clientUrl.replace(/^https?:\/\//, '');
+    const shortUrl = `${clientDomain}/p/${shortCode}`;
 
     if (customer.phone && gym.sms_enabled && !customer.welcome_sms_sent) {
       try {
-        const smsResult = await smsService.sendWelcomeSms({ ...customer, amount: amount || null }, gym, portalUrl);
+        const smsResult = await smsService.sendWelcomeSms({ ...customer, amount: amount || null }, gym, shortUrl);
         if (smsResult?.success) {
           await runQuery('UPDATE customers SET welcome_sms_sent = true WHERE id = ?', [customerId]);
           console.log(`Welcome SMS sent to ${customer.name} (${customer.phone})`);
@@ -271,7 +277,7 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreateCus
       console.log(`Welcome SMS skipped — phone: ${!!customer.phone}, sms_enabled: ${gym.sms_enabled}, already_sent: ${!!customer.welcome_sms_sent}`);
     }
 
-    res.status(201).json({ ...customer, portal_url: portalUrl, member_limit: maxMembers, total_customers: totalCustomers + 1 });
+    res.status(201).json({ ...customer, portal_url: portalUrl, short_url: shortUrl, member_limit: maxMembers, total_customers: totalCustomers + 1 });
   } catch (error) {
     console.error('Create customer error:', error);
     res.status(500).json({ error: 'Failed to create customer' });

@@ -432,6 +432,10 @@ export async function initDatabase() {
   await p.query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS is_auto_generated BOOLEAN DEFAULT FALSE');
   await p.query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS receipt_note TEXT');
 
+  // Short code for portal URL shortener (7-char alphanumeric, used in SMS links)
+  await p.query('ALTER TABLE portal_tokens ADD COLUMN IF NOT EXISTS short_code TEXT');
+  await p.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_portal_tokens_short_code ON portal_tokens(short_code) WHERE short_code IS NOT NULL');
+
   // Outstanding balance on customer
   await p.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS outstanding_balance REAL DEFAULT 0');
 

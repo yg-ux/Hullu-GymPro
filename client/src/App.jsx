@@ -25,6 +25,7 @@ import Kiosk from './pages/Kiosk';
 import ImportCustomers from './pages/ImportCustomers';
 import AttendanceAnalytics from './pages/AttendanceAnalytics';
 import MemberPortal from './pages/MemberPortal';
+import PortalRedirect from './pages/PortalRedirect';
 import Retention from './pages/Retention';
 import Expenses from './pages/Expenses';
 import Equipment from './pages/Equipment';
@@ -106,6 +107,7 @@ function App() {
       <Route path="/admin-login" element={<AdminLogin />} />
       <Route path="/admin-dashboard" element={<AdminDashboard />} />
       <Route path="/portal/:token" element={<MemberPortal />} />
+      <Route path="/p/:code" element={<PortalRedirect />} />
 
       {/* Full-screen protected routes (no sidebar layout) */}
       <Route path="/receipt/:id" element={<ProtectedRoute><Receipt /></ProtectedRoute>} />

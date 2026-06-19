@@ -5,6 +5,7 @@ import { authenticateToken, requireActiveSubscription } from './auth.js';
 import { smsService } from '../services/smsService.js';
 import { validateCreatePayment } from '../middleware/validate.js';
 import { logPaymentRecorded, logPaymentDeleted } from '../services/activityService.js';
+import { getOrCreateShortCode } from './portal.js';
 
 const router = express.Router();
 
@@ -186,8 +187,9 @@ router.post('/', authenticateToken, requireActiveSubscription, validateCreatePay
       // Send payment confirmation SMS for 3_days_week
       if (updatedCustomer.phone && gym.sms_enabled) {
         try {
-          const portalRow = await getOne('SELECT token FROM portal_tokens WHERE customer_id = ? AND gym_id = ? LIMIT 1', [customer_id, gymId]);
-          const portalUrl = portalRow ? `${process.env.CLIENT_URL?.split(',')[0]?.trim() || 'http://localhost:5173'}/portal/${portalRow.token}` : null;
+          const sc = await getOrCreateShortCode(customer_id, gymId);
+          const clientDomain = (process.env.CLIENT_URL?.split(',')[0]?.trim() || 'http://localhost:5173').replace(/^https?:\/\//, '');
+          const portalUrl = sc?.shortCode ? `${clientDomain}/p/${sc.shortCode}` : null;
           const smsResult = await smsService.sendPaymentConfirmation(updatedCustomer, payment, gym, portalUrl);
           if (!smsResult?.success) console.warn(`Payment SMS failed for ${updatedCustomer.name}: ${smsResult?.message}`);
         } catch (smsError) {

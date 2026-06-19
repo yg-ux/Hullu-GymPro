@@ -5,6 +5,48 @@ import { authenticateToken } from './auth.js';
 
 const router = express.Router();
 
+// ── Short-code helpers ────────────────────────────────────────────────────────
+
+/** Generate a random 7-char lowercase alphanumeric code. */
+export function generateShortCode() {
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789'; // no l/1/0/o to avoid confusion
+  let code = '';
+  for (let i = 0; i < 7; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+/**
+ * Return the short_code for a customer's portal token, generating and
+ * persisting one on the fly if the row pre-dates this feature (lazy backfill).
+ * Returns null if no portal token exists for this customer.
+ */
+export async function getOrCreateShortCode(customerId, gymId) {
+  const row = await getOne(
+    'SELECT token, short_code FROM portal_tokens WHERE customer_id = $1 AND gym_id = $2 LIMIT 1',
+    [customerId, gymId]
+  );
+  if (!row) return null;
+  if (row.short_code) return { token: row.token, shortCode: row.short_code };
+
+  // Lazy backfill — existing token has no short_code yet; generate one.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const shortCode = generateShortCode();
+    try {
+      await runQuery(
+        'UPDATE portal_tokens SET short_code = $1 WHERE customer_id = $2 AND gym_id = $3 AND short_code IS NULL',
+        [shortCode, customerId, gymId]
+      );
+      return { token: row.token, shortCode };
+    } catch (e) {
+      // Unique constraint violation → retry with a new code
+      const msg = e.message || '';
+      if (!msg.includes('unique') && !msg.includes('UNIQUE') && !msg.includes('duplicate')) throw e;
+    }
+  }
+  // Exhausted retries — fall back gracefully (no short URL this time)
+  return { token: row.token, shortCode: null };
+}
+
 // Helper: compute current week start date (ISO Monday, local-ish)
 function getCurrentWeekStart() {
   const now = new Date();
@@ -14,6 +56,23 @@ function getCurrentWeekStart() {
   monday.setDate(now.getDate() + diffToMon);
   return monday.toISOString().split('T')[0];
 }
+
+// GET /resolve/:code — (PUBLIC) resolve a 7-char short code to its portal token
+// Used by the /p/:code frontend redirect page.
+router.get('/resolve/:code', async (req, res) => {
+  try {
+    const { code } = req.params;
+    const row = await getOne(
+      'SELECT token FROM portal_tokens WHERE short_code = $1 LIMIT 1',
+      [code]
+    );
+    if (!row) return res.status(404).json({ error: 'Link not found or expired' });
+    res.json({ token: row.token });
+  } catch (err) {
+    console.error('GET /portal/resolve error:', err);
+    res.status(500).json({ error: 'Failed to resolve link' });
+  }
+});
 
 // POST /generate/:customerId — (authenticated) return existing token or create one if missing
 router.post('/generate/:customerId', authenticateToken, async (req, res) => {
@@ -28,25 +87,36 @@ router.post('/generate/:customerId', authenticateToken, async (req, res) => {
 
     // Return existing token if one already exists — never regenerate
     const existing = await getOne(
-      'SELECT token FROM portal_tokens WHERE customer_id = $1 AND gym_id = $2 LIMIT 1',
+      'SELECT token, short_code FROM portal_tokens WHERE customer_id = $1 AND gym_id = $2 LIMIT 1',
       [customerId, gymId]
     );
     if (existing) {
-      return res.json({ token: existing.token, url: `${clientUrl}/portal/${existing.token}` });
+      // Ensure it has a short_code (lazy backfill for old rows)
+      const sc = await getOrCreateShortCode(customerId, gymId);
+      return res.json({
+        token: existing.token,
+        url: `${clientUrl}/portal/${existing.token}`,
+        short_url: sc?.shortCode ? `${clientUrl}/p/${sc.shortCode}` : null,
+      });
     }
 
     // No token yet (member registered before this feature) — create one now
     const token = uuidv4();
     const id = uuidv4();
+    const shortCode = generateShortCode();
     const expiresAt = new Date();
     expiresAt.setFullYear(expiresAt.getFullYear() + 10);
 
     await runQuery(
-      `INSERT INTO portal_tokens (id, gym_id, customer_id, token, expires_at) VALUES ($1, $2, $3, $4, $5)`,
-      [id, gymId, customerId, token, expiresAt.toISOString()]
+      `INSERT INTO portal_tokens (id, gym_id, customer_id, token, short_code, expires_at) VALUES ($1, $2, $3, $4, $5, $6)`,
+      [id, gymId, customerId, token, shortCode, expiresAt.toISOString()]
     );
 
-    res.status(201).json({ token, url: `${clientUrl}/portal/${token}` });
+    res.status(201).json({
+      token,
+      url: `${clientUrl}/portal/${token}`,
+      short_url: `${clientUrl}/p/${shortCode}`,
+    });
   } catch (err) {
     console.error('POST /portal/generate error:', err);
     res.status(500).json({ error: 'Failed to generate portal token' });

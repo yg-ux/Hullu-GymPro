@@ -1,11 +1,15 @@
 import { getAll, getOne, runQuery } from '../models/database.js';
+import { getOrCreateShortCode } from '../routes/portal.js';
 
-const CLIENT_URL = () => process.env.CLIENT_URL?.split(',')[0]?.trim() || 'http://localhost:5173';
+const CLIENT_DOMAIN = () =>
+  (process.env.CLIENT_URL?.split(',')[0]?.trim() || 'http://localhost:5173')
+    .replace(/^https?:\/\//, ''); // strip protocol — saves 8 chars, phones still detect link
 
-async function getPortalUrl(customerId, gymId) {
+async function getPortalShortUrl(customerId, gymId) {
   try {
-    const row = await getOne('SELECT token FROM portal_tokens WHERE customer_id = ? AND gym_id = ? LIMIT 1', [customerId, gymId]);
-    return row ? `${CLIENT_URL()}/portal/${row.token}` : null;
+    const sc = await getOrCreateShortCode(customerId, gymId);
+    if (!sc?.shortCode) return null;
+    return `${CLIENT_DOMAIN()}/p/${sc.shortCode}`;
   } catch { return null; }
 }
 import { smsService } from './smsService.js';
@@ -72,7 +76,7 @@ class ReminderService {
         }
 
         try {
-          const portalUrl = await getPortalUrl(customer.id, customer.gym_id);
+          const portalUrl = await getPortalShortUrl(customer.id, customer.gym_id);
           const result = await smsService.sendMembershipExpiryReminder(
             customer,
             { name: customer.gym_name, phone: customer.gym_phone },

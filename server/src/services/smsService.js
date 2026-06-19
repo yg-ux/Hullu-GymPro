@@ -11,6 +11,14 @@
 
 const GEEZSMS_BASE_URL = 'https://api.geezsms.com/api/v1/sms';
 
+// Max chars that still guarantee a single GSM-7 segment (160 chars minus a 5-char buffer).
+const MAX_SMS = 155;
+
+/** Append `addition` to `base` only if the result stays within MAX_SMS. */
+function fitIn(base, addition) {
+  return (base.length + addition.length) <= MAX_SMS ? base + addition : base;
+}
+
 class SmsService {
   /**
    * Send SMS to a phone number.
@@ -101,16 +109,16 @@ class SmsService {
 
     // Use plain ASCII hyphens only — em dashes (U+2014) trigger UCS-2 encoding
     // which cuts segment capacity from 160 to 67 chars, multiplying cost ~3-4x.
+    // fitIn() only appends an addition if it still fits within MAX_SMS chars.
     let message = `Hi ${customer.name}, welcome to ${gym.name}!`;
     if (isDaily) {
-      if (amount) message += ` Daily pass - ${amount} received. Valid today.`;
+      if (amount) message = fitIn(message, ` Daily pass - ${amount} received. Valid today.`);
     } else {
-      if (amount) message += ` ${duration} membership - ${amount} received.`;
-      if (end) message += ` Valid until ${end}.`;
+      if (amount) message = fitIn(message, ` ${duration} membership - ${amount} received.`);
+      if (end)    message = fitIn(message, ` Valid until ${end}.`);
     }
-    if (gym.phone) message += ` Call us: ${gym.phone}.`;
-    // Portal URL skipped — it adds 40-60 chars and can push the message
-    // into a second or third segment, doubling/tripling the SMS cost.
+    if (gym.phone)  message = fitIn(message, ` Call: ${gym.phone}.`);
+    if (portalUrl)  message = fitIn(message, ` ${portalUrl}`);
 
     return await this.sendSms(customer.phone, message);
   }
@@ -129,8 +137,9 @@ class SmsService {
       : null;
 
     let message = `Hi ${customer.name}, payment confirmed at ${gym.name}! ETB ${amount} received for ${duration}.`;
-    if (endDate) message += ` Valid until ${endDate}.`;
-    if (gym.phone) message += ` Call us: ${gym.phone}.`;
+    if (endDate)   message = fitIn(message, ` Valid until ${endDate}.`);
+    if (gym.phone) message = fitIn(message, ` Call: ${gym.phone}.`);
+    if (portalUrl) message = fitIn(message, ` ${portalUrl}`);
 
     return await this.sendSms(customer.phone, message);
   }
@@ -151,7 +160,8 @@ class SmsService {
     } else {
       message = `Hi ${customer.name}, your ${gym.name} membership expires in ${daysLeft} days. Renew soon!`;
     }
-    if (gym.phone) message += ` Call us: ${gym.phone}.`;
+    if (gym.phone) message = fitIn(message, ` Call: ${gym.phone}.`);
+    if (portalUrl) message = fitIn(message, ` ${portalUrl}`);
     return await this.sendSms(customer.phone, message);
   }
 
