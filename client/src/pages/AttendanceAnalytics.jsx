@@ -13,6 +13,7 @@ export default function AttendanceAnalytics() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [genderData, setGenderData] = useState([]);
+  const [membershipData, setMembershipData] = useState([]);
 
   // Heatmap state
   const [heatmap, setHeatmap] = useState(null);
@@ -56,7 +57,10 @@ export default function AttendanceAnalytics() {
       await Promise.all([
         loadStats(),
         loadHeatmap(heatmapMonthRef.current),
-        api.get('/stats').then(d => setGenderData(d.gender_breakdown || [])).catch(() => {}),
+        api.get('/stats/dashboard').then(d => {
+          setGenderData(d.gender_breakdown || []);
+          setMembershipData(d.membership_distribution || []);
+        }).catch(() => {}),
       ]);
     } finally {
       if (showSpinner) setRefreshing(false);
@@ -67,7 +71,10 @@ export default function AttendanceAnalytics() {
   useEffect(() => {
     loadStats();
     loadHeatmap('');
-    api.get('/stats').then(d => setGenderData(d.gender_breakdown || [])).catch(() => {});
+    api.get('/stats/dashboard').then(d => {
+      setGenderData(d.gender_breakdown || []);
+      setMembershipData(d.membership_distribution || []);
+    }).catch(() => {});
   }, [loadStats, loadHeatmap]);
 
   // Re-fetch stats + heatmap when tab becomes visible again
@@ -285,8 +292,8 @@ export default function AttendanceAnalytics() {
         </div>
       </div>
 
-      {/* Gender Distribution */}
-      <GenderBreakdown data={genderData} />
+      {/* Member Demographics */}
+      <MemberDemographics genderData={genderData} membershipData={membershipData} />
 
       {/* Attendance Heatmap */}
       <div className="glass-card p-6">
@@ -333,86 +340,145 @@ export default function AttendanceAnalytics() {
   );
 }
 
-function GenderBreakdown({ data }) {
+const MEMBERSHIP_LABELS = {
+  daily:        { label: 'Daily',    color: 'bg-amber-500',   text: 'text-amber-400',   bar: 'bg-amber-500'   },
+  '3_days_week':{ label: '3×/Week',  color: 'bg-lime-500',    text: 'text-lime-400',    bar: 'bg-lime-500'    },
+  '1_month':    { label: '1 Month',  color: 'bg-blue-500',    text: 'text-blue-400',    bar: 'bg-blue-500'    },
+  '2_months':   { label: '2 Months', color: 'bg-cyan-500',    text: 'text-cyan-400',    bar: 'bg-cyan-500'    },
+  '3_months':   { label: '3 Months', color: 'bg-violet-500',  text: 'text-violet-400',  bar: 'bg-violet-500'  },
+  '6_months':   { label: '6 Months', color: 'bg-purple-500',  text: 'text-purple-400',  bar: 'bg-purple-500'  },
+  '1_year':     { label: '1 Year',   color: 'bg-emerald-500', text: 'text-emerald-400', bar: 'bg-emerald-500' },
+};
+
+function MemberDemographics({ genderData, membershipData }) {
   const GENDER_CONFIG = {
-    male:    { label: 'Male',    color: 'bg-blue-500',   text: 'text-blue-400',   bar: 'bg-blue-500',   badge: 'bg-blue-500/15 border-blue-500/30 text-blue-400',   icon: '♂' },
-    female:  { label: 'Female',  color: 'bg-pink-500',   text: 'text-pink-400',   bar: 'bg-pink-500',   badge: 'bg-pink-500/15 border-pink-500/30 text-pink-400',   icon: '♀' },
-    other:   { label: 'Other',   color: 'bg-purple-500', text: 'text-purple-400', bar: 'bg-purple-500', badge: 'bg-purple-500/15 border-purple-500/30 text-purple-400', icon: '⊕' },
-    unknown: { label: 'Not set', color: 'bg-gray-600',   text: 'text-gray-400',   bar: 'bg-gray-600',   badge: 'bg-gray-500/15 border-gray-600/30 text-gray-400',   icon: '?' },
+    male:    { label: 'Male',    bar: 'bg-blue-500',   text: 'text-blue-400',   badge: 'bg-blue-500/15 border-blue-500/30',   icon: '♂' },
+    female:  { label: 'Female',  bar: 'bg-pink-500',   text: 'text-pink-400',   badge: 'bg-pink-500/15 border-pink-500/30',   icon: '♀' },
+    other:   { label: 'Other',   bar: 'bg-purple-500', text: 'text-purple-400', badge: 'bg-purple-500/15 border-purple-500/30', icon: '⊕' },
+    unknown: { label: 'Not set', bar: 'bg-gray-600',   text: 'text-gray-400',   badge: 'bg-gray-500/15 border-gray-700',      icon: '?' },
   };
+  const GENDER_ORDER = ['male', 'female', 'other', 'unknown'];
 
-  const total = data.reduce((s, d) => s + parseInt(d.count || 0), 0);
-  const known = data.filter(d => d.gender !== 'unknown').reduce((s, d) => s + parseInt(d.count || 0), 0);
+  const gTotal  = genderData.reduce((s, d) => s + parseInt(d.count || 0), 0);
+  const mTotal  = membershipData.reduce((s, d) => s + parseInt(d.count || 0), 0);
+  const gSorted = [...genderData].sort((a, b) => GENDER_ORDER.indexOf(a.gender) - GENDER_ORDER.indexOf(b.gender));
+  const mSorted = [...membershipData].sort((a, b) => parseInt(b.count) - parseInt(a.count));
 
-  // Sort: male, female, other, unknown
-  const ORDER = ['male', 'female', 'other', 'unknown'];
-  const sorted = [...data].sort((a, b) => ORDER.indexOf(a.gender) - ORDER.indexOf(b.gender));
+  const hasData = gTotal > 0 || mTotal > 0;
 
   return (
     <div className="glass-card p-6">
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-6">
         <h2 className="text-lg font-semibold text-white flex items-center gap-2">
           <Users className="w-5 h-5 text-gym-400" />
           Member Demographics
         </h2>
-        {total > 0 && (
-          <span className="text-xs text-gray-500">
-            {known} of {total} members have gender recorded
+        {hasData && (
+          <span className="text-xs text-gray-500 bg-dark-300 px-2.5 py-1 rounded-full">
+            {gTotal} total members
           </span>
         )}
       </div>
 
-      {total === 0 ? (
-        <div className="flex flex-col items-center justify-center py-8 text-gray-500 text-sm gap-2">
-          <Users className="w-8 h-8 opacity-30" />
+      {!hasData ? (
+        <div className="flex flex-col items-center justify-center py-10 text-gray-500 text-sm gap-2">
+          <Users className="w-10 h-10 opacity-25" />
           <p>No member data yet</p>
         </div>
       ) : (
-        <div className="space-y-5">
-          {/* Stacked bar */}
-          <div className="relative h-5 rounded-full overflow-hidden bg-dark-300 flex">
-            {sorted.filter(d => parseInt(d.count) > 0).map(d => {
-              const cfg = GENDER_CONFIG[d.gender] || GENDER_CONFIG.unknown;
-              const pct = (parseInt(d.count) / total) * 100;
-              return (
-                <div
-                  key={d.gender}
-                  className={clsx('h-full transition-all', cfg.bar)}
-                  style={{ width: `${pct}%` }}
-                  title={`${cfg.label}: ${d.count} (${pct.toFixed(1)}%)`}
-                />
-              );
-            })}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+          {/* ── Gender breakdown ── */}
+          <div>
+            <p className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-1.5">
+              Gender
+              <span className="text-xs text-gray-600 font-normal">
+                ({genderData.filter(d => d.gender !== 'unknown').reduce((s,d) => s+parseInt(d.count||0),0)} recorded)
+              </span>
+            </p>
+
+            {/* Stacked bar */}
+            <div className="h-4 rounded-full overflow-hidden bg-dark-300 flex mb-4">
+              {gSorted.filter(d => parseInt(d.count) > 0).map(d => {
+                const cfg = GENDER_CONFIG[d.gender] || GENDER_CONFIG.unknown;
+                const pct = (parseInt(d.count) / gTotal) * 100;
+                return (
+                  <div key={d.gender} className={clsx('h-full transition-all', cfg.bar)}
+                    style={{ width: `${pct}%` }}
+                    title={`${cfg.label}: ${d.count} (${pct.toFixed(1)}%)`} />
+                );
+              })}
+            </div>
+
+            {/* Cards */}
+            <div className="grid grid-cols-2 gap-2">
+              {GENDER_ORDER.map(g => {
+                const d   = gSorted.find(x => x.gender === g);
+                const cfg = GENDER_CONFIG[g];
+                const cnt = parseInt(d?.count || 0);
+                const pct = gTotal > 0 ? ((cnt / gTotal) * 100).toFixed(0) : '0';
+                return (
+                  <div key={g} className={clsx(
+                    'rounded-xl p-3 border flex items-center gap-3',
+                    cfg.badge, cnt === 0 && 'opacity-40'
+                  )}>
+                    <span className="text-xl leading-none">{cfg.icon}</span>
+                    <div>
+                      <p className={clsx('text-lg font-bold leading-none', cfg.text)}>{cnt}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{cfg.label} · {pct}%</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Legend cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {sorted.map(d => {
-              const cfg = GENDER_CONFIG[d.gender] || GENDER_CONFIG.unknown;
-              const count = parseInt(d.count || 0);
-              const pct = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0';
-              return (
-                <div key={d.gender} className={clsx('rounded-xl p-4 border text-center', cfg.badge)}>
-                  <div className="text-2xl mb-1">{cfg.icon}</div>
-                  <p className={clsx('text-2xl font-bold', cfg.text)}>{count}</p>
-                  <p className="text-xs font-medium text-white mt-0.5">{cfg.label}</p>
-                  <p className="text-xs text-gray-500">{pct}%</p>
+          {/* ── Membership type breakdown ── */}
+          <div>
+            <p className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-1.5">
+              Active Plan Types
+              <span className="text-xs text-gray-600 font-normal">({mTotal} active)</span>
+            </p>
+
+            {mTotal === 0 ? (
+              <div className="text-sm text-gray-600 py-4 text-center">No active memberships</div>
+            ) : (
+              <div className="space-y-2.5">
+                {/* Stacked bar */}
+                <div className="h-4 rounded-full overflow-hidden bg-dark-300 flex mb-4">
+                  {mSorted.filter(d => parseInt(d.count) > 0).map(d => {
+                    const cfg = MEMBERSHIP_LABELS[d.membership_type] || { bar: 'bg-gray-500' };
+                    const pct = (parseInt(d.count) / mTotal) * 100;
+                    return (
+                      <div key={d.membership_type} className={clsx('h-full transition-all', cfg.bar)}
+                        style={{ width: `${pct}%` }} />
+                    );
+                  })}
                 </div>
-              );
-            })}
-            {/* Pad to 4 cols if fewer items */}
-            {sorted.length < 4 && ORDER.filter(g => !sorted.find(d => d.gender === g)).map(g => {
-              const cfg = GENDER_CONFIG[g];
-              return (
-                <div key={g} className="rounded-xl p-4 border border-gray-800/40 bg-dark-300/30 text-center opacity-40">
-                  <div className="text-2xl mb-1">{cfg.icon}</div>
-                  <p className="text-2xl font-bold text-gray-600">0</p>
-                  <p className="text-xs font-medium text-gray-500 mt-0.5">{cfg.label}</p>
-                  <p className="text-xs text-gray-600">0.0%</p>
-                </div>
-              );
-            })}
+
+                {mSorted.map(d => {
+                  const cfg = MEMBERSHIP_LABELS[d.membership_type] || { label: d.membership_type, text: 'text-gray-400', bar: 'bg-gray-500' };
+                  const cnt = parseInt(d.count || 0);
+                  const pct = mTotal > 0 ? (cnt / mTotal) * 100 : 0;
+                  return (
+                    <div key={d.membership_type} className="flex items-center gap-3">
+                      <div className="w-20 text-right text-xs text-gray-400 flex-shrink-0">{cfg.label}</div>
+                      <div className="flex-1 h-6 bg-dark-300 rounded-lg overflow-hidden">
+                        <div className={clsx('h-full rounded-lg flex items-center justify-end pr-2 transition-all duration-700', cfg.bar)}
+                          style={{ width: `${pct}%` }}>
+                          {pct > 20 && <span className="text-[10px] font-bold text-white">{cnt}</span>}
+                        </div>
+                      </div>
+                      <div className="w-10 text-xs text-gray-500 flex-shrink-0">
+                        {cnt} <span className="text-gray-700">({pct.toFixed(0)}%)</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
+
         </div>
       )}
     </div>
