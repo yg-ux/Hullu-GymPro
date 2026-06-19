@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { resizeImage } from '../utils/imageUtils';
 import { api } from '../utils/api';
 import clsx from 'clsx';
@@ -109,6 +109,8 @@ export default function Landing() {
   const [showStickyCTA, setShowStickyCTA] = useState(false);
   const [openFaq, setOpenFaq] = useState(null);
   const [demoLoading, setDemoLoading] = useState(false);
+  const pricingRef   = useRef(null);
+  const [pricingVisible, setPricingVisible] = useState(false);
 
   // Lock scroll when modal open
   useEffect(() => {
@@ -121,6 +123,35 @@ export default function Landing() {
     const handleScroll = () => setShowStickyCTA(window.scrollY > 600);
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Inject pricing keyframes once
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes glowPulse {
+        0%, 100% { box-shadow: 0 20px 50px -12px rgba(249,115,22,0.18); }
+        50%       { box-shadow: 0 28px 70px -8px rgba(249,115,22,0.42), 0 0 55px rgba(249,115,22,0.13); }
+      }
+      @keyframes shimmer {
+        0%   { transform: translateX(-180%); }
+        100% { transform: translateX(320%); }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
+
+  // Pricing section entrance trigger
+  useEffect(() => {
+    const el = pricingRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setPricingVisible(true); },
+      { threshold: 0.12 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
   }, []);
 
   const handleDemo = async () => {
@@ -701,20 +732,28 @@ export default function Landing() {
           </div>
 
           {/* Cards */}
-          <div className="grid md:grid-cols-3 gap-5 md:items-center">
-            {PLANS.map((plan) => {
+          <div ref={pricingRef} className="grid md:grid-cols-3 gap-5 md:items-center">
+            {PLANS.map((plan, planIdx) => {
               const isFree    = plan.price === 0;
               const isPro     = plan.id === 'pro';
               const isPopular = plan.popular;
               return (
-                <div key={plan.id} className={clsx(
-                  'relative flex flex-col rounded-2xl border transition-all duration-300',
-                  isPopular
-                    ? 'border-orange-500/70 bg-gradient-to-b from-gray-800 to-gray-900 shadow-2xl shadow-orange-500/15 md:-translate-y-3 md:scale-[1.03] z-10'
-                    : isFree
-                    ? 'border-gray-700/50 bg-gray-800/30'
-                    : 'border-gray-600/60 bg-gradient-to-b from-gray-800/80 to-gray-900/80'
-                )}>
+                <div
+                  key={plan.id}
+                  className={clsx(
+                    'relative flex flex-col rounded-2xl border transition-all duration-300',
+                    isPopular
+                      ? 'border-orange-500/65 bg-gradient-to-b from-gray-800 to-gray-900 md:-translate-y-3 md:scale-[1.03] z-10 md:hover:-translate-y-5'
+                      : isFree
+                      ? 'border-gray-700/50 bg-gray-800/30 hover:-translate-y-1 hover:border-gray-600/60 hover:shadow-xl hover:shadow-black/30'
+                      : 'border-gray-600/60 bg-gradient-to-b from-gray-800/80 to-gray-900/80 hover:-translate-y-1 hover:border-gray-500/60 hover:shadow-xl hover:shadow-black/30'
+                  )}
+                  style={{
+                    opacity: pricingVisible ? 1 : 0,
+                    transition: `opacity 0.55s ease ${planIdx * 140}ms, transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease`,
+                    ...(isPopular && pricingVisible ? { animation: 'glowPulse 3s ease-in-out infinite' } : {}),
+                  }}
+                >
                   {/* Popular badge */}
                   {isPopular && (
                     <div className="absolute -top-3.5 inset-x-0 flex justify-center">
@@ -801,7 +840,7 @@ export default function Landing() {
                     <button
                       onClick={() => setShowRegister(true)}
                       className={clsx(
-                        'w-full py-3.5 rounded-xl font-semibold text-sm transition-all duration-200 cursor-pointer',
+                        'relative overflow-hidden w-full py-3.5 rounded-xl font-semibold text-sm transition-all duration-200 cursor-pointer',
                         isPopular
                           ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-[1.02]'
                           : isFree
@@ -809,6 +848,16 @@ export default function Landing() {
                           : 'bg-gray-700 hover:bg-gray-600 text-white border border-gray-600 hover:border-gray-500 hover:scale-[1.01]'
                       )}
                     >
+                      {isPopular && (
+                        <span
+                          className="absolute inset-0 pointer-events-none"
+                          style={{
+                            background: 'linear-gradient(105deg, transparent 38%, rgba(255,255,255,0.2) 50%, transparent 62%)',
+                            animation: 'shimmer 3s ease-in-out infinite',
+                            animationDelay: '2s',
+                          }}
+                        />
+                      )}
                       {isFree ? 'Start for free' : isPopular ? 'Get started — no card needed' : 'Get full access'}
                     </button>
                   </div>
