@@ -117,8 +117,7 @@ class SmsService {
       if (amount) message = fitIn(message, ` ${duration} membership - ${amount} received.`);
       if (end)    message = fitIn(message, ` Valid until ${end}.`);
     }
-    if (gym.phone)  message = fitIn(message, ` Call: ${gym.phone}.`);
-    if (portalUrl)  message = fitIn(message, ` ${portalUrl}`);
+    if (portalUrl) message = fitIn(message, ` ${portalUrl}`);
 
     return await this.sendSms(customer.phone, message);
   }
@@ -138,7 +137,6 @@ class SmsService {
 
     let message = `Hi ${customer.name}, payment confirmed at ${gym.name}! ETB ${amount} received for ${duration}.`;
     if (endDate)   message = fitIn(message, ` Valid until ${endDate}.`);
-    if (gym.phone) message = fitIn(message, ` Call: ${gym.phone}.`);
     if (portalUrl) message = fitIn(message, ` ${portalUrl}`);
 
     return await this.sendSms(customer.phone, message);
@@ -160,7 +158,6 @@ class SmsService {
     } else {
       message = `Hi ${customer.name}, your ${gym.name} membership expires in ${daysLeft} days. Renew soon!`;
     }
-    if (gym.phone) message = fitIn(message, ` Call: ${gym.phone}.`);
     if (portalUrl) message = fitIn(message, ` ${portalUrl}`);
     return await this.sendSms(customer.phone, message);
   }
