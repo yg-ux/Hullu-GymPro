@@ -670,20 +670,27 @@ export default function Landing() {
       </section>
 
       {/* ── PRICING ── */}
-      <section id="pricing" className="py-20 px-4 bg-gray-900">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-green-400 text-sm font-semibold uppercase tracking-widest mb-3">{t('landing.pricing.kicker')}</p>
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{t('landing.pricing.title')}</h2>
-            <p className="text-gray-400 text-lg">{t('landing.pricing.subtitle')}</p>
+      <section id="pricing" className="py-24 px-4 bg-gray-900 relative overflow-hidden">
+        {/* Ambient glow behind popular card */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[400px] bg-orange-500/6 rounded-full blur-3xl pointer-events-none" />
 
-            <div className="mt-8 inline-flex flex-col sm:flex-row items-center gap-3 px-6 py-4 bg-gradient-to-r from-amber-500/15 to-orange-500/15 border border-amber-500/30 rounded-2xl text-sm">
+        <div className="max-w-6xl mx-auto relative">
+          {/* Header */}
+          <div className="text-center mb-6">
+            <p className="text-orange-400 text-sm font-semibold uppercase tracking-widest mb-3">{t('landing.pricing.kicker')}</p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{t('landing.pricing.title')}</h2>
+            <p className="text-gray-400 text-lg max-w-xl mx-auto">{t('landing.pricing.subtitle')}</p>
+          </div>
+
+          {/* Early bird banner */}
+          <div className="flex justify-center mb-12">
+            <div className="inline-flex flex-col sm:flex-row items-center gap-3 px-6 py-3.5 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/25 rounded-2xl text-sm">
               <div className="flex items-center gap-2 text-amber-400 font-semibold">
                 <Flame className="w-4 h-4 flex-shrink-0" />
                 {t('landing.pricing.earlyBird')}
               </div>
-              <span className="hidden sm:block text-amber-600">·</span>
-              <span className="text-amber-200/80">
+              <span className="hidden sm:block text-amber-600/60">·</span>
+              <span className="text-amber-200/70 text-center sm:text-left">
                 {t('landing.pricing.earlyBirdPart1')} <span className="font-bold text-amber-300">{t('landing.pricing.earlyBirdFirst10')}</span> {t('landing.pricing.earlyBirdPart2')}{' '}
                 <span className="inline-flex items-center gap-1 font-bold text-amber-300">
                   <Lock className="w-3 h-3" /> {t('landing.pricing.earlyBirdLocked')}
@@ -693,68 +700,141 @@ export default function Landing() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-5 items-start">
-            {PLANS.map((plan) => (
-              <div key={plan.id} className={clsx(
-                'relative flex flex-col rounded-2xl border bg-gray-800/60 transition-all',
-                plan.popular
-                  ? 'border-white/20 shadow-xl'
-                  : 'border-gray-700/80'
-              )}>
-                {plan.popular && (
-                  <div className="absolute -top-3 left-6">
-                    <span className="px-3 py-1 bg-white text-gray-900 text-xs font-semibold rounded-full">
-                      Most Popular
-                    </span>
+          {/* Cards */}
+          <div className="grid md:grid-cols-3 gap-5 md:items-center">
+            {PLANS.map((plan) => {
+              const isFree    = plan.price === 0;
+              const isPro     = plan.id === 'pro';
+              const isPopular = plan.popular;
+              return (
+                <div key={plan.id} className={clsx(
+                  'relative flex flex-col rounded-2xl border transition-all duration-300',
+                  isPopular
+                    ? 'border-orange-500/70 bg-gradient-to-b from-gray-800 to-gray-900 shadow-2xl shadow-orange-500/15 md:-translate-y-3 md:scale-[1.03] z-10'
+                    : isFree
+                    ? 'border-gray-700/50 bg-gray-800/30'
+                    : 'border-gray-600/60 bg-gradient-to-b from-gray-800/80 to-gray-900/80'
+                )}>
+                  {/* Popular badge */}
+                  {isPopular && (
+                    <div className="absolute -top-3.5 inset-x-0 flex justify-center">
+                      <span className="px-4 py-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs font-bold rounded-full shadow-lg shadow-orange-500/30 tracking-wide uppercase">
+                        Most Popular
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Top glow line for popular */}
+                  {isPopular && (
+                    <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-orange-500/60 to-transparent rounded-t-2xl" />
+                  )}
+
+                  {/* Header */}
+                  <div className={clsx('p-7 pb-5', isPopular && 'pt-8')}>
+                    <div className="flex items-center justify-between mb-4">
+                      <p className={clsx(
+                        'text-xs font-bold uppercase tracking-widest',
+                        isPopular ? 'text-orange-400' : isFree ? 'text-gray-500' : 'text-gray-400'
+                      )}>
+                        {t(plan.nameKey)}
+                      </p>
+                      {isPro && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/25 text-purple-400 font-semibold uppercase tracking-wide">
+                          Full Power
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-baseline gap-1.5 mb-2">
+                      {isFree ? (
+                        <span className="text-4xl font-black text-white">Free</span>
+                      ) : (
+                        <>
+                          <span className="text-sm text-gray-500 font-medium self-start mt-2">ETB</span>
+                          <span className={clsx(
+                            'text-4xl font-black',
+                            isPopular ? 'text-white' : 'text-white'
+                          )}>
+                            {plan.price.toLocaleString()}
+                          </span>
+                          <span className="text-gray-500 text-sm">/mo</span>
+                        </>
+                      )}
+                    </div>
+
+                    <p className={clsx(
+                      'text-sm',
+                      isPopular ? 'text-gray-300' : 'text-gray-500'
+                    )}>
+                      {isFree ? 'Permanent free plan — no trial expiry' : plan.description}
+                    </p>
                   </div>
-                )}
 
-                <div className="p-6 pb-5">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">{t(plan.nameKey)}</p>
-                  <div className="flex items-baseline gap-1 mb-1">
-                    {plan.price === 0 ? (
-                      <span className="text-3xl font-bold text-white">Free</span>
-                    ) : (
-                      <>
-                        <span className="text-3xl font-bold text-white">ETB {plan.price.toLocaleString()}</span>
-                        <span className="text-gray-400 text-sm">/mo</span>
-                      </>
-                    )}
+                  {/* Divider */}
+                  <div className={clsx(
+                    'mx-7 h-px',
+                    isPopular ? 'bg-orange-500/20' : 'bg-gray-700/60'
+                  )} />
+
+                  {/* Features */}
+                  <div className="px-7 py-5 flex-1">
+                    <ul className="space-y-3">
+                      {plan.features.map((f, i) => (
+                        <li key={i} className="flex items-start gap-3 text-sm">
+                          <div className={clsx(
+                            'w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5',
+                            isPopular ? 'bg-orange-500/20' : 'bg-green-500/15'
+                          )}>
+                            <Check className={clsx(
+                              'w-2.5 h-2.5',
+                              isPopular ? 'text-orange-400' : 'text-green-400'
+                            )} />
+                          </div>
+                          <span className={isPopular ? 'text-gray-200' : 'text-gray-400'}>{f}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  <p className="text-sm text-gray-400">{plan.description}</p>
-                </div>
 
-                <div className="px-6 pb-6 flex-1 border-t border-gray-700/60 pt-5">
-                  <ul className="space-y-3">
-                    {plan.features.map((f, i) => (
-                      <li key={i} className="flex items-start gap-3 text-sm text-gray-300">
-                        <Check className="w-4 h-4 flex-shrink-0 text-green-400 mt-0.5" />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
+                  {/* CTA */}
+                  <div className="px-7 pb-7 pt-2">
+                    <button
+                      onClick={() => setShowRegister(true)}
+                      className={clsx(
+                        'w-full py-3.5 rounded-xl font-semibold text-sm transition-all duration-200 cursor-pointer',
+                        isPopular
+                          ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-[1.02]'
+                          : isFree
+                          ? 'bg-gray-700/80 hover:bg-gray-700 text-gray-200 border border-gray-600/60 hover:border-gray-500'
+                          : 'bg-gray-700 hover:bg-gray-600 text-white border border-gray-600 hover:border-gray-500 hover:scale-[1.01]'
+                      )}
+                    >
+                      {isFree ? 'Start for free' : isPopular ? 'Get started — no card needed' : 'Get full access'}
+                    </button>
+                  </div>
                 </div>
+              );
+            })}
+          </div>
 
-                <div className="p-6 pt-0">
-                  <button
-                    onClick={() => setShowRegister(true)}
-                    className={clsx(
-                      'w-full py-3 rounded-lg font-medium text-sm transition-all',
-                      plan.popular
-                        ? 'bg-white text-gray-900 hover:bg-gray-100'
-                        : 'bg-gray-700 text-white hover:bg-gray-600 border border-gray-600'
-                    )}
-                  >
-                    {plan.price === 0 ? 'Get started free' : 'Start free trial'}
-                  </button>
-                </div>
-              </div>
+          {/* Trust strip */}
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+            {[
+              { icon: Shield, label: 'No credit card required' },
+              { icon: Check,  label: 'Cancel anytime' },
+              { icon: Lock,   label: 'Your data stays yours' },
+              { icon: Zap,    label: 'Set up in 5 minutes' },
+            ].map(({ icon: Icon, label }) => (
+              <span key={label} className="flex items-center gap-2 text-gray-500 text-sm">
+                <Icon className="w-3.5 h-3.5 text-gray-600" />
+                {label}
+              </span>
             ))}
           </div>
 
-          <div className="mt-8 text-center space-y-1">
-            <p className="text-gray-500 text-sm">{t('landing.pricing.footnote1')}</p>
-            <p className="text-amber-500/70 text-xs flex items-center justify-center gap-1.5">
+          <div className="mt-5 text-center space-y-1">
+            <p className="text-gray-600 text-xs">{t('landing.pricing.footnote1')}</p>
+            <p className="text-amber-600/60 text-xs flex items-center justify-center gap-1.5">
               <Flame className="w-3 h-3" />
               {t('landing.pricing.footnote2')}
             </p>
