@@ -352,6 +352,7 @@ export default function CustomerDetail() {
                   {customer.status === 'expiring' ? t('customers.statusExpiringSoon')
                     : customer.status === 'active' ? t('customers.statusActive')
                     : customer.status === 'expired' ? t('customers.statusExpired')
+                    : customer.status === 'frozen' ? '❄ Frozen'
                     : t('customers.statusInactive')}
                 </span>
               </div>
@@ -956,11 +957,13 @@ export default function CustomerDetail() {
                 <span className={clsx(
                   customer.status === 'active' && "text-green-400",
                   customer.status === 'expiring' && "text-yellow-400",
-                  customer.status === 'expired' && "text-red-400"
+                  customer.status === 'expired' && "text-red-400",
+                  customer.status === 'frozen' && "text-blue-400"
                 )}>
                   {customer.status === 'expiring' ? t('customers.statusExpiringSoon')
                     : customer.status === 'active' ? t('customers.statusActive')
                     : customer.status === 'expired' ? t('customers.statusExpired')
+                    : customer.status === 'frozen' ? '❄ Frozen'
                     : t('customers.statusInactive')}
                 </span>
               </div>

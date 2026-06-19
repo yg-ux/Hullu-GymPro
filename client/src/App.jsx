@@ -29,6 +29,8 @@ import PortalRedirect from './pages/PortalRedirect';
 import Retention from './pages/Retention';
 import Expenses from './pages/Expenses';
 import Equipment from './pages/Equipment';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
 
 // Pages each role can access (must match Layout.jsx nav roles)
 const ROLE_PAGES = {
@@ -108,6 +110,8 @@ function App() {
       <Route path="/admin-dashboard" element={<AdminDashboard />} />
       <Route path="/portal/:token" element={<MemberPortal />} />
       <Route path="/p/:code" element={<PortalRedirect />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
 
       {/* Full-screen protected routes (no sidebar layout) */}
       <Route path="/receipt/:id" element={<ProtectedRoute><Receipt /></ProtectedRoute>} />

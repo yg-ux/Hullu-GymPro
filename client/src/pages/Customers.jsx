@@ -65,7 +65,7 @@ export default function Customers() {
   const { t } = useLanguage();
   const [customers, setCustomers] = useState([]);
   const [pagination, setPagination] = useState(null);
-  const [summary, setSummary] = useState({ total: 0, active: 0, expiring: 0, expired: 0, inactive: 0 });
+  const [summary, setSummary] = useState({ total: 0, active: 0, expiring: 0, expired: 0, inactive: 0, frozen: 0 });
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [page, setPage] = useState(1);
@@ -139,7 +139,7 @@ export default function Customers() {
       const data = await api.get(`/customers?${params}`);
       setCustomers(data.data || []);
       setPagination(data.pagination || null);
-      setSummary(data.summary || { total: 0, active: 0, expiring: 0, expired: 0, inactive: 0 });
+      setSummary(data.summary || { total: 0, active: 0, expiring: 0, expired: 0, inactive: 0, frozen: 0 });
     } catch (error) {
       console.error('Failed to load customers:', error);
       toast.error(t('customers.toastLoadFailed'));
@@ -200,6 +200,7 @@ export default function Customers() {
     expiring: summary.expiring,
     expired: summary.expired,
     inactive: summary.inactive,
+    frozen: summary.frozen,
   };
 
   const getDaysDisplay = (customer) => {
@@ -303,6 +304,7 @@ export default function Customers() {
           { key: 'active', label: t('customers.tabActive'), color: 'green' },
           { key: 'expiring', label: t('customers.tabExpiring'), color: 'yellow' },
           { key: 'expired', label: t('customers.tabExpired'), color: 'red' },
+          ...(summary.frozen > 0 ? [{ key: 'frozen', label: 'Frozen', color: 'blue' }] : []),
         ].map(tab => (
           <button
             key={tab.key}
@@ -313,6 +315,7 @@ export default function Customers() {
                 ? tab.color === 'green' ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/30"
                 : tab.color === 'yellow' ? "bg-gradient-to-r from-yellow-500 to-orange-500 text-black shadow-lg shadow-yellow-500/30"
                 : tab.color === 'red' ? "bg-gradient-to-r from-red-500 to-rose-500 text-white shadow-lg shadow-red-500/30"
+                : tab.color === 'blue' ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/30"
                 : "bg-gradient-to-r from-gym-500 to-purple-500 text-white shadow-lg shadow-gym-500/30"
                 : "bg-dark-100 text-gray-400 hover:text-white border border-gray-800 hover:border-gray-700"
             )}
@@ -570,6 +573,7 @@ export default function Customers() {
                       {customer.status === 'expiring' ? t('customers.statusExpiring')
                         : customer.status === 'active' ? t('customers.statusActive')
                         : customer.status === 'expired' ? t('customers.statusExpired')
+                        : customer.status === 'frozen' ? '❄ Frozen'
                         : t('customers.statusInactive')}
                     </span>
                   </td>
@@ -723,6 +727,7 @@ function CustomerCard({ customer, onClick, onCheckIn, onCheckOut, isCheckedIn, g
                   : customer.status === 'active' ? "border-green-500/50"
                   : customer.status === 'expiring' ? "border-yellow-500/50"
                   : customer.status === 'expired' ? "border-red-500/50"
+                  : customer.status === 'frozen' ? "border-blue-500/50"
                   : "border-gray-700"
                 )}
               />
@@ -733,6 +738,7 @@ function CustomerCard({ customer, onClick, onCheckIn, onCheckOut, isCheckedIn, g
                 : customer.status === 'active' ? "bg-gradient-to-br from-green-500 to-emerald-600"
                 : customer.status === 'expiring' ? "bg-gradient-to-br from-yellow-500 to-orange-500"
                 : customer.status === 'expired' ? "bg-gradient-to-br from-red-500 to-rose-600"
+                : customer.status === 'frozen' ? "bg-gradient-to-br from-blue-500 to-cyan-600"
                 : "bg-gradient-to-br from-gym-500 to-purple-600"
               )}>
                 {customer.name.charAt(0).toUpperCase()}
@@ -750,7 +756,8 @@ function CustomerCard({ customer, onClick, onCheckIn, onCheckOut, isCheckedIn, g
                 customer.status === 'active' && "bg-green-500 animate-pulse",
                 customer.status === 'expiring' && "bg-yellow-500 animate-pulse",
                 customer.status === 'expired' && "bg-red-500",
-                customer.status === 'inactive' && "bg-gray-500"
+                customer.status === 'inactive' && "bg-gray-500",
+                customer.status === 'frozen' && "bg-blue-400"
               )} />
             )}
           </div>
@@ -768,6 +775,7 @@ function CustomerCard({ customer, onClick, onCheckIn, onCheckOut, isCheckedIn, g
             {customer.status === 'expiring' ? t('customers.statusExpiringSoon')
               : customer.status === 'active' ? t('customers.statusActive')
               : customer.status === 'expired' ? t('customers.statusExpired')
+              : customer.status === 'frozen' ? '❄ Frozen'
               : t('customers.statusInactive')}
           </span>
         </div>

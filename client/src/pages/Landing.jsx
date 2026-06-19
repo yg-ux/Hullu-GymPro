@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { resizeImage } from '../utils/imageUtils';
 import { api } from '../utils/api';
 import clsx from 'clsx';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import {
@@ -415,30 +415,171 @@ export default function Landing() {
       </section>
 
       {/* ── HOW IT WORKS ── */}
-      <section id="how" className="py-20 px-4">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-14">
+      <section id="how" className="py-24 px-4 bg-gray-900">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
             <p className="text-purple-400 text-sm font-semibold uppercase tracking-widest mb-3">{t('landing.how.kicker')}</p>
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{t('landing.how.title')}</h2>
-            <p className="text-gray-400 text-lg">{t('landing.how.subtitle')}</p>
+            <p className="text-gray-400 text-lg max-w-2xl mx-auto">{t('landing.how.subtitle')}</p>
           </div>
 
-          <div className="grid sm:grid-cols-3 gap-8">
+          <div className="grid sm:grid-cols-3 gap-6">
             {[
-              { step: '01', title: t('landing.how.step1.title'), desc: t('landing.how.step1.desc'), icon: Dumbbell },
-              { step: '02', title: t('landing.how.step2.title'), desc: t('landing.how.step2.desc'), icon: Users },
-              { step: '03', title: t('landing.how.step3.title'), desc: t('landing.how.step3.desc'), icon: TrendingUp },
+              {
+                step: '1',
+                icon: Dumbbell,
+                color: 'from-blue-500 to-blue-600',
+                glow: 'shadow-blue-500/30',
+                border: 'border-blue-500/20',
+                bg: 'bg-blue-500/5',
+                title: t('landing.how.step1.title'),
+                desc: t('landing.how.step1.desc'),
+                details: ['5-minute setup', 'Upload your logo', 'Choose your theme color'],
+              },
+              {
+                step: '2',
+                icon: Users,
+                color: 'from-purple-500 to-purple-600',
+                glow: 'shadow-purple-500/30',
+                border: 'border-purple-500/20',
+                bg: 'bg-purple-500/5',
+                title: t('landing.how.step2.title'),
+                desc: t('landing.how.step2.desc'),
+                details: ['Add members instantly', 'Record payments & dues', 'QR check-in & check-out'],
+              },
+              {
+                step: '3',
+                icon: TrendingUp,
+                color: 'from-emerald-500 to-emerald-600',
+                glow: 'shadow-emerald-500/30',
+                border: 'border-emerald-500/20',
+                bg: 'bg-emerald-500/5',
+                title: t('landing.how.step3.title'),
+                desc: t('landing.how.step3.desc'),
+                details: ['See revenue trends', 'Auto SMS reminders', 'Spot members at risk'],
+              },
             ].map((s, i) => (
-              <div key={i} className="relative text-center">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/30 flex items-center justify-center mx-auto mb-4">
-                  <s.icon className="w-8 h-8 text-blue-400" />
+              <div key={i} className={`relative rounded-2xl border ${s.border} ${s.bg} p-8 flex flex-col gap-5`}>
+                {/* Step number + connector */}
+                <div className="flex items-center gap-4">
+                  <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${s.color} flex items-center justify-center shadow-xl ${s.glow} flex-shrink-0`}>
+                    <s.icon className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-600 uppercase tracking-widest">Step {s.step}</p>
+                    <h3 className="text-lg font-bold text-white leading-tight">{s.title}</h3>
+                  </div>
                 </div>
-                <p className="text-5xl font-black text-gray-800 absolute -top-4 left-1/2 -translate-x-1/2 select-none">{s.step}</p>
-                <h3 className="text-xl font-semibold text-white mb-2 mt-2">{s.title}</h3>
+
                 <p className="text-gray-400 text-sm leading-relaxed">{s.desc}</p>
-                {i < 2 && <div className="hidden sm:block absolute top-8 left-[calc(50%+60px)] right-0 h-px bg-gradient-to-r from-gray-700 to-transparent" />}
+
+                <ul className="space-y-2 mt-auto">
+                  {s.details.map((d, j) => (
+                    <li key={j} className="flex items-center gap-2.5 text-sm text-gray-300">
+                      <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                      {d}
+                    </li>
+                  ))}
+                </ul>
+
+                {/* Connector arrow on desktop */}
+                {i < 2 && (
+                  <div className="hidden sm:flex absolute -right-4 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-gray-800 border border-gray-700 items-center justify-center">
+                    <ChevronRight className="w-4 h-4 text-gray-500" />
+                  </div>
+                )}
               </div>
             ))}
+          </div>
+
+          <div className="mt-12 text-center">
+            <button onClick={() => {}} className="inline-flex items-center gap-2 text-gray-500 text-sm hover:text-gray-300 transition-colors">
+              From signup to your first check-in in under 10 minutes.
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* ── PWA / INSTALL ── */}
+      <section className="py-20 px-4">
+        <div className="max-w-5xl mx-auto">
+          <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/60 border border-gray-700 rounded-3xl p-8 sm:p-12 overflow-hidden relative">
+            {/* Background decoration */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="grid sm:grid-cols-2 gap-10 items-center relative">
+              {/* Left */}
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-400 text-xs font-semibold mb-5">
+                  <Phone className="w-3.5 h-3.5" /> Works like a native app
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
+                  Add to your home screen.<br />
+                  <span className="text-gray-400">No app store needed.</span>
+                </h2>
+                <p className="text-gray-400 text-sm leading-relaxed mb-6">
+                  Hullu Gyms is a Progressive Web App (PWA). Install it directly from your browser to get a full-screen,
+                  app-like experience on any device — iPhone, Android, or desktop PC.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { icon: '⚡', label: 'Instant launch', sub: 'No loading screens' },
+                    { icon: '📴', label: 'Works offline', sub: 'View data without internet' },
+                    { icon: '🔔', label: 'Push-ready', sub: 'Future notifications' },
+                    { icon: '💾', label: 'No updates', sub: 'Always latest version' },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-start gap-2.5 p-3 rounded-xl bg-gray-900/60 border border-gray-800">
+                      <span className="text-lg flex-shrink-0">{item.icon}</span>
+                      <div>
+                        <p className="text-white text-xs font-semibold">{item.label}</p>
+                        <p className="text-gray-500 text-xs">{item.sub}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right — install steps */}
+              <div className="space-y-4">
+                <p className="text-gray-400 text-sm font-semibold uppercase tracking-widest mb-3">How to install</p>
+
+                <div className="space-y-3">
+                  {[
+                    {
+                      platform: 'iPhone / Safari',
+                      icon: '🍎',
+                      steps: ['Open hullugyms.app in Safari', 'Tap the Share button (⬆)', 'Choose "Add to Home Screen"'],
+                    },
+                    {
+                      platform: 'Android / Chrome',
+                      icon: '🤖',
+                      steps: ['Open in Chrome browser', 'Tap the 3-dot menu (⋮)', 'Select "Add to Home Screen"'],
+                    },
+                    {
+                      platform: 'PC / Desktop',
+                      icon: '💻',
+                      steps: ['Open in Chrome or Edge', 'Click the install icon (⊕) in address bar', 'Click "Install"'],
+                    },
+                  ].map((p, i) => (
+                    <div key={i} className="p-4 rounded-xl bg-gray-900 border border-gray-800">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span>{p.icon}</span>
+                        <p className="text-white text-sm font-semibold">{p.platform}</p>
+                      </div>
+                      <ol className="space-y-1">
+                        {p.steps.map((step, j) => (
+                          <li key={j} className="flex items-center gap-2 text-xs text-gray-400">
+                            <span className="w-4 h-4 rounded-full bg-gray-700 text-gray-400 flex items-center justify-center text-[10px] flex-shrink-0 font-bold">{j + 1}</span>
+                            {step}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -781,8 +922,8 @@ export default function Landing() {
                 Developed by <span className="font-semibold text-gray-400 hover:text-white transition-colors">Aleqa Tech</span>
               </a>
               <div className="flex gap-6 text-sm text-gray-600">
-                <span className="cursor-default hover:text-gray-400 transition-colors">Privacy Policy</span>
-                <span className="cursor-default hover:text-gray-400 transition-colors">Terms of Service</span>
+                <Link to="/privacy" className="hover:text-gray-300 transition-colors">Privacy Policy</Link>
+                <Link to="/terms" className="hover:text-gray-300 transition-colors">Terms of Service</Link>
               </div>
             </div>
           </div>

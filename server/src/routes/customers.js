@@ -126,11 +126,12 @@ router.get('/', authenticateToken, async (req, res) => {
       data: customers,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
       summary: {
-        total: (statusCounts.active || 0) + (statusCounts.expiring || 0) + (statusCounts.expired || 0) + (statusCounts.inactive || 0),
+        total: (statusCounts.active || 0) + (statusCounts.expiring || 0) + (statusCounts.expired || 0) + (statusCounts.inactive || 0) + (statusCounts.frozen || 0),
         active: statusCounts.active || 0,
         expiring: statusCounts.expiring || 0,
         expired: statusCounts.expired || 0,
         inactive: statusCounts.inactive || 0,
+        frozen: statusCounts.frozen || 0,
       }
     });
   } catch (error) {
