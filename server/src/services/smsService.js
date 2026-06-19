@@ -106,11 +106,14 @@ class SmsService {
     const duration = customer.membership_type
       ? customer.membership_type.replace(/_/g, ' ')
       : 'monthly';
+    // First name only saves 8-15 chars on long names, ensuring the portal
+    // URL always fits even when the gym name is also long.
+    const firstName = customer.name.split(' ')[0];
 
     // Use plain ASCII hyphens only — em dashes (U+2014) trigger UCS-2 encoding
     // which cuts segment capacity from 160 to 67 chars, multiplying cost ~3-4x.
     // fitIn() only appends an addition if it still fits within MAX_SMS chars.
-    let message = `Hi ${customer.name}, welcome to ${gym.name}!`;
+    let message = `Hi ${firstName}, welcome to ${gym.name}!`;
     if (isDaily) {
       if (amount) message = fitIn(message, ` Daily pass - ${amount} received. Valid today.`);
     } else {
@@ -135,7 +138,8 @@ class SmsService {
       ? new Date(payment.end_date).toLocaleDateString('en-ET', { day: 'numeric', month: 'short', year: 'numeric' })
       : null;
 
-    let message = `Hi ${customer.name}, payment confirmed at ${gym.name}! ETB ${amount} received for ${duration}.`;
+    const firstName = customer.name.split(' ')[0];
+    let message = `Hi ${firstName}, payment confirmed at ${gym.name}! ETB ${amount} received for ${duration}.`;
     if (endDate)   message = fitIn(message, ` Valid until ${endDate}.`);
     if (portalUrl) message = fitIn(message, ` ${portalUrl}`);
 
@@ -150,13 +154,14 @@ class SmsService {
    * @param {string|null} portalUrl - Member portal link
    */
   async sendMembershipExpiryReminder(customer, gym, daysLeft, portalUrl = null) {
+    const firstName = customer.name.split(' ')[0];
     let message;
     if (daysLeft <= 0) {
-      message = `Hi ${customer.name}, your ${gym.name} membership has expired. Renew now!`;
+      message = `Hi ${firstName}, your ${gym.name} membership has expired. Renew now!`;
     } else if (daysLeft === 1) {
-      message = `Hi ${customer.name}, your ${gym.name} membership expires tomorrow. Renew today!`;
+      message = `Hi ${firstName}, your ${gym.name} membership expires tomorrow. Renew today!`;
     } else {
-      message = `Hi ${customer.name}, your ${gym.name} membership expires in ${daysLeft} days. Renew soon!`;
+      message = `Hi ${firstName}, your ${gym.name} membership expires in ${daysLeft} days. Renew soon!`;
     }
     if (portalUrl) message = fitIn(message, ` ${portalUrl}`);
     return await this.sendSms(customer.phone, message);
