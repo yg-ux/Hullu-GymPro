@@ -525,9 +525,9 @@ export default function Landing() {
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { icon: '⚡', label: 'Instant launch', sub: 'No loading screens' },
-                    { icon: '📴', label: 'Offline shell', sub: 'App opens without internet' },
+                    { icon: '📌', label: 'Home screen icon', sub: 'Like a native app' },
                     { icon: '🔔', label: 'Push-ready', sub: 'Future notifications' },
-                    { icon: '💾', label: 'No updates', sub: 'Always latest version' },
+                    { icon: '💾', label: 'No updates needed', sub: 'Always latest version' },
                   ].map((item, i) => (
                     <div key={i} className="flex items-start gap-2.5 p-3 rounded-xl bg-gray-900/60 border border-gray-800">
                       <span className="text-lg flex-shrink-0">{item.icon}</span>
