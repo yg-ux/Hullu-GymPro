@@ -152,7 +152,7 @@ router.get('/broadcast/counts', authenticateToken, async (req, res) => {
       const { whereExtra, extraParam } = buildRecipientQuery(filter);
       const params = extraParam ? [gymId, gymId] : [gymId];
       const rows = await getAll(
-        `SELECT COUNT(*) as n FROM customers WHERE gym_id = ? AND phone IS NOT NULL AND phone != '' ${whereExtra}`,
+        `SELECT COUNT(*) as n FROM customers WHERE gym_id = ? ${whereExtra}`,
         params
       );
       counts[filter] = rows[0]?.n ?? 0;

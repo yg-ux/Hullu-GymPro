@@ -600,24 +600,26 @@ function BroadcastSmsPanel({ toast }) {
   const [lastResult, setLastResult] = useState(null);
   const [counts, setCounts] = useState(null);
   const [countsLoading, setCountsLoading] = useState(true);
+  const [countsError, setCountsError] = useState(false);
 
   const charCount = message.length;
   const overLimit = charCount > 160;
 
-  useEffect(() => {
-    const loadCounts = async () => {
-      setCountsLoading(true);
-      try {
-        const data = await api.get('/sms/broadcast/counts');
-        setCounts(data);
-      } catch {
-        // counts are informational — don't block the UI on failure
-      } finally {
-        setCountsLoading(false);
-      }
-    };
-    loadCounts();
-  }, []);
+  const loadCounts = async () => {
+    setCountsLoading(true);
+    setCountsError(false);
+    try {
+      const data = await api.get('/sms/broadcast/counts');
+      setCounts(data);
+    } catch (err) {
+      console.error('Broadcast counts failed:', err);
+      setCountsError(true);
+    } finally {
+      setCountsLoading(false);
+    }
+  };
+
+  useEffect(() => { loadCounts(); }, []);
 
   const selectedCount = counts?.[filter] ?? null;
 
@@ -664,30 +666,42 @@ function BroadcastSmsPanel({ toast }) {
       </div>
 
       {/* Recipient counts grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {FILTER_OPTIONS.map(opt => (
+      {countsError ? (
+        <div className="flex items-center justify-between p-3 bg-red-500/10 border border-red-500/25 rounded-xl text-sm">
+          <span className="text-red-400">Could not load member counts</span>
           <button
-            key={opt.value}
-            type="button"
-            onClick={() => setFilter(opt.value)}
-            className={clsx(
-              'flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all text-center',
-              filter === opt.value
-                ? 'border-gym-500/60 bg-gym-500/10'
-                : 'border-gray-700 hover:border-gray-600 bg-dark-200'
-            )}
+            onClick={loadCounts}
+            className="text-xs px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg transition-colors"
           >
-            {countsLoading ? (
-              <div className="h-6 w-8 bg-gray-700 rounded animate-pulse" />
-            ) : (
-              <span className={clsx('text-xl font-bold tabular-nums', opt.color)}>
-                {counts?.[opt.value] ?? '—'}
-              </span>
-            )}
-            <span className="text-[10px] text-gray-400 leading-tight">{opt.label}</span>
+            Retry
           </button>
-        ))}
-      </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {FILTER_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setFilter(opt.value)}
+              className={clsx(
+                'flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all text-center',
+                filter === opt.value
+                  ? 'border-gym-500/60 bg-gym-500/10'
+                  : 'border-gray-700 hover:border-gray-600 bg-dark-200'
+              )}
+            >
+              {countsLoading ? (
+                <div className="h-6 w-8 bg-gray-700 rounded animate-pulse" />
+              ) : (
+                <span className={clsx('text-xl font-bold tabular-nums', opt.color)}>
+                  {counts?.[opt.value] ?? 0}
+                </span>
+              )}
+              <span className="text-[10px] text-gray-400 leading-tight">{opt.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div>
         <div className="flex justify-between items-center mb-2">
