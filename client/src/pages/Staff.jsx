@@ -459,98 +459,68 @@ export default function Staff() {
 
         {/* ── Employee Directory ─────────────────────────────────────────────── */}
         <div className="glass-card p-6">
+          {/* Header */}
           <div className="flex flex-wrap items-start sm:items-center justify-between gap-3 mb-5">
             <div>
               <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                 <Users className="w-5 h-5 text-gym-400" />
                 Employee Directory
-                {!empLoading && (
+                {!empLoading && employees.length > 0 && (
                   <span className="text-sm font-normal text-gray-500">({employees.length})</span>
                 )}
               </h2>
-              <p className="text-sm text-gray-500 mt-0.5">Track your staff without giving them system access</p>
+              <p className="text-sm text-gray-500 mt-0.5">Track staff records without giving system access</p>
             </div>
-            <button onClick={openAddEmployee} className="btn-primary inline-flex items-center gap-2 text-sm flex-shrink-0">
-              <Plus className="w-4 h-4" />
-              Add Employee
-            </button>
+            <div className="flex items-center gap-3">
+              {/* Payroll total badge */}
+              {!empLoading && employees.length > 0 && (() => {
+                const totalSalary = employees.reduce((sum, e) => sum + (parseFloat(e.salary) || 0), 0);
+                return totalSalary > 0 ? (
+                  <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/25 rounded-xl">
+                    <Briefcase className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-xs text-emerald-300 font-medium">
+                      ETB {totalSalary.toLocaleString()}<span className="text-emerald-500">/mo</span>
+                    </span>
+                  </div>
+                ) : null;
+              })()}
+              <button onClick={openAddEmployee} className="btn-primary inline-flex items-center gap-2 text-sm flex-shrink-0">
+                <Plus className="w-4 h-4" />
+                Add Employee
+              </button>
+            </div>
           </div>
 
           {empLoading ? (
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {[1,2,3].map(i => (
-                <div key={i} className="h-14 bg-dark-200/50 rounded-xl animate-pulse" />
+                <div key={i} className="h-44 bg-dark-200/50 rounded-2xl animate-pulse" />
               ))}
             </div>
           ) : employees.length === 0 ? (
-            <div className="text-center py-10">
-              <div className="w-14 h-14 rounded-2xl bg-dark-200 flex items-center justify-center mx-auto mb-3">
-                <Users className="w-7 h-7 text-gray-600" />
+            <div className="text-center py-12">
+              <div className="w-16 h-16 rounded-2xl bg-dark-200 flex items-center justify-center mx-auto mb-3">
+                <Users className="w-8 h-8 text-gray-600" />
               </div>
-              <p className="text-gray-400 text-sm font-medium">No employees yet</p>
-              <p className="text-gray-600 text-xs mt-1">Add trainers, cleaners, security — anyone you want to keep a record of</p>
-              <button onClick={openAddEmployee} className="mt-4 btn-primary inline-flex items-center gap-2 text-sm">
+              <p className="text-gray-300 font-medium">No employees yet</p>
+              <p className="text-gray-500 text-sm mt-1 max-w-xs mx-auto">
+                Add trainers, cleaners, security — anyone you want to keep a record of
+              </p>
+              <button onClick={openAddEmployee} className="mt-5 btn-primary inline-flex items-center gap-2 text-sm">
                 <Plus className="w-4 h-4" />
                 Add First Employee
               </button>
             </div>
           ) : (
-            <div className="divide-y divide-gray-800/40">
-              {employees.map(emp => (
-                <div key={emp.id} className="flex items-start gap-3 py-3.5">
-                  {/* Avatar */}
-                  <div className="w-10 h-10 rounded-xl bg-gym-500/15 flex items-center justify-center flex-shrink-0 text-sm font-bold text-gym-400 mt-0.5">
-                    {emp.name.charAt(0).toUpperCase()}
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-semibold text-white">{emp.name}</p>
-                      {emp.position && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-dark-300 text-gray-400">{emp.position}</span>
-                      )}
-                      {emp.status === 'inactive' && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-700/60 text-gray-500">Inactive</span>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-gray-500">
-                      {emp.phone && (
-                        <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{emp.phone}</span>
-                      )}
-                      {emp.start_date && (
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          Since {new Date(emp.start_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                        </span>
-                      )}
-                      {emp.salary && (
-                        <span className="flex items-center gap-1">
-                          <Briefcase className="w-3 h-3" />
-                          ETB {parseFloat(emp.salary).toLocaleString()}/mo
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Actions — always visible (no hover-only on mobile) */}
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => openEditEmployee(emp)}
-                      className="p-2 text-gray-400 hover:text-white hover:bg-dark-200 rounded-lg transition-colors"
-                      aria-label="Edit employee"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setEmpDeleteModal({ open: true, employee: emp })}
-                      className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                      aria-label="Delete employee"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {employees.map((emp, idx) => (
+                <EmployeeCard
+                  key={emp.id}
+                  emp={emp}
+                  idx={idx}
+                  onEdit={() => openEditEmployee(emp)}
+                  onDelete={() => setEmpDeleteModal({ open: true, employee: emp })}
+                />
               ))}
             </div>
           )}
@@ -759,6 +729,126 @@ export default function Staff() {
         )}
 
       </div>
+  );
+}
+
+// Colour palette for employee avatars (cycles by index)
+const EMP_COLORS = [
+  'from-sky-500 to-blue-600',
+  'from-violet-500 to-purple-600',
+  'from-emerald-500 to-teal-600',
+  'from-amber-500 to-orange-500',
+  'from-rose-500 to-pink-600',
+  'from-cyan-500 to-sky-600',
+];
+
+function EmployeeCard({ emp, idx, onEdit, onDelete }) {
+  const [hovered, setHovered] = useState(false);
+  const gradient = EMP_COLORS[idx % EMP_COLORS.length];
+  const isActive = emp.status !== 'inactive';
+  const salary = parseFloat(emp.salary) || 0;
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className={clsx(
+        'relative bg-dark-200/60 border rounded-2xl p-5 transition-all duration-300 overflow-hidden group',
+        isActive
+          ? 'border-gray-700/60 hover:border-gym-500/40 hover:shadow-lg hover:shadow-gym-500/10'
+          : 'border-gray-800 opacity-60'
+      )}
+    >
+      {/* Subtle gradient wash on hover */}
+      <div className={clsx(
+        'absolute inset-0 bg-gradient-to-br from-gym-500/5 to-purple-500/5 transition-opacity duration-300 pointer-events-none',
+        hovered ? 'opacity-100' : 'opacity-0'
+      )} />
+
+      {/* Action buttons — top-right, appear on hover */}
+      <div className={clsx(
+        'absolute top-3 right-3 flex gap-1 transition-all duration-200 z-10',
+        hovered ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1 pointer-events-none'
+      )}>
+        <button
+          onClick={onEdit}
+          className="p-1.5 bg-dark-100/90 backdrop-blur-sm text-gray-400 hover:text-blue-400 rounded-lg border border-gray-700/60 transition-all hover:scale-110"
+          title="Edit"
+        >
+          <Edit className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={onDelete}
+          className="p-1.5 bg-dark-100/90 backdrop-blur-sm text-gray-400 hover:text-red-400 rounded-lg border border-gray-700/60 transition-all hover:scale-110"
+          title="Remove"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      <div className="relative flex flex-col items-center text-center">
+        {/* Avatar */}
+        <div className="relative mb-3">
+          <div className={clsx(
+            'w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold text-white shadow-lg bg-gradient-to-br',
+            gradient
+          )}>
+            {emp.name.charAt(0).toUpperCase()}
+          </div>
+          {/* Status dot */}
+          <div className={clsx(
+            'absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-dark-200',
+            isActive ? 'bg-green-500 animate-pulse' : 'bg-gray-500'
+          )} />
+        </div>
+
+        {/* Name */}
+        <h3 className="font-semibold text-white text-sm mb-1 truncate w-full">{emp.name}</h3>
+
+        {/* Position badge */}
+        {emp.position ? (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gym-500/15 text-gym-400 border border-gym-500/20 mb-3">
+            <Briefcase className="w-3 h-3" />
+            {emp.position}
+          </span>
+        ) : (
+          <span className="text-xs text-gray-600 mb-3">No position set</span>
+        )}
+
+        {/* Salary */}
+        {salary > 0 && (
+          <div className="w-full px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl mb-3">
+            <p className="text-xs text-emerald-500 mb-0.5">Monthly Salary</p>
+            <p className="text-base font-bold text-emerald-400">
+              ETB {salary.toLocaleString()}
+            </p>
+          </div>
+        )}
+
+        {/* Meta row */}
+        <div className="w-full pt-3 border-t border-gray-800/50 flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-gray-500">
+          {emp.phone && (
+            <span className="flex items-center gap-1">
+              <Phone className="w-3 h-3" />
+              {emp.phone}
+            </span>
+          )}
+          {emp.start_date && (
+            <span className="flex items-center gap-1">
+              <Calendar className="w-3 h-3" />
+              Since {new Date(emp.start_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+            </span>
+          )}
+        </div>
+
+        {/* Notes preview */}
+        {emp.notes && (
+          <p className="mt-2 text-xs text-gray-600 italic truncate w-full" title={emp.notes}>
+            "{emp.notes}"
+          </p>
+        )}
+      </div>
+    </div>
   );
 }
 
