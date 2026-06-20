@@ -598,18 +598,42 @@ function BroadcastSmsPanel({ toast }) {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [lastResult, setLastResult] = useState(null);
+  const [counts, setCounts] = useState(null);
+  const [countsLoading, setCountsLoading] = useState(true);
 
   const charCount = message.length;
   const overLimit = charCount > 160;
 
+  useEffect(() => {
+    const loadCounts = async () => {
+      setCountsLoading(true);
+      try {
+        const data = await api.get('/sms/broadcast/counts');
+        setCounts(data);
+      } catch {
+        // counts are informational — don't block the UI on failure
+      } finally {
+        setCountsLoading(false);
+      }
+    };
+    loadCounts();
+  }, []);
+
+  const selectedCount = counts?.[filter] ?? null;
+
+  const FILTER_OPTIONS = [
+    { value: 'active',   label: 'All active members',       color: 'text-green-400'  },
+    { value: 'expiring', label: 'Expiring this week (≤7 d)', color: 'text-amber-400'  },
+    { value: 'expired',  label: 'Expired members',           color: 'text-red-400'    },
+    { value: 'inactive', label: 'Inactive 14+ days',         color: 'text-orange-400' },
+  ];
+
   const handleSend = async () => {
     if (!message.trim()) return toast.error('Write a message first');
     if (overLimit) return toast.error('Message is too long (max 160 chars)');
-    const filterLabel = filter === 'active' ? 'all active members'
-      : filter === 'expiring' ? 'members expiring this week'
-      : filter === 'expired' ? 'expired members'
-      : 'inactive members';
-    if (!window.confirm(`Send this SMS to ${filterLabel}?`)) return;
+    const label = FILTER_OPTIONS.find(o => o.value === filter)?.label ?? filter;
+    const recipientCount = selectedCount ?? '?';
+    if (!window.confirm(`Send this SMS to ${recipientCount} ${label}?`)) return;
     setSending(true);
     setLastResult(null);
     try {
@@ -617,6 +641,11 @@ function BroadcastSmsPanel({ toast }) {
       setLastResult(result);
       toast.success(`Sent to ${result.sent} member${result.sent !== 1 ? 's' : ''}`);
       setMessage('');
+      // Refresh counts after sending
+      try {
+        const fresh = await api.get('/sms/broadcast/counts');
+        setCounts(fresh);
+      } catch { /* silent */ }
     } catch (err) {
       toast.error(err.message || 'Broadcast failed');
     } finally { setSending(false); }
@@ -634,14 +663,30 @@ function BroadcastSmsPanel({ toast }) {
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">Send to</label>
-        <select value={filter} onChange={e => setFilter(e.target.value)} className="input-field">
-          <option value="active">All active members</option>
-          <option value="expiring">Expiring this week (≤7 days)</option>
-          <option value="expired">Expired members</option>
-          <option value="inactive">Inactive 14+ days</option>
-        </select>
+      {/* Recipient counts grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {FILTER_OPTIONS.map(opt => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setFilter(opt.value)}
+            className={clsx(
+              'flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all text-center',
+              filter === opt.value
+                ? 'border-gym-500/60 bg-gym-500/10'
+                : 'border-gray-700 hover:border-gray-600 bg-dark-200'
+            )}
+          >
+            {countsLoading ? (
+              <div className="h-6 w-8 bg-gray-700 rounded animate-pulse" />
+            ) : (
+              <span className={clsx('text-xl font-bold tabular-nums', opt.color)}>
+                {counts?.[opt.value] ?? '—'}
+              </span>
+            )}
+            <span className="text-[10px] text-gray-400 leading-tight">{opt.label}</span>
+          </button>
+        ))}
       </div>
 
       <div>
@@ -668,10 +713,21 @@ function BroadcastSmsPanel({ toast }) {
         </div>
       )}
 
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between pt-1">
+        {/* Recipient preview */}
+        <p className="text-xs text-gray-500">
+          {countsLoading ? (
+            <span className="inline-block h-4 w-36 bg-gray-700 rounded animate-pulse" />
+          ) : selectedCount === 0 ? (
+            <span className="text-amber-400">⚠ No recipients in this group</span>
+          ) : selectedCount !== null ? (
+            <span>Will send to <span className="text-white font-semibold">{selectedCount}</span> member{selectedCount !== 1 ? 's' : ''}</span>
+          ) : null}
+        </p>
+
         <button
           onClick={handleSend}
-          disabled={sending || !message.trim() || overLimit}
+          disabled={sending || !message.trim() || overLimit || selectedCount === 0}
           className="btn-primary flex items-center gap-2 disabled:opacity-50"
         >
           {sending ? (

@@ -1,7 +1,8 @@
 import express from 'express';
 import { authenticateToken } from './auth.js';
-import { getAll } from '../models/database.js';
+import { getAll, getOne } from '../models/database.js';
 import { smsService } from '../services/smsService.js';
+import { randomUUID } from 'crypto';
 
 const router = express.Router();
 
@@ -125,6 +126,44 @@ router.post('/send-test', authenticateToken, async (req, res) => {
   }
 });
 
+// ── Helper: build recipient query for a given filter ─────────────────────────
+function buildRecipientQuery(filter) {
+  let whereExtra = '';
+  let extraParam = false;
+  if (filter === 'active') whereExtra = "AND status = 'active'";
+  else if (filter === 'expiring') whereExtra = "AND status = 'active' AND date(membership_end) BETWEEN date('now') AND date('now', '+7 days')";
+  else if (filter === 'expired') whereExtra = "AND status = 'expired'";
+  else if (filter === 'inactive') {
+    whereExtra = "AND status = 'active' AND id NOT IN (SELECT DISTINCT customer_id FROM attendance WHERE gym_id = ? AND date(check_in) >= date('now', '-14 days'))";
+    extraParam = true;
+  }
+  return { whereExtra, extraParam };
+}
+
+// ── GET /api/sms/broadcast/counts ────────────────────────────────────────────
+// Returns recipient counts for each broadcast filter type (no SMS sent)
+router.get('/broadcast/counts', authenticateToken, async (req, res) => {
+  const gymId = req.user.gym_id;
+  if (!gymId) return res.status(403).json({ error: 'Gym access required' });
+  try {
+    const filters = ['active', 'expiring', 'expired', 'inactive'];
+    const counts = {};
+    for (const filter of filters) {
+      const { whereExtra, extraParam } = buildRecipientQuery(filter);
+      const params = extraParam ? [gymId, gymId] : [gymId];
+      const rows = await getAll(
+        `SELECT COUNT(*) as n FROM customers WHERE gym_id = ? AND phone IS NOT NULL AND phone != '' ${whereExtra}`,
+        params
+      );
+      counts[filter] = rows[0]?.n ?? 0;
+    }
+    res.json(counts);
+  } catch (err) {
+    console.error('Broadcast counts error:', err);
+    res.status(500).json({ error: 'Failed to get counts' });
+  }
+});
+
 // ── POST /api/sms/broadcast ──────────────────────────────────────────────────
 router.post('/broadcast', authenticateToken, async (req, res) => {
   const gymId = req.user.gym_id;
@@ -135,37 +174,40 @@ router.post('/broadcast', authenticateToken, async (req, res) => {
   if (message.length > 160) return res.status(400).json({ error: 'Message must be 160 chars or less' });
 
   try {
-    const { getOne } = await import('../models/database.js');
     const gym = await getOne('SELECT name, sms_enabled FROM gyms WHERE id = ?', [gymId]);
     if (!gym?.sms_enabled) return res.status(403).json({ error: 'SMS is not enabled for this gym' });
 
-    // Build WHERE clause based on filter
-    let whereExtra = '';
-    if (filter === 'active') whereExtra = "AND status = 'active'";
-    else if (filter === 'expiring') whereExtra = "AND status = 'active' AND date(membership_end) BETWEEN date('now') AND date('now', '+7 days')";
-    else if (filter === 'expired') whereExtra = "AND status = 'expired'";
-    else if (filter === 'inactive') whereExtra = "AND status = 'active' AND id NOT IN (SELECT DISTINCT customer_id FROM attendance WHERE gym_id = ? AND date(check_in) >= date('now', '-14 days'))";
-
-    const params = filter === 'inactive' ? [gymId, gymId] : [gymId];
+    const { whereExtra, extraParam } = buildRecipientQuery(filter);
+    const params = extraParam ? [gymId, gymId] : [gymId];
     const members = await getAll(
       `SELECT id, name, phone FROM customers WHERE gym_id = ? AND phone IS NOT NULL AND phone != '' ${whereExtra}`,
       params
     );
 
-    if (members.length === 0) return res.json({ sent: 0, failed: 0, skipped: 0, message: 'No matching members with phone numbers' });
+    if (members.length === 0) return res.json({ sent: 0, failed: 0, total: 0 });
 
     let sent = 0, failed = 0;
+    const now = new Date().toISOString();
     for (const member of members) {
+      let smsSent = false;
       try {
         await smsService.sendSms(member.phone, message);
-        // Log to sms_logs
-        await getAll(
-          'INSERT INTO sms_logs (gym_id, customer_id, phone, message_type, message, status, sent_at) VALUES (?,?,?,?,?,?,?)',
-          [gymId, member.id, member.phone, 'broadcast', message, 'sent', new Date().toISOString()]
-        );
+        smsSent = true;
         sent++;
-        await new Promise(r => setTimeout(r, 200)); // small delay to avoid rate limits
-      } catch { failed++; }
+      } catch (e) {
+        console.warn(`Broadcast SMS failed for ${member.name}:`, e.message);
+        failed++;
+      }
+      // Log attempt regardless of success (don't let a log failure mask the send result)
+      try {
+        await getAll(
+          'INSERT INTO sms_logs (id, gym_id, customer_id, phone, message_type, message, status, sent_at) VALUES (?,?,?,?,?,?,?,?)',
+          [randomUUID(), gymId, member.id, member.phone, 'broadcast', message, smsSent ? 'sent' : 'failed', now]
+        );
+      } catch (logErr) {
+        console.warn('Failed to log broadcast SMS:', logErr.message);
+      }
+      await new Promise(r => setTimeout(r, 200));
     }
 
     res.json({ sent, failed, total: members.length });
