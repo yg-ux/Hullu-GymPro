@@ -387,7 +387,7 @@ export default function Customers() {
               value={planFilter}
               onChange={e => { setPlanFilter(e.target.value); setPage(1); }}
               className={clsx(
-                'appearance-none bg-transparent text-sm py-1.5 pl-2 pr-6 rounded-lg cursor-pointer focus:outline-none transition-colors',
+                'appearance-none bg-transparent text-sm py-1.5 pl-2 pr-6 rounded-lg cursor-pointer focus:outline-none transition-colors [&>option]:bg-gray-900 [&>option]:text-gray-100',
                 planFilter !== 'all' ? 'text-gym-400 font-medium' : 'text-gray-400 hover:text-white'
               )}
             >
@@ -411,7 +411,7 @@ export default function Customers() {
               value={expiryFilter}
               onChange={e => { setExpiryFilter(e.target.value); setPage(1); }}
               className={clsx(
-                'appearance-none bg-transparent text-sm py-1.5 pl-2 pr-6 rounded-lg cursor-pointer focus:outline-none transition-colors',
+                'appearance-none bg-transparent text-sm py-1.5 pl-2 pr-6 rounded-lg cursor-pointer focus:outline-none transition-colors [&>option]:bg-gray-900 [&>option]:text-gray-100',
                 expiryFilter !== 'all' ? 'text-gym-400 font-medium' : 'text-gray-400 hover:text-white'
               )}
             >
@@ -446,7 +446,7 @@ export default function Customers() {
             <select
               value={sortBy}
               onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
-              className="appearance-none bg-transparent text-sm text-gray-400 hover:text-white py-1.5 pl-1 pr-5 rounded-lg cursor-pointer focus:outline-none transition-colors"
+              className="appearance-none bg-transparent text-sm text-gray-400 hover:text-white py-1.5 pl-1 pr-5 rounded-lg cursor-pointer focus:outline-none transition-colors [&>option]:bg-gray-900 [&>option]:text-gray-100"
             >
               <option value="recent_activity">Most Recently Active</option>
               <option value="membership_end">{t('customers.sortByExpiry')}</option>
