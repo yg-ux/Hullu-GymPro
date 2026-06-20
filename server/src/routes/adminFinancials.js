@@ -331,4 +331,25 @@ router.put('/sms-rate', async (req, res) => {
   }
 });
 
+// ── GET /api/admin/financials/sms-history ─────────────────────────────────────
+// Monthly SMS send counts for the past 6 months (all gyms)
+router.get('/sms-history', async (req, res) => {
+  try {
+    const rows = await getAll(
+      `SELECT
+         TO_CHAR(created_at, 'YYYY-MM') AS month,
+         COUNT(*) AS sent_count
+       FROM sms_logs
+       WHERE status = 'sent'
+         AND created_at >= NOW() - INTERVAL '6 months'
+       GROUP BY TO_CHAR(created_at, 'YYYY-MM')
+       ORDER BY TO_CHAR(created_at, 'YYYY-MM')`,
+      []
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

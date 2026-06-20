@@ -53,6 +53,38 @@ const STATUS_COLORS = {
   declined:      'bg-red-500/20 text-red-400',
 };
 
+// ── Donut Chart helper ────────────────────────────────────────────────────────
+function DonutSegment({ cx, cy, r, startAngle, endAngle, color, thickness }) {
+  function toXY(deg) {
+    const rad = ((deg - 90) * Math.PI) / 180;
+    return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
+  }
+  const span = endAngle - startAngle;
+  if (span >= 359.99) return <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={thickness} />;
+  const [x1, y1] = toXY(startAngle);
+  const [x2, y2] = toXY(endAngle);
+  const large = span > 180 ? 1 : 0;
+  return <path d={`M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`} fill="none" stroke={color} strokeWidth={thickness} strokeLinecap="butt" />;
+}
+function DonutChart({ segments, size = 130, thickness = 22 }) {
+  const r = (size - thickness) / 2;
+  const cx = size / 2, cy = size / 2;
+  const total = segments.reduce((s, seg) => s + (seg.value || 0), 0);
+  if (!total) return null;
+  let angle = 0;
+  return (
+    <svg width={size} height={size}>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#111827" strokeWidth={thickness} />
+      {segments.filter(s => s.value > 0).map((seg, i) => {
+        const span = (seg.value / total) * 360;
+        const el = <DonutSegment key={i} cx={cx} cy={cy} r={r} startAngle={angle} endAngle={angle + span} color={seg.color} thickness={thickness} />;
+        angle += span;
+        return el;
+      })}
+    </svg>
+  );
+}
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [stats, setStats]         = useState(null);
@@ -120,6 +152,7 @@ export default function AdminDashboard() {
   const [smsRateValue, setSmsRateValue]     = useState('');
   const [snapshotting, setSnapshotting]     = useState(false);
   const [finView, setFinView]               = useState('monthly'); // 'monthly' | 'annual'
+  const [smsHistory, setSmsHistory]         = useState([]);
 
   // ── Auth check ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -161,16 +194,18 @@ export default function AdminDashboard() {
     setFinLoading(true);
     setFinError(null);
     try {
-      const [summary, history, expList, prices] = await Promise.all([
+      const [summary, history, expList, prices, smsHist] = await Promise.all([
         adminFetch('/financials/summary'),
         adminFetch('/financials/history'),
         adminFetch('/financials/expenses'),
         adminFetch('/financials/plan-prices'),
+        adminFetch('/financials/sms-history').catch(() => []),
       ]);
       setFinancials(summary);
       setFinHistory(history);
       setExpenses(expList);
       setPlanPrices(prices.prices);
+      setSmsHistory(Array.isArray(smsHist) ? smsHist : []);
     } catch (e) {
       console.error('Financials load error', e);
       setFinError(e.message || 'Unknown error');
@@ -847,12 +882,27 @@ export default function AdminDashboard() {
                   return (
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div className="card p-5 border border-green-500/20 bg-green-500/5">
-                        <p className="text-xs text-gray-500 mb-1">{finView === 'annual' ? 'Annual' : 'Monthly'} Revenue (MRR)</p>
+                        <div className="flex items-start justify-between mb-1">
+                          <p className="text-xs text-gray-500">{finView === 'annual' ? 'Annual' : 'Monthly'} Revenue (MRR)</p>
+                          {(() => {
+                            const prevSnap = finHistory.length >= 2 ? finHistory[finHistory.length - 2] : null;
+                            if (!prevSnap || !prevSnap.mrr) return null;
+                            const pct = Math.round(((financials.mrr - prevSnap.mrr) / prevSnap.mrr) * 100);
+                            return (
+                              <span className={clsx('text-xs font-semibold px-1.5 py-0.5 rounded-full', pct >= 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400')}>
+                                {pct >= 0 ? '▲' : '▼'} {Math.abs(pct)}% vs last
+                              </span>
+                            );
+                          })()}
+                        </div>
                         <p className="text-3xl font-bold text-green-400">ETB {mrr.toLocaleString()}</p>
                         <p className="text-xs text-gray-500 mt-2">
                           {financials.starter_count} Starter × ETB {planPrices.starter?.toLocaleString()} +{' '}
                           {financials.pro_count} Pro × ETB {planPrices.pro?.toLocaleString()}
                         </p>
+                        {finView === 'monthly' && (
+                          <p className="text-xs text-green-400/60 mt-1">≈ ETB {((financials.mrr || 0) * 12).toLocaleString()} projected annually</p>
+                        )}
                       </div>
                       <div className="card p-5 border border-red-500/20 bg-red-500/5">
                         <p className="text-xs text-gray-500 mb-1">{finView === 'annual' ? 'Annual' : 'Monthly'} Expenses</p>
@@ -871,6 +921,31 @@ export default function AdminDashboard() {
                           Margin: {mrr > 0 ? Math.round((profit / mrr) * 100) : 0}%
                         </p>
                       </div>
+                    </div>
+                  );
+                })()}
+
+                {/* SaaS Metrics Row */}
+                {(() => {
+                  const payingGyms = (financials.starter_count || 0) + (financials.pro_count || 0);
+                  const arpu = payingGyms > 0 ? Math.round(financials.mrr / payingGyms) : 0;
+                  const gymsNeeded = arpu > 0 ? Math.ceil(financials.total_expenses / arpu) : '—';
+                  const gymsToBreakeven = typeof gymsNeeded === 'number' ? Math.max(0, gymsNeeded - payingGyms) : '—';
+                  const costPerGym = payingGyms > 0 ? Math.round(financials.total_expenses / payingGyms) : 0;
+                  return (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {[
+                        { label: 'ARPU', value: `ETB ${arpu.toLocaleString()}`, sub: 'avg revenue / gym / mo', color: 'text-blue-400' },
+                        { label: 'Break-even at', value: `${gymsToBreakeven === 0 ? '✓ Profitable' : `${gymsToBreakeven} more gyms`}`, sub: `${typeof gymsNeeded === 'number' ? gymsNeeded : '—'} paying gyms total needed`, color: gymsToBreakeven === 0 ? 'text-emerald-400' : 'text-amber-400' },
+                        { label: 'Free gyms', value: financials.free_count || 0, sub: 'conversion opportunity', color: 'text-purple-400' },
+                        { label: 'Cost per gym', value: `ETB ${costPerGym.toLocaleString()}`, sub: 'expenses ÷ paying gyms', color: 'text-red-400' },
+                      ].map(m => (
+                        <div key={m.label} className="card p-4 border border-gray-800/50">
+                          <p className="text-xs text-gray-500 mb-1">{m.label}</p>
+                          <p className={clsx('text-lg font-bold', m.color)}>{String(m.value)}</p>
+                          <p className="text-xs text-gray-600 mt-0.5">{m.sub}</p>
+                        </div>
+                      ))}
                     </div>
                   );
                 })()}
@@ -934,18 +1009,35 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                       ))}
-                      {/* Category totals */}
-                      <div className="mt-3 pt-3 border-t border-gray-800 grid grid-cols-2 sm:grid-cols-5 gap-2">
-                        {['infrastructure','sms','marketing','software','other'].map(cat => {
-                          const amt = financials.expense_breakdown?.[cat] || 0;
-                          return amt > 0 ? (
-                            <div key={cat} className="p-2 bg-dark-200 rounded-lg text-center">
-                              <p className="text-xs text-gray-500 capitalize">{cat}</p>
-                              <p className="text-sm font-semibold text-white mt-0.5">ETB {Math.round(amt).toLocaleString()}/mo</p>
+                      {/* Category breakdown — bars + donut */}
+                      {(() => {
+                        const CAT_COLORS = { infrastructure: '#3b82f6', sms: '#22c55e', marketing: '#a855f7', software: '#f59e0b', other: '#6b7280' };
+                        const breakdown = financials.expense_breakdown || {};
+                        const cats = Object.entries(breakdown).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+                        const totalCat = cats.reduce((s, [, v]) => s + v, 0);
+                        if (!cats.length) return null;
+                        return (
+                          <div className="mt-4 pt-4 border-t border-gray-800 flex gap-6 items-center">
+                            <DonutChart size={110} thickness={20} segments={cats.map(([cat, v]) => ({ value: v, color: CAT_COLORS[cat] || '#6b7280' }))} />
+                            <div className="flex-1 space-y-2">
+                              {cats.map(([cat, val]) => (
+                                <div key={cat}>
+                                  <div className="flex justify-between text-xs mb-0.5">
+                                    <span className="text-gray-400 capitalize flex items-center gap-1.5">
+                                      <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CAT_COLORS[cat] || '#6b7280' }} />
+                                      {cat}
+                                    </span>
+                                    <span className="text-gray-300 font-medium">ETB {Math.round(val).toLocaleString()}<span className="text-gray-600">/mo</span></span>
+                                  </div>
+                                  <div className="h-1.5 bg-dark-300 rounded-full overflow-hidden">
+                                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((val / totalCat) * 100)}%`, backgroundColor: CAT_COLORS[cat] || '#6b7280' }} />
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                          ) : null;
-                        })}
-                      </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
@@ -1005,6 +1097,25 @@ export default function AdminDashboard() {
                       </p>
                     </div>
                   </div>
+                  {/* SMS Trend */}
+                  {smsHistory.length > 1 && (
+                    <div className="mt-4 pt-4 border-t border-gray-800">
+                      <p className="text-xs text-gray-500 mb-3">Monthly send volume (last 6 months)</p>
+                      <div className="flex items-end gap-1.5 h-14">
+                        {smsHistory.map(row => {
+                          const maxCount = Math.max(...smsHistory.map(r => parseInt(r.sent_count || 0)), 1);
+                          const h = Math.max(4, Math.round((parseInt(row.sent_count || 0) / maxCount) * 52));
+                          const isCurrentMonth = row.month === new Date().toISOString().slice(0, 7);
+                          return (
+                            <div key={row.month} className="flex-1 flex flex-col items-center gap-1 group" title={`${row.month}: ${row.sent_count} SMS`}>
+                              <div className={clsx('w-full rounded-t-sm transition-all', isCurrentMonth ? 'bg-green-500/80' : 'bg-gray-600/60 group-hover:bg-gray-500/80')} style={{ height: h }} />
+                              <p className="text-[9px] text-gray-600">{row.month.slice(5)}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Plan Pricing */}
@@ -1059,9 +1170,10 @@ export default function AdminDashboard() {
                           return (
                             <div key={snap.month} className="flex-1 flex flex-col items-center gap-1 group" title={`${snap.month}: MRR ETB ${snap.mrr?.toLocaleString()}, Expenses ETB ${Math.round(snap.total_expenses)?.toLocaleString()}, Profit ETB ${Math.round(profit)?.toLocaleString()}`}>
                               <div className="w-full flex items-end gap-0.5" style={{ height: 140 }}>
-                                <div className="flex-1 bg-green-500/70 rounded-t-sm transition-all group-hover:bg-green-400" style={{ height: revenueH }} />
+                                <div className="flex-1 rounded-t-sm transition-all group-hover:opacity-90" style={{ height: revenueH, backgroundColor: profit >= 0 ? '#4ade80' : '#86efac', opacity: 0.7 }} />
                                 <div className="flex-1 bg-red-500/60 rounded-t-sm transition-all group-hover:bg-red-400" style={{ height: expenseH }} />
                               </div>
+                              <div className={clsx('w-full h-0.5 rounded-full mb-0.5', profit >= 0 ? 'bg-emerald-500' : 'bg-red-500')} />
                               <p className="text-[9px] text-gray-600">{snap.month.slice(5)}</p>
                             </div>
                           );
