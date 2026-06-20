@@ -624,16 +624,17 @@ function BroadcastSmsPanel({ toast }) {
   const selectedCount = counts?.[filter] ?? null;
 
   const FILTER_OPTIONS = [
-    { value: 'active',   label: 'All active members',       color: 'text-green-400'  },
-    { value: 'expiring', label: 'Expiring this week (≤7 d)', color: 'text-amber-400'  },
-    { value: 'expired',  label: 'Expired members',           color: 'text-red-400'    },
-    { value: 'inactive', label: 'Inactive 14+ days',         color: 'text-orange-400' },
+    { value: 'active',   label: 'All active',          sub: 'Active membership',              color: 'text-green-400'  },
+    { value: 'expiring', label: 'Expiring soon',        sub: 'Ending within 7 days',           color: 'text-amber-400'  },
+    { value: 'expired',  label: 'Expired',              sub: 'Membership ended',               color: 'text-red-400'    },
+    { value: 'inactive', label: 'Not seen 14+ days',   sub: 'Incl. never checked in',         color: 'text-orange-400' },
   ];
 
   const handleSend = async () => {
     if (!message.trim()) return toast.error('Write a message first');
     if (overLimit) return toast.error('Message is too long (max 160 chars)');
-    const label = FILTER_OPTIONS.find(o => o.value === filter)?.label ?? filter;
+    const opt = FILTER_OPTIONS.find(o => o.value === filter);
+    const label = opt ? `${opt.label} (${opt.sub})` : filter;
     const recipientCount = selectedCount ?? '?';
     if (!window.confirm(`Send this SMS to ${recipientCount} ${label}?`)) return;
     setSending(true);
@@ -697,7 +698,8 @@ function BroadcastSmsPanel({ toast }) {
                   {counts?.[opt.value] ?? 0}
                 </span>
               )}
-              <span className="text-[10px] text-gray-400 leading-tight">{opt.label}</span>
+              <span className="text-[10px] font-medium text-gray-300 leading-tight">{opt.label}</span>
+              <span className="text-[9px] text-gray-600 leading-tight">{opt.sub}</span>
             </button>
           ))}
         </div>
