@@ -1009,37 +1009,37 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                       ))}
-                      {/* Category breakdown — bars + donut */}
-                      {(() => {
-                        const CAT_COLORS = { infrastructure: '#3b82f6', sms: '#22c55e', marketing: '#a855f7', software: '#f59e0b', other: '#6b7280' };
-                        const breakdown = financials.expense_breakdown || {};
-                        const cats = Object.entries(breakdown).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
-                        const totalCat = cats.reduce((s, [, v]) => s + v, 0);
-                        if (!cats.length) return null;
-                        return (
-                          <div className="mt-4 pt-4 border-t border-gray-800 flex gap-6 items-center">
-                            <DonutChart size={110} thickness={20} segments={cats.map(([cat, v]) => ({ value: v, color: CAT_COLORS[cat] || '#6b7280' }))} />
-                            <div className="flex-1 space-y-2">
-                              {cats.map(([cat, val]) => (
-                                <div key={cat}>
-                                  <div className="flex justify-between text-xs mb-0.5">
-                                    <span className="text-gray-400 capitalize flex items-center gap-1.5">
-                                      <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CAT_COLORS[cat] || '#6b7280' }} />
-                                      {cat}
-                                    </span>
-                                    <span className="text-gray-300 font-medium">ETB {Math.round(val).toLocaleString()}<span className="text-gray-600">/mo</span></span>
-                                  </div>
-                                  <div className="h-1.5 bg-dark-300 rounded-full overflow-hidden">
-                                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((val / totalCat) * 100)}%`, backgroundColor: CAT_COLORS[cat] || '#6b7280' }} />
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })()}
                     </div>
                   )}
+                  {/* Category breakdown — bars + donut — always show if any expense data exists (incl. auto SMS) */}
+                  {(() => {
+                    const CAT_COLORS = { infrastructure: '#3b82f6', sms: '#22c55e', marketing: '#a855f7', software: '#f59e0b', other: '#6b7280' };
+                    const breakdown = financials.expense_breakdown || {};
+                    const cats = Object.entries(breakdown).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+                    const totalCat = cats.reduce((s, [, v]) => s + v, 0);
+                    if (!cats.length) return null;
+                    return (
+                      <div className={clsx('flex gap-6 items-center', expenses.length > 0 ? 'mt-4 pt-4 border-t border-gray-800' : 'mt-2')}>
+                        <DonutChart size={110} thickness={20} segments={cats.map(([cat, v]) => ({ value: v, color: CAT_COLORS[cat] || '#6b7280' }))} />
+                        <div className="flex-1 space-y-2">
+                          {cats.map(([cat, val]) => (
+                            <div key={cat}>
+                              <div className="flex justify-between text-xs mb-0.5">
+                                <span className="text-gray-400 capitalize flex items-center gap-1.5">
+                                  <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: CAT_COLORS[cat] || '#6b7280' }} />
+                                  {cat}{cat === 'sms' && (financials.auto_sms_cost || 0) > 0 ? ' (incl. usage)' : ''}
+                                </span>
+                                <span className="text-gray-300 font-medium">ETB {Math.round(val).toLocaleString()}<span className="text-gray-600">/mo</span></span>
+                              </div>
+                              <div className="h-1.5 bg-dark-300 rounded-full overflow-hidden">
+                                <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((val / totalCat) * 100)}%`, backgroundColor: CAT_COLORS[cat] || '#6b7280' }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Auto SMS Cost */}
@@ -1098,24 +1098,27 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   {/* SMS Trend */}
-                  {smsHistory.length > 1 && (
-                    <div className="mt-4 pt-4 border-t border-gray-800">
-                      <p className="text-xs text-gray-500 mb-3">Monthly send volume (last 6 months)</p>
-                      <div className="flex items-end gap-1.5 h-14">
-                        {smsHistory.map(row => {
-                          const maxCount = Math.max(...smsHistory.map(r => parseInt(r.sent_count || 0)), 1);
-                          const h = Math.max(4, Math.round((parseInt(row.sent_count || 0) / maxCount) * 52));
-                          const isCurrentMonth = row.month === new Date().toISOString().slice(0, 7);
-                          return (
-                            <div key={row.month} className="flex-1 flex flex-col items-center gap-1 group" title={`${row.month}: ${row.sent_count} SMS`}>
-                              <div className={clsx('w-full rounded-t-sm transition-all', isCurrentMonth ? 'bg-green-500/80' : 'bg-gray-600/60 group-hover:bg-gray-500/80')} style={{ height: h }} />
-                              <p className="text-[9px] text-gray-600">{row.month.slice(5)}</p>
-                            </div>
-                          );
-                        })}
+                  {smsHistory.length > 1 && (() => {
+                    const maxCount = Math.max(...smsHistory.map(r => parseInt(r.sent_count || 0)), 1);
+                    const currentMonth = new Date().toISOString().slice(0, 7);
+                    return (
+                      <div className="mt-4 pt-4 border-t border-gray-800">
+                        <p className="text-xs text-gray-500 mb-3">Monthly send volume (last 6 months)</p>
+                        <div className="flex items-end gap-1.5 h-14">
+                          {smsHistory.map(row => {
+                            const h = Math.max(4, Math.round((parseInt(row.sent_count || 0) / maxCount) * 52));
+                            const isCurrent = row.month === currentMonth;
+                            return (
+                              <div key={row.month} className="flex-1 flex flex-col items-center gap-1 group" title={`${row.month}: ${parseInt(row.sent_count || 0).toLocaleString()} SMS`}>
+                                <div className={clsx('w-full rounded-t-sm transition-all', isCurrent ? 'bg-green-500/80' : 'bg-gray-600/60 group-hover:bg-gray-500/80')} style={{ height: h }} />
+                                <p className="text-[9px] text-gray-600">{row.month.slice(5)}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
 
                 {/* Plan Pricing */}
@@ -1162,8 +1165,9 @@ export default function AdminDashboard() {
                     <h3 className="text-base font-semibold text-white mb-4">Monthly P&L History</h3>
                     <div className="overflow-x-auto">
                       <div className="flex items-end gap-2 min-w-[400px]" style={{ height: 160 }}>
-                        {finHistory.map(snap => {
+                        {(() => {
                           const maxVal = Math.max(...finHistory.map(s => Math.max(s.mrr || 0, s.total_expenses || 0)), 1);
+                          return finHistory.map(snap => {
                           const revenueH = Math.round(((snap.mrr || 0) / maxVal) * 140);
                           const expenseH = Math.round(((snap.total_expenses || 0) / maxVal) * 140);
                           const profit = (snap.net_profit || 0);
@@ -1177,7 +1181,8 @@ export default function AdminDashboard() {
                               <p className="text-[9px] text-gray-600">{snap.month.slice(5)}</p>
                             </div>
                           );
-                        })}
+                        });
+                        })()}
                       </div>
                       <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
                         <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500/70 rounded-sm inline-block" /> Revenue</span>
