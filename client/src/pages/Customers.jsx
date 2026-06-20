@@ -349,23 +349,25 @@ export default function Customers() {
         ))}
       </div>
 
-      {/* Search and Controls */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1 group">
-          <div className="absolute inset-0 bg-gradient-to-r from-gym-500 to-purple-500 rounded-xl blur opacity-20 group-focus-within:opacity-40 transition-opacity" />
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+      {/* ── Toolbar ── */}
+      <div className="flex flex-col gap-2">
+
+        {/* Row 1 — Search */}
+        <div className="relative group">
+          <div className="absolute inset-0 bg-gradient-to-r from-gym-500 to-purple-500 rounded-xl blur opacity-20 group-focus-within:opacity-40 transition-opacity pointer-events-none" />
+          <div className="relative flex items-center">
+            <Search className="absolute left-4 w-4 h-4 text-gray-400 pointer-events-none" />
             <input
               type="text"
               placeholder={t('customers.searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="input-field pl-12 pr-10"
+              className="input-field pl-11 pr-10"
             />
             {search && (
               <button
                 onClick={() => setSearch('')}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-1"
+                className="absolute right-3 text-gray-400 hover:text-white transition-colors p-1"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -373,101 +375,129 @@ export default function Customers() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
+        {/* Row 2 — Filter strip */}
+        <div className="flex items-center gap-1 px-2 py-1.5 bg-dark-100 border border-gray-800 rounded-xl overflow-x-auto">
+
+          {/* Filter icon anchor */}
+          <Filter className="w-3.5 h-3.5 text-gray-500 flex-shrink-0 ml-1 mr-1" />
+
           {/* Plan filter */}
-          <select
-            value={planFilter}
-            onChange={e => { setPlanFilter(e.target.value); setPage(1); }}
-            className="input-field appearance-none cursor-pointer"
-          >
-            <option value="all">All Plans</option>
-            <option value="daily">Daily</option>
-            <option value="1_month">1 Month</option>
-            <option value="2_months">2 Months</option>
-            <option value="3_months">3 Months</option>
-            <option value="6_months">6 Months</option>
-            <option value="1_year">1 Year</option>
-            <option value="3_days_week">3×/Week</option>
-          </select>
+          <div className="relative flex-shrink-0">
+            <select
+              value={planFilter}
+              onChange={e => { setPlanFilter(e.target.value); setPage(1); }}
+              className={clsx(
+                'appearance-none bg-transparent text-sm py-1.5 pl-2 pr-6 rounded-lg cursor-pointer focus:outline-none transition-colors',
+                planFilter !== 'all' ? 'text-gym-400 font-medium' : 'text-gray-400 hover:text-white'
+              )}
+            >
+              <option value="all">All Plans</option>
+              <option value="daily">Daily</option>
+              <option value="1_month">1 Month</option>
+              <option value="2_months">2 Months</option>
+              <option value="3_months">3 Months</option>
+              <option value="6_months">6 Months</option>
+              <option value="1_year">1 Year</option>
+              <option value="3_days_week">3×/Week</option>
+            </select>
+            <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500 pointer-events-none" />
+          </div>
+
+          <div className="w-px h-4 bg-gray-700 flex-shrink-0 mx-0.5" />
 
           {/* Expiry filter */}
-          <select
-            value={expiryFilter}
-            onChange={e => { setExpiryFilter(e.target.value); setPage(1); }}
-            className="input-field appearance-none cursor-pointer"
-          >
-            <option value="all">All Expiry</option>
-            <option value="this_week">Expiring This Week</option>
-            <option value="this_month">Expiring This Month</option>
-            <option value="expired">Already Expired</option>
-          </select>
-
-          {/* Active filters chip + clear */}
-          {(planFilter !== 'all' || expiryFilter !== 'all') && (
-            <button
-              onClick={() => { setPlanFilter('all'); setExpiryFilter('all'); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-gym-500/15 text-gym-400 border border-gym-500/30 rounded-xl hover:bg-gym-500/25 transition-all"
+          <div className="relative flex-shrink-0">
+            <select
+              value={expiryFilter}
+              onChange={e => { setExpiryFilter(e.target.value); setPage(1); }}
+              className={clsx(
+                'appearance-none bg-transparent text-sm py-1.5 pl-2 pr-6 rounded-lg cursor-pointer focus:outline-none transition-colors',
+                expiryFilter !== 'all' ? 'text-gym-400 font-medium' : 'text-gray-400 hover:text-white'
+              )}
             >
-              <X className="w-3 h-3" />
-              {[planFilter !== 'all' ? 1 : 0, expiryFilter !== 'all' ? 1 : 0].reduce((a,b)=>a+b,0)} active filter{[planFilter !== 'all', expiryFilter !== 'all'].filter(Boolean).length !== 1 ? 's' : ''}
-            </button>
+              <option value="all">All Expiry</option>
+              <option value="this_week">Expiring This Week</option>
+              <option value="this_month">Expiring This Month</option>
+              <option value="expired">Already Expired</option>
+            </select>
+            <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500 pointer-events-none" />
+          </div>
+
+          {/* Active-filter clear badge */}
+          {(planFilter !== 'all' || expiryFilter !== 'all') && (
+            <>
+              <div className="w-px h-4 bg-gray-700 flex-shrink-0 mx-0.5" />
+              <button
+                onClick={() => { setPlanFilter('all'); setExpiryFilter('all'); }}
+                className="flex items-center gap-1 px-2 py-1 text-xs font-medium bg-gym-500/15 text-gym-400 border border-gym-500/30 rounded-lg hover:bg-gym-500/25 transition-all flex-shrink-0"
+              >
+                <X className="w-3 h-3" />
+                {[planFilter !== 'all', expiryFilter !== 'all'].filter(Boolean).length} filter{[planFilter !== 'all', expiryFilter !== 'all'].filter(Boolean).length !== 1 ? 's' : ''}
+              </button>
+            </>
           )}
 
+          {/* Spacer */}
+          <div className="flex-1" />
+
           {/* Sort */}
-          <div className="relative">
+          <div className="relative flex items-center gap-1.5 flex-shrink-0">
+            <SortAsc className="w-3.5 h-3.5 text-gray-500" />
             <select
               value={sortBy}
               onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
-              className="input-field pr-8 appearance-none cursor-pointer"
+              className="appearance-none bg-transparent text-sm text-gray-400 hover:text-white py-1.5 pl-1 pr-5 rounded-lg cursor-pointer focus:outline-none transition-colors"
             >
               <option value="recent_activity">Most Recently Active</option>
               <option value="membership_end">{t('customers.sortByExpiry')}</option>
               <option value="name">{t('customers.sortByName')}</option>
               <option value="created_at">{t('customers.sortNewest')}</option>
             </select>
-            <SortAsc className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500 pointer-events-none" />
           </div>
 
-          {/* Bulk Selection Toggle */}
+          <div className="w-px h-4 bg-gray-700 flex-shrink-0 mx-0.5" />
+
+          {/* Bulk select */}
           <button
             onClick={() => {
               setBulkActionOpen(!bulkActionOpen);
               if (!bulkActionOpen) toggleSelectAll();
             }}
             className={clsx(
-              "p-2.5 rounded-xl transition-all duration-300",
+              'p-2 rounded-lg transition-all duration-200 flex-shrink-0',
               bulkActionOpen || selectedCustomers.length > 0
-                ? "bg-gym-500/20 text-gym-400 border border-gym-500/30"
-                : "bg-dark-100 text-gray-400 hover:text-white border border-gray-800"
+                ? 'bg-gym-500/20 text-gym-400'
+                : 'text-gray-400 hover:text-white hover:bg-dark-200'
             )}
             title={t('customers.bulkSelection')}
           >
-            <CheckSquare className="w-5 h-5" />
+            <CheckSquare className="w-4 h-4" />
           </button>
 
-          {/* View Mode */}
-          <div className="flex bg-dark-100 rounded-xl p-1 border border-gray-800">
+          {/* View mode */}
+          <div className="flex bg-dark-200 rounded-lg p-0.5 flex-shrink-0">
             <button
               onClick={() => setViewMode('grid')}
               className={clsx(
-                "p-2 rounded-lg transition-all duration-300",
-                viewMode === 'grid' 
-                  ? "bg-gradient-to-br from-gym-500 to-purple-500 text-white shadow-lg"
-                  : "text-gray-400 hover:text-white"
+                'p-1.5 rounded-md transition-all duration-200',
+                viewMode === 'grid'
+                  ? 'bg-gradient-to-br from-gym-500 to-purple-500 text-white shadow'
+                  : 'text-gray-400 hover:text-white'
               )}
             >
-              <Grid3X3 className="w-5 h-5" />
+              <Grid3X3 className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewMode('list')}
               className={clsx(
-                "p-2 rounded-lg transition-all duration-300",
-                viewMode === 'list' 
-                  ? "bg-gradient-to-br from-gym-500 to-purple-500 text-white shadow-lg"
-                  : "text-gray-400 hover:text-white"
+                'p-1.5 rounded-md transition-all duration-200',
+                viewMode === 'list'
+                  ? 'bg-gradient-to-br from-gym-500 to-purple-500 text-white shadow'
+                  : 'text-gray-400 hover:text-white'
               )}
             >
-              <List className="w-5 h-5" />
+              <List className="w-4 h-4" />
             </button>
           </div>
         </div>
