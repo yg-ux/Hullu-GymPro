@@ -75,6 +75,8 @@ export default function Customers() {
   const [viewMode, setViewMode] = useLocalStorage('customerViewMode', 'grid');
   const [selectedCustomers, setSelectedCustomers] = useState([]);
   const [bulkActionOpen, setBulkActionOpen] = useState(false);
+  const [planFilter, setPlanFilter] = useState('all');
+  const [expiryFilter, setExpiryFilter] = useState('all');
   const navigate = useNavigate();
   const searchDebounceRef = useRef(null);
   const sortByRef = useRef(sortBy);
@@ -175,9 +177,30 @@ export default function Customers() {
   };
 
   const filteredCustomers = useMemo(() => {
-    // Server already returned data in the correct order for recent_activity
-    if (sortBy === 'recent_activity') return customers;
-    const list = [...customers];
+    let list = [...customers];
+
+    // Apply plan filter
+    if (planFilter !== 'all') {
+      list = list.filter(c => c.membership_type === planFilter);
+    }
+
+    // Apply expiry filter
+    if (expiryFilter !== 'all') {
+      const now = new Date();
+      const in7 = new Date(now); in7.setDate(now.getDate() + 7);
+      const in30 = new Date(now); in30.setDate(now.getDate() + 30);
+      list = list.filter(c => {
+        if (!c.membership_end) return false;
+        const end = new Date(c.membership_end);
+        if (expiryFilter === 'this_week') return end >= now && end <= in7;
+        if (expiryFilter === 'this_month') return end >= now && end <= in30;
+        if (expiryFilter === 'expired') return end < now;
+        return true;
+      });
+    }
+
+    // Sort
+    if (sortBy === 'recent_activity') return list;
     if (sortBy === 'name') {
       list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     } else if (sortBy === 'created_at') {
@@ -192,7 +215,7 @@ export default function Customers() {
       });
     }
     return list;
-  }, [customers, sortBy]);
+  }, [customers, sortBy, planFilter, expiryFilter]);
 
   const statusCounts = {
     all: summary.total,
@@ -350,7 +373,46 @@ export default function Customers() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Plan filter */}
+          <select
+            value={planFilter}
+            onChange={e => { setPlanFilter(e.target.value); setPage(1); }}
+            className="input-field appearance-none cursor-pointer"
+          >
+            <option value="all">All Plans</option>
+            <option value="daily">Daily</option>
+            <option value="1_month">1 Month</option>
+            <option value="2_months">2 Months</option>
+            <option value="3_months">3 Months</option>
+            <option value="6_months">6 Months</option>
+            <option value="1_year">1 Year</option>
+            <option value="3_days_week">3×/Week</option>
+          </select>
+
+          {/* Expiry filter */}
+          <select
+            value={expiryFilter}
+            onChange={e => { setExpiryFilter(e.target.value); setPage(1); }}
+            className="input-field appearance-none cursor-pointer"
+          >
+            <option value="all">All Expiry</option>
+            <option value="this_week">Expiring This Week</option>
+            <option value="this_month">Expiring This Month</option>
+            <option value="expired">Already Expired</option>
+          </select>
+
+          {/* Active filters chip + clear */}
+          {(planFilter !== 'all' || expiryFilter !== 'all') && (
+            <button
+              onClick={() => { setPlanFilter('all'); setExpiryFilter('all'); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-gym-500/15 text-gym-400 border border-gym-500/30 rounded-xl hover:bg-gym-500/25 transition-all"
+            >
+              <X className="w-3 h-3" />
+              {[planFilter !== 'all' ? 1 : 0, expiryFilter !== 'all' ? 1 : 0].reduce((a,b)=>a+b,0)} active filter{[planFilter !== 'all', expiryFilter !== 'all'].filter(Boolean).length !== 1 ? 's' : ''}
+            </button>
+          )}
+
           {/* Sort */}
           <div className="relative">
             <select

@@ -19,6 +19,8 @@ import {
   Bell,
   ExternalLink,
   Phone,
+  Flame,
+  AlertOctagon,
 } from 'lucide-react';
 import clsx from 'clsx';
 import PageHint from '../components/PageHint';
@@ -125,8 +127,28 @@ function MemberCard({ member, actionLabel, actionColor = 'gym', badge, onAction,
   const btnCls = (colorMap[actionColor] || colorMap.gym).btn;
   const isSending = sending === member.id;
 
+  // Urgency level based on days_since_visit
+  const days = member.days_since_visit;
+  let urgency = null;
+  if (days >= 31) urgency = 'critical';
+  else if (days >= 21) urgency = 'high';
+  else if (days >= 14) urgency = 'moderate';
+
+  const urgencyBorderCls = urgency === 'critical' ? 'border-l-4 border-l-red-500/60'
+    : urgency === 'high' ? 'border-l-4 border-l-orange-500/60'
+    : urgency === 'moderate' ? 'border-l-4 border-l-amber-500/60'
+    : '';
+
+  const UrgencyBadge = urgency === 'critical'
+    ? <AlertOctagon className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+    : urgency === 'high'
+    ? <Flame className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
+    : urgency === 'moderate'
+    ? <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0 inline-block" />
+    : null;
+
   return (
-    <div className="bg-dark-300 rounded-xl border border-gray-800/60 p-4 flex items-start gap-3 hover:border-gray-700/60 transition-colors">
+    <div className={clsx('bg-dark-300 rounded-xl border border-gray-800/60 p-4 flex items-start gap-3 hover:border-gray-700/60 transition-colors', urgencyBorderCls)}>
       {/* Avatar — clickable to profile */}
       <button
         onClick={() => navigate(`/customers/${member.id}`)}
@@ -145,6 +167,7 @@ function MemberCard({ member, actionLabel, actionColor = 'gym', badge, onAction,
               className="text-sm font-semibold text-white truncate hover:text-gym-400 transition-colors flex items-center gap-1"
             >
               {member.name}
+              {UrgencyBadge}
               <ExternalLink className="w-3 h-3 opacity-50" />
             </button>
             {member.phone && (
@@ -236,7 +259,21 @@ export default function Retention() {
   const [activeTab, setActiveTab] = useState('inactive');
   const [sendingId, setSendingId] = useState(null);
   const [renewalTarget, setRenewalTarget] = useState(null);
+  const [bulkSending, setBulkSending] = useState(false);
   const toast = useToast();
+
+  const handleBulkSend = async (members, type) => {
+    const withPhone = members.filter(m => m.phone);
+    if (!withPhone.length) return toast.error('No members with phone numbers');
+    setBulkSending(true);
+    let sent = 0;
+    for (const m of withPhone) {
+      try { await api.post(`/customers/${m.id}/send-reminder`, { type }); sent++; } catch {}
+      await new Promise(r => setTimeout(r, 300));
+    }
+    setBulkSending(false);
+    toast.success(`Sent to ${sent} of ${withPhone.length} members`);
+  };
 
   useEffect(() => {
     loadRetention();
@@ -405,11 +442,26 @@ export default function Retention() {
       {/* Tab: Inactive Members */}
       {activeTab === 'inactive' && (
         <div className="space-y-4">
-          <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
-            <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0" />
-            <p className="text-sm text-amber-200">
-              <span className="font-bold">{inactive.count}</span> active member{inactive.count !== 1 ? 's' : ''} haven't visited in <span className="font-bold">14+ days</span>. Reach out before they lapse.
-            </p>
+          <div className="flex items-center justify-between gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0" />
+              <p className="text-sm text-amber-200">
+                <span className="font-bold">{inactive.count}</span> active member{inactive.count !== 1 ? 's' : ''} haven't visited in <span className="font-bold">14+ days</span>. Reach out before they lapse.
+              </p>
+            </div>
+            {sortedInactive.length > 0 && (
+              <button
+                onClick={() => handleBulkSend(sortedInactive, 'inactive')}
+                disabled={bulkSending}
+                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 border-amber-500/30 transition-all disabled:opacity-50"
+              >
+                {bulkSending
+                  ? <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  : <Send className="w-3 h-3" />
+                }
+                <span className="hidden sm:inline">{bulkSending ? 'Sending…' : 'Send to All'}</span>
+              </button>
+            )}
           </div>
           {sortedInactive.length === 0 ? (
             <div className="bg-dark-300 rounded-2xl border border-gray-800/60 p-12 text-center">

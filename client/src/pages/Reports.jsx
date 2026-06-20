@@ -47,16 +47,32 @@ function ReportsContent() {
   const [error, setError] = useState(null);
   const [dateRange, setDateRange] = useState('this_month');
   const [exporting, setExporting] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
-    loadReportData();
+    if (dateRange !== 'custom') {
+      loadReportData();
+    }
   }, [dateRange]);
+
+  useEffect(() => {
+    if (dateRange === 'custom' && startDate && endDate) {
+      loadReportData();
+    }
+  }, [startDate, endDate]);
 
   const loadReportData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.get(`/stats/reports?range=${dateRange}`);
+      let url;
+      if (dateRange === 'custom' && startDate && endDate) {
+        url = `/stats/reports?start_date=${startDate}&end_date=${endDate}`;
+      } else {
+        url = `/stats/reports?range=${dateRange}`;
+      }
+      const data = await api.get(url);
       setReportData(data);
     } catch (err) {
       console.error('Failed to load report data:', err);
@@ -304,10 +320,28 @@ function ReportsContent() {
               <option value="last_6_months">{t('reports.last6Months')}</option>
               <option value="this_year">{t('reports.thisYear')}</option>
               <option value="all_time">{t('reports.allTime')}</option>
+              <option value="custom">Custom Range</option>
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           </div>
 
+          {dateRange === 'custom' && (
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                className="pl-3 pr-3 py-2.5 bg-dark-200 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-gym-500"
+              />
+              <span className="text-gray-500 text-sm">to</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+                className="pl-3 pr-3 py-2.5 bg-dark-200 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-gym-500"
+              />
+            </div>
+          )}
         </div>
 
         {/* Export Buttons */}
@@ -471,6 +505,37 @@ function ReportsContent() {
             ))}
           </div>
         </div>
+
+        {/* Revenue by Plan */}
+        {reportData?.revenue_by_plan?.length > 0 && (
+          <div className="glass-card p-6">
+            <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-5">
+              <BarChart3 className="w-5 h-5 text-amber-400" />
+              Revenue by Plan
+            </h2>
+            <div className="space-y-3">
+              {reportData.revenue_by_plan.map((item, i) => {
+                const pct = (item.total / (reportData.revenue.total || 1)) * 100;
+                const colors = ['from-amber-500 to-orange-500', 'from-blue-500 to-cyan-500', 'from-purple-500 to-pink-500', 'from-green-500 to-emerald-500'];
+                return (
+                  <div key={item.type}>
+                    <div className="flex justify-between text-sm mb-1.5">
+                      <span className="text-gray-300">{getMembershipLabel(item.type)}</span>
+                      <div className="text-right">
+                        <span className="text-white font-semibold">{formatCurrency(item.total)}</span>
+                        <span className="text-gray-500 text-xs ml-2">{pct.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                    <div className="h-3 bg-dark-300 rounded-full overflow-hidden">
+                      <div className={`h-full bg-gradient-to-r ${colors[i % colors.length]} rounded-full transition-all duration-700`}
+                        style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Attendance Trends */}
         <div className="glass-card p-6">

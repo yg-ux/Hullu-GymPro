@@ -406,9 +406,9 @@ export default function Landing() {
               )}
             </div>
 
-            {/* Right — enhanced mockup */}
+            {/* Right — video-style demo player */}
             <div className="hidden lg:block">
-              <DemoPreviewMockup />
+              <VideoSection onPlay={handleDemo} loading={demoLoading} />
             </div>
           </div>
         </div>
@@ -1057,6 +1057,110 @@ export default function Landing() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Video-style demo player ───────────────────────────────────────────────────
+function VideoSection({ onPlay, loading }) {
+  const [played, setPlayed] = useState(false);
+  return (
+    <div className="relative select-none">
+      {/* Glow */}
+      <div className="absolute inset-0 bg-gradient-to-br from-green-500/15 to-emerald-500/10 rounded-3xl blur-2xl scale-105 pointer-events-none" />
+
+      <div className="relative rounded-2xl overflow-hidden border border-gray-700 shadow-2xl bg-gray-900">
+        {/* Fake video thumbnail — the app mockup */}
+        <div className="relative aspect-video bg-gray-950 flex items-center justify-center">
+          {/* Blurred screenshot bg */}
+          <div className="absolute inset-0 opacity-40" style={{
+            background: 'linear-gradient(135deg, #1e3a5f 0%, #0f172a 50%, #1a1a2e 100%)'
+          }} />
+
+          {/* Mini dashboard mockup as thumbnail */}
+          <div className="absolute inset-4 rounded-xl bg-gray-900 border border-gray-700 overflow-hidden opacity-70">
+            <div className="flex items-center gap-2 px-3 py-2 bg-gray-800 border-b border-gray-700">
+              <div className="w-2 h-2 rounded-full bg-red-500/60" />
+              <div className="w-2 h-2 rounded-full bg-yellow-500/60" />
+              <div className="w-2 h-2 rounded-full bg-green-500/60" />
+              <span className="text-[9px] text-gray-500 ml-2">hullugyms.app/dashboard</span>
+            </div>
+            <div className="p-3 space-y-2">
+              <div className="grid grid-cols-4 gap-1.5">
+                {[['Members','20','text-blue-400'],["Today's","7",'text-green-400'],['Revenue','23.5K','text-purple-400'],['Active','3','text-amber-400']].map(([l,v,c]) => (
+                  <div key={l} className="bg-gray-800 rounded-lg p-2 border border-gray-700">
+                    <p className={`text-xs font-bold ${c}`}>{v}</p>
+                    <p className="text-[7px] text-gray-500 mt-0.5 leading-tight">{l}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+                {[{n:'Abebe T.',s:'active'},{n:'Meron H.',s:'active'},{n:'Dawit K.',s:'expiring'}].map((m,i) => (
+                  <div key={i} className="flex items-center gap-2 px-2.5 py-1.5 border-b border-gray-700/50 last:border-0">
+                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-[7px] font-bold text-white flex-shrink-0">{m.n[0]}</div>
+                    <span className="text-[9px] text-white flex-1">{m.n}</span>
+                    <span className={`text-[6px] px-1 py-0.5 rounded-full font-semibold ${m.s === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-amber-500/20 text-amber-400'}`}>{m.s}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="bg-gray-800 rounded-lg border border-gray-700 p-2">
+                <div className="flex items-end gap-0.5 h-8">
+                  {[55,70,60,90,75,85,95].map((h,i) => (
+                    <div key={i} className="flex-1 rounded-sm" style={{height:`${h}%`,background:i===6?'linear-gradient(to top,rgb(34,197,94),rgb(16,185,129))':'rgb(55,65,81)'}} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Play button overlay */}
+          {!played && (
+            <button
+              onClick={() => { setPlayed(true); onPlay(); }}
+              disabled={loading}
+              className="relative z-10 group flex items-center justify-center w-20 h-20 rounded-full bg-white/10 backdrop-blur-sm border-2 border-white/30 hover:bg-white/20 hover:scale-110 transition-all duration-200 shadow-2xl"
+            >
+              {loading ? (
+                <div className="w-7 h-7 border-3 border-green-400 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <svg className="w-8 h-8 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              )}
+            </button>
+          )}
+          {played && (
+            <div className="relative z-10 flex flex-col items-center gap-2">
+              <div className="w-8 h-8 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
+              <p className="text-xs text-green-400">Loading demo…</p>
+            </div>
+          )}
+
+          {/* Duration badge */}
+          <div className="absolute bottom-3 right-3 bg-black/70 text-white text-xs px-2 py-0.5 rounded font-mono">
+            LIVE DEMO
+          </div>
+        </div>
+
+        {/* Video meta bar */}
+        <div className="px-4 py-3 bg-gray-900 border-t border-gray-800 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-white">Hullu Gyms — Full Platform Tour</p>
+            <p className="text-xs text-gray-500 mt-0.5">Click play to enter the live dashboard instantly</p>
+          </div>
+          <span className="flex items-center gap-1.5 text-xs text-green-400 font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+            Live
+          </span>
+        </div>
+      </div>
+
+      <div className="absolute -bottom-3 -left-4 bg-green-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-xl shadow-lg shadow-green-500/30 whitespace-nowrap">
+        ✓ No signup needed
+      </div>
+      <div className="absolute -top-3 -right-4 bg-purple-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-xl shadow-lg shadow-purple-500/30 whitespace-nowrap">
+        Full Pro features
+      </div>
     </div>
   );
 }

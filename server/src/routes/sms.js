@@ -125,4 +125,54 @@ router.post('/send-test', authenticateToken, async (req, res) => {
   }
 });
 
+// ── POST /api/sms/broadcast ──────────────────────────────────────────────────
+router.post('/broadcast', authenticateToken, async (req, res) => {
+  const gymId = req.user.gym_id;
+  if (!gymId) return res.status(403).json({ error: 'Gym access required' });
+
+  const { filter, message } = req.body;
+  if (!message?.trim()) return res.status(400).json({ error: 'Message is required' });
+  if (message.length > 160) return res.status(400).json({ error: 'Message must be 160 chars or less' });
+
+  try {
+    const { getOne } = await import('../models/database.js');
+    const gym = await getOne('SELECT name, sms_enabled FROM gyms WHERE id = ?', [gymId]);
+    if (!gym?.sms_enabled) return res.status(403).json({ error: 'SMS is not enabled for this gym' });
+
+    // Build WHERE clause based on filter
+    let whereExtra = '';
+    if (filter === 'active') whereExtra = "AND status = 'active'";
+    else if (filter === 'expiring') whereExtra = "AND status = 'active' AND date(membership_end) BETWEEN date('now') AND date('now', '+7 days')";
+    else if (filter === 'expired') whereExtra = "AND status = 'expired'";
+    else if (filter === 'inactive') whereExtra = "AND status = 'active' AND id NOT IN (SELECT DISTINCT customer_id FROM attendance WHERE gym_id = ? AND date(check_in) >= date('now', '-14 days'))";
+
+    const params = filter === 'inactive' ? [gymId, gymId] : [gymId];
+    const members = await getAll(
+      `SELECT id, name, phone FROM customers WHERE gym_id = ? AND phone IS NOT NULL AND phone != '' ${whereExtra}`,
+      params
+    );
+
+    if (members.length === 0) return res.json({ sent: 0, failed: 0, skipped: 0, message: 'No matching members with phone numbers' });
+
+    let sent = 0, failed = 0;
+    for (const member of members) {
+      try {
+        await smsService.sendSms(member.phone, message);
+        // Log to sms_logs
+        await getAll(
+          'INSERT INTO sms_logs (gym_id, customer_id, phone, message_type, message, status, sent_at) VALUES (?,?,?,?,?,?,?)',
+          [gymId, member.id, member.phone, 'broadcast', message, 'sent', new Date().toISOString()]
+        );
+        sent++;
+        await new Promise(r => setTimeout(r, 200)); // small delay to avoid rate limits
+      } catch { failed++; }
+    }
+
+    res.json({ sent, failed, total: members.length });
+  } catch (err) {
+    console.error('Broadcast SMS error:', err);
+    res.status(500).json({ error: 'Failed to send broadcast' });
+  }
+});
+
 export default router;

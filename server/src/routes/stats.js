@@ -198,29 +198,36 @@ router.get('/reports', authenticateToken, async (req, res) => {
     }
 
     const range = req.query.range || 'this_month';
+    const startDateParam = req.query.start_date;
+    const endDateParam = req.query.end_date;
 
     let dateFilter = '';
-    switch (range) {
-      case 'this_week':
-        dateFilter = "payment_date::date >= CURRENT_DATE - INTERVAL '7 days'";
-        break;
-      case 'last_month':
-        dateFilter = "TO_CHAR(payment_date::date, 'YYYY-MM') = TO_CHAR(NOW() - INTERVAL '1 month', 'YYYY-MM')";
-        break;
-      case 'last_3_months':
-        dateFilter = "payment_date::date >= CURRENT_DATE - INTERVAL '3 months'";
-        break;
-      case 'last_6_months':
-        dateFilter = "payment_date::date >= CURRENT_DATE - INTERVAL '6 months'";
-        break;
-      case 'this_year':
-        dateFilter = "TO_CHAR(payment_date::date, 'YYYY') = TO_CHAR(NOW(), 'YYYY')";
-        break;
-      case 'all_time':
-        dateFilter = '1=1';
-        break;
-      default:
-        dateFilter = "TO_CHAR(payment_date::date, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')";
+    // Custom date range takes priority
+    if (startDateParam && endDateParam) {
+      dateFilter = `payment_date::date BETWEEN '${startDateParam}' AND '${endDateParam}'`;
+    } else {
+      switch (range) {
+        case 'this_week':
+          dateFilter = "payment_date::date >= CURRENT_DATE - INTERVAL '7 days'";
+          break;
+        case 'last_month':
+          dateFilter = "TO_CHAR(payment_date::date, 'YYYY-MM') = TO_CHAR(NOW() - INTERVAL '1 month', 'YYYY-MM')";
+          break;
+        case 'last_3_months':
+          dateFilter = "payment_date::date >= CURRENT_DATE - INTERVAL '3 months'";
+          break;
+        case 'last_6_months':
+          dateFilter = "payment_date::date >= CURRENT_DATE - INTERVAL '6 months'";
+          break;
+        case 'this_year':
+          dateFilter = "TO_CHAR(payment_date::date, 'YYYY') = TO_CHAR(NOW(), 'YYYY')";
+          break;
+        case 'all_time':
+          dateFilter = '1=1';
+          break;
+        default:
+          dateFilter = "TO_CHAR(payment_date::date, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')";
+      }
     }
 
     const revenueResult = await getOne(`
@@ -339,6 +346,15 @@ router.get('/reports', authenticateToken, async (req, res) => {
       LIMIT 20
     `, [gymId, gymId]);
 
+    const revenueByPlan = await getAll(`
+      SELECT c.membership_type as type, SUM(p.amount) as total, COUNT(p.id) as count
+      FROM payments p
+      JOIN customers c ON p.customer_id = c.id
+      WHERE p.gym_id = ? AND ${dateFilter}
+      GROUP BY c.membership_type
+      ORDER BY total DESC
+    `, [gymId]);
+
     let previousPeriodFilter = '';
     switch (range) {
       case 'this_week':
@@ -391,6 +407,7 @@ router.get('/reports', authenticateToken, async (req, res) => {
       monthly_summary: monthlySummary,
       revenue_by_method: revenueByMethod,
       membership_breakdown: membershipBreakdown,
+      revenue_by_plan: revenueByPlan,
       attendance: {
         total: totalCheckIns,
         daily: attendanceData,

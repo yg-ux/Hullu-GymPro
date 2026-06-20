@@ -492,7 +492,7 @@ router.get('/settings', authenticateToken, async (req, res) => {
 // Update gym profile
 router.put('/gym', authenticateToken, async (req, res) => {
   try {
-    const { name, phone, address, sms_enabled, color_theme, logo } = req.body;
+    const { name, phone, email, address, sms_enabled, color_theme, logo } = req.body;
 
     const VALID_THEMES = ['default', 'indigo', 'purple', 'rose', 'red', 'amber', 'lime', 'emerald', 'teal', 'gold', 'chocolate', 'slate'];
 
@@ -506,6 +506,10 @@ router.put('/gym', authenticateToken, async (req, res) => {
     if (phone !== undefined) {
       updates.push('phone = ?');
       values.push(phone);
+    }
+    if (email !== undefined) {
+      updates.push('email = ?');
+      values.push(email);
     }
     if (address !== undefined) {
       updates.push('address = ?');
@@ -546,7 +550,7 @@ router.put('/gym', authenticateToken, async (req, res) => {
         color_theme: gym.color_theme || 'default',
         logo: gym.logo,
         sms_enabled: gym.sms_enabled,
-        sms_available: !!process.env.GEEZSMS_API_KEY
+        sms_available: !!process.env.GEEZSMS_API_KEY,
       }
     });
   } catch (error) {

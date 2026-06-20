@@ -122,8 +122,9 @@ export default function Settings() {
     e.preventDefault();
     setGymLoading(true);
     try {
-      await api.put('/auth/gym', { address: gymForm.address });
-      toast.success(t('settings.addressUpdated'));
+      await api.put('/auth/gym', { name: gymForm.name, phone: gymForm.phone, email: gymForm.email, address: gymForm.address });
+      updateGym({ name: gymForm.name });
+      toast.success('Profile updated');
     } catch (err) {
       toast.error(err.message || t('settings.failedAddress'));
     } finally {
@@ -355,28 +356,24 @@ export default function Settings() {
           <h2 className="text-lg font-semibold text-white">{t('settings.gymProfile')}</h2>
         </div>
 
-        {/* Read-only info */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-dark-200 rounded-xl">
-          <div>
-            <p className="text-xs text-gray-500 mb-1">{t('settings.gymName')}</p>
-            <p className="text-white font-medium">{gymForm.name || '—'}</p>
+        <form onSubmit={handleGymSave} className="space-y-4">
+          {/* Editable profile fields */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">{t('settings.gymName')}</label>
+              <input value={gymForm.name} onChange={e => setGymForm(p => ({...p, name: e.target.value}))} className="input-field" placeholder="Gym Name" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">{t('settings.phoneNumber')}</label>
+              <input value={gymForm.phone} onChange={e => setGymForm(p => ({...p, phone: e.target.value}))} className="input-field" placeholder="+251..." type="tel" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-xs text-gray-500 mb-1 block">{t('settings.email')}</label>
+              <input value={gymForm.email} onChange={e => setGymForm(p => ({...p, email: e.target.value}))} className="input-field" placeholder="gym@example.com" type="email" />
+            </div>
           </div>
-          <div>
-            <p className="text-xs text-gray-500 mb-1">{t('settings.phoneNumber')}</p>
-            <p className="text-white font-medium">{gymForm.phone || '—'}</p>
-          </div>
-          <div className="sm:col-span-2">
-            <p className="text-xs text-gray-500 mb-1">{t('settings.email')}</p>
-            <p className="text-white font-medium">{gymForm.email || '—'}</p>
-          </div>
-        </div>
-        <p className="text-xs text-gray-500 flex items-center gap-1">
-          <AlertCircle className="w-3 h-3" />
-          {t('settings.profileNote')}
-        </p>
 
-        {/* Editable address */}
-        <form onSubmit={handleGymSave} className="space-y-3 pt-2">
+          {/* Editable address */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">{t('settings.address')}</label>
             <div className="relative">
@@ -490,6 +487,13 @@ export default function Settings() {
         );
       })()}
 
+      {/* ── Broadcast SMS ── */}
+      {(() => {
+        const smsPlanAllowed = ['starter', 'pro'].includes(gym?.subscription_plan);
+        const canUseSms = smsPlanAllowed && smsAvailable;
+        return canUseSms && smsEnabled ? <BroadcastSmsPanel toast={toast} /> : null;
+      })()}
+
       {/* ── Membership Pricing Packages ── */}
       <PricingPackagesPanel toast={toast} />
 
@@ -588,6 +592,98 @@ const MEMBERSHIP_TYPES = [
   { value: '1_year', label: '1 Year' },
   { value: '3_days_week', label: '3×/Week' },
 ];
+
+function BroadcastSmsPanel({ toast }) {
+  const [filter, setFilter] = useState('active');
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [lastResult, setLastResult] = useState(null);
+
+  const charCount = message.length;
+  const overLimit = charCount > 160;
+
+  const handleSend = async () => {
+    if (!message.trim()) return toast.error('Write a message first');
+    if (overLimit) return toast.error('Message is too long (max 160 chars)');
+    const filterLabel = filter === 'active' ? 'all active members'
+      : filter === 'expiring' ? 'members expiring this week'
+      : filter === 'expired' ? 'expired members'
+      : 'inactive members';
+    if (!window.confirm(`Send this SMS to ${filterLabel}?`)) return;
+    setSending(true);
+    setLastResult(null);
+    try {
+      const result = await api.post('/sms/broadcast', { filter, message });
+      setLastResult(result);
+      toast.success(`Sent to ${result.sent} member${result.sent !== 1 ? 's' : ''}`);
+      setMessage('');
+    } catch (err) {
+      toast.error(err.message || 'Broadcast failed');
+    } finally { setSending(false); }
+  };
+
+  return (
+    <div className="card p-6 space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-lg bg-purple-600/20 flex items-center justify-center">
+          <MessageSquare className="w-5 h-5 text-purple-400" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold text-white">Broadcast SMS</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Send a custom message to a group of members</p>
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-300 mb-2">Send to</label>
+        <select value={filter} onChange={e => setFilter(e.target.value)} className="input-field">
+          <option value="active">All active members</option>
+          <option value="expiring">Expiring this week (≤7 days)</option>
+          <option value="expired">Expired members</option>
+          <option value="inactive">Inactive 14+ days</option>
+        </select>
+      </div>
+
+      <div>
+        <div className="flex justify-between items-center mb-2">
+          <label className="text-sm font-medium text-gray-300">Message</label>
+          <span className={`text-xs ${overLimit ? 'text-red-400' : charCount > 140 ? 'text-amber-400' : 'text-gray-500'}`}>
+            {charCount}/160
+          </span>
+        </div>
+        <textarea
+          value={message}
+          onChange={e => setMessage(e.target.value)}
+          rows={3}
+          maxLength={200}
+          placeholder="e.g. Special offer: renew this week and get 10% off!"
+          className={`input-field resize-none ${overLimit ? 'border-red-500' : ''}`}
+        />
+        <p className="text-xs text-gray-600 mt-1">Keep under 160 characters to fit in a single SMS segment</p>
+      </div>
+
+      {lastResult && (
+        <div className="p-3 bg-green-500/10 border border-green-500/25 rounded-xl text-sm text-green-300">
+          ✓ Sent to {lastResult.sent} members{lastResult.failed > 0 ? ` (${lastResult.failed} failed)` : ''}
+        </div>
+      )}
+
+      <div className="flex justify-end">
+        <button
+          onClick={handleSend}
+          disabled={sending || !message.trim() || overLimit}
+          className="btn-primary flex items-center gap-2 disabled:opacity-50"
+        >
+          {sending ? (
+            <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Sending…</>
+          ) : (
+            <>Send Broadcast</>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function PricingPackagesPanel({ toast }) {
   const [packages, setPackages] = useState([]);
