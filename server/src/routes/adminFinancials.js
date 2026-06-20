@@ -29,6 +29,13 @@ async function getCurrentPrices() {
   return prices;
 }
 
+async function getSmsRatePerMsg() {
+  const row = await getOne(
+    `SELECT value FROM settings WHERE gym_id = 'global' AND key = 'admin_sms_rate'`
+  );
+  return row ? parseFloat(row.value) || 0 : 0;
+}
+
 async function buildPnL(monthStr) {
   // monthStr = 'YYYY-MM'
   const [y, m] = monthStr.split('-').map(Number);
@@ -37,7 +44,7 @@ async function buildPnL(monthStr) {
   const lastDay = new Date(y, m, 0).getDate();
   const monthEnd = `${monthStr}-${String(lastDay).padStart(2, '0')}`;
 
-  // Active expenses for this month
+  // Active manual expenses for this month
   const expenses = await getAll(
     `SELECT * FROM admin_expenses
      WHERE started_at <= ? AND (ended_at IS NULL OR ended_at >= ?)
@@ -45,7 +52,7 @@ async function buildPnL(monthStr) {
     [monthEnd, monthStart]
   );
 
-  // Break down by category
+  // Break down manual expenses by category
   const breakdown = {};
   for (const cat of CATEGORIES) breakdown[cat] = { monthly: 0, yearly: 0 };
 
@@ -65,13 +72,29 @@ async function buildPnL(monthStr) {
   }
 
   const yearlyMonthly = yearlyTotal / 12;
-  const totalExpenses = monthlyTotal + yearlyMonthly;
 
-  // Category totals (monthly-equivalent)
+  // ── Auto SMS cost ─────────────────────────────────────────────────────────
+  // Count all successfully sent SMS across every gym for this calendar month
+  const smsRow = await getOne(
+    `SELECT COUNT(*) AS total
+     FROM sms_logs
+     WHERE status = 'sent'
+       AND created_at >= ?::date
+       AND created_at <  (?::date + INTERVAL '1 month')`,
+    [monthStart, monthStart]
+  );
+  const smsRatePerMsg = await getSmsRatePerMsg();
+  const autoSmsCount  = parseInt(smsRow?.total || 0);
+  const autoSmsCost   = autoSmsCount * smsRatePerMsg;
+
+  // Category totals (monthly-equivalent) — include auto SMS cost in 'sms' bucket
   const categoryTotals = {};
   for (const [cat, v] of Object.entries(breakdown)) {
     categoryTotals[cat] = v.monthly + v.yearly / 12;
   }
+  categoryTotals['sms'] += autoSmsCost;
+
+  const totalExpenses = monthlyTotal + yearlyMonthly + autoSmsCost;
 
   // Gym counts
   const counts = await getOne(
@@ -98,6 +121,9 @@ async function buildPnL(monthStr) {
     mrr,
     monthly_expenses: monthlyTotal,
     yearly_expenses_monthly: yearlyMonthly,
+    auto_sms_count: autoSmsCount,
+    auto_sms_cost: autoSmsCost,
+    sms_rate_per_msg: smsRatePerMsg,
     total_expenses: totalExpenses,
     net_profit: netProfit,
     expense_breakdown: categoryTotals,
@@ -124,7 +150,6 @@ router.get('/summary', async (req, res) => {
 });
 
 // ── POST /api/admin/financials/snapshot ──────────────────────────────────────
-// Save (upsert) a P&L snapshot for the current month
 router.post('/snapshot', async (req, res) => {
   try {
     const now = new Date();
@@ -214,17 +239,14 @@ router.post('/expenses', async (req, res) => {
 });
 
 // ── PUT /api/admin/financials/expenses/:id ───────────────────────────────────
-// End-date old record, insert new (preserves history)
 router.put('/expenses/:id', async (req, res) => {
   const { name, category, amount, frequency, notes } = req.body;
   try {
     const today = new Date().toISOString().split('T')[0];
-    // End the old record
     await runQuery(
       `UPDATE admin_expenses SET ended_at = ? WHERE id = ? AND ended_at IS NULL`,
       [today, req.params.id]
     );
-    // Insert new record
     const newId = randomUUID();
     await runQuery(
       `INSERT INTO admin_expenses (id, name, category, amount, frequency, notes, started_at)
@@ -256,7 +278,6 @@ router.delete('/expenses/:id', async (req, res) => {
 router.get('/plan-prices', async (req, res) => {
   try {
     const prices = await getCurrentPrices();
-    // Also get history
     const history = await getAll(
       `SELECT * FROM admin_plan_prices ORDER BY effective_from DESC LIMIT 20`,
       []
@@ -279,6 +300,32 @@ router.put('/plan-prices/:plan', async (req, res) => {
       [randomUUID(), plan, parseFloat(price)]
     );
     res.json({ success: true, plan, price: parseFloat(price) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/admin/financials/sms-rate ───────────────────────────────────────
+router.get('/sms-rate', async (req, res) => {
+  try {
+    const rate = await getSmsRatePerMsg();
+    res.json({ rate });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── PUT /api/admin/financials/sms-rate ───────────────────────────────────────
+router.put('/sms-rate', async (req, res) => {
+  const { rate } = req.body;
+  if (rate === undefined || isNaN(rate)) return res.status(400).json({ error: 'Valid rate required' });
+  try {
+    await runQuery(
+      `INSERT INTO settings (gym_id, key, value) VALUES ('global', 'admin_sms_rate', ?)
+       ON CONFLICT (gym_id, key) DO UPDATE SET value = EXCLUDED.value`,
+      [String(parseFloat(rate))]
+    );
+    res.json({ success: true, rate: parseFloat(rate) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

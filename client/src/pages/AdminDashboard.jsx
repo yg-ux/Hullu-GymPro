@@ -116,6 +116,8 @@ export default function AdminDashboard() {
   const [expSaving, setExpSaving]           = useState(false);
   const [priceEdit, setPriceEdit]           = useState(null); // null | 'starter' | 'pro'
   const [priceValue, setPriceValue]         = useState('');
+  const [smsRateEdit, setSmsRateEdit]       = useState(false);
+  const [smsRateValue, setSmsRateValue]     = useState('');
   const [snapshotting, setSnapshotting]     = useState(false);
   const [finView, setFinView]               = useState('monthly'); // 'monthly' | 'annual'
 
@@ -856,8 +858,8 @@ export default function AdminDashboard() {
                         <p className="text-xs text-gray-500 mb-1">{finView === 'annual' ? 'Annual' : 'Monthly'} Expenses</p>
                         <p className="text-3xl font-bold text-red-400">ETB {Math.round(expenses_total).toLocaleString()}</p>
                         <p className="text-xs text-gray-500 mt-2">
-                          Monthly: ETB {Math.round(financials.monthly_expenses * mul).toLocaleString()} ·{' '}
-                          Yearly ÷12: ETB {Math.round(financials.yearly_expenses_monthly * mul).toLocaleString()}
+                          Manual: ETB {Math.round((financials.monthly_expenses + financials.yearly_expenses_monthly) * mul).toLocaleString()} ·{' '}
+                          SMS: ETB {Math.round((financials.auto_sms_cost || 0) * mul).toLocaleString()}
                         </p>
                       </div>
                       <div className={clsx('card p-5', profit >= 0 ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-red-500/20 bg-red-500/5')}>
@@ -946,6 +948,63 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   )}
+                </div>
+
+                {/* Auto SMS Cost */}
+                <div className="card p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-base font-semibold text-white">SMS Usage Cost</h3>
+                      <p className="text-xs text-gray-500 mt-0.5">Auto-calculated from messages sent by all gyms this month</p>
+                    </div>
+                    {!smsRateEdit && (
+                      <button onClick={() => { setSmsRateEdit(true); setSmsRateValue(String(financials.sms_rate_per_msg ?? 0)); }}
+                        className="p-1.5 text-gray-400 hover:text-white hover:bg-dark-300 rounded-lg transition-colors">
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    {/* Message count */}
+                    <div className="flex-1 p-4 bg-dark-200/60 rounded-xl border border-gray-800/50">
+                      <p className="text-xs text-gray-500 mb-1">Messages sent this month</p>
+                      <p className="text-2xl font-bold text-white">{(financials.auto_sms_count || 0).toLocaleString()}</p>
+                      <p className="text-xs text-gray-500 mt-1">across all gym accounts</p>
+                    </div>
+                    {/* Rate */}
+                    <div className="flex-1 p-4 bg-dark-200/60 rounded-xl border border-gray-800/50">
+                      <p className="text-xs text-gray-500 mb-1">Rate per message</p>
+                      {smsRateEdit ? (
+                        <div className="flex gap-2 mt-1">
+                          <input type="number" step="0.01" min="0" value={smsRateValue}
+                            onChange={e => setSmsRateValue(e.target.value)}
+                            className="input-field flex-1 text-sm" placeholder="ETB per SMS" autoFocus />
+                          <button onClick={async () => {
+                            try {
+                              await adminFetch('/financials/sms-rate', { method: 'PUT', body: JSON.stringify({ rate: parseFloat(smsRateValue) }) });
+                              setSmsRateEdit(false); loadFinancials();
+                            } catch (e) { alert(e.message); }
+                          }} className="px-3 py-2 bg-gym-600 text-white rounded-lg text-sm hover:bg-gym-500 transition-colors">Save</button>
+                          <button onClick={() => setSmsRateEdit(false)} className="px-3 py-2 bg-dark-300 text-gray-400 rounded-lg text-sm">✕</button>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-2xl font-bold text-white">ETB {(financials.sms_rate_per_msg ?? 0).toLocaleString()}<span className="text-sm font-normal text-gray-500">/msg</span></p>
+                          {(financials.sms_rate_per_msg ?? 0) === 0 && (
+                            <p className="text-xs text-amber-400 mt-1">⚠ Set your rate per SMS to calculate cost</p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    {/* Total */}
+                    <div className="flex-1 p-4 bg-red-500/5 rounded-xl border border-red-500/20">
+                      <p className="text-xs text-gray-500 mb-1">Auto SMS cost this month</p>
+                      <p className="text-2xl font-bold text-red-400">ETB {Math.round(financials.auto_sms_cost || 0).toLocaleString()}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {(financials.auto_sms_count || 0).toLocaleString()} × ETB {financials.sms_rate_per_msg ?? 0}
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Plan Pricing */}
