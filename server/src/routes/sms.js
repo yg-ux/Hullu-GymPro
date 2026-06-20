@@ -127,14 +127,18 @@ router.post('/send-test', authenticateToken, async (req, res) => {
 });
 
 // ── Helper: build recipient query for a given filter ─────────────────────────
+// Uses PostgreSQL date syntax (CURRENT_DATE, INTERVAL, ::date cast)
 function buildRecipientQuery(filter) {
   let whereExtra = '';
   let extraParam = false;
-  if (filter === 'active') whereExtra = "AND status = 'active'";
-  else if (filter === 'expiring') whereExtra = "AND status = 'active' AND date(membership_end) BETWEEN date('now') AND date('now', '+7 days')";
-  else if (filter === 'expired') whereExtra = "AND status = 'expired'";
-  else if (filter === 'inactive') {
-    whereExtra = "AND status = 'active' AND id NOT IN (SELECT DISTINCT customer_id FROM attendance WHERE gym_id = ? AND date(check_in) >= date('now', '-14 days'))";
+  if (filter === 'active') {
+    whereExtra = "AND status = 'active'";
+  } else if (filter === 'expiring') {
+    whereExtra = "AND status = 'active' AND membership_end::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'";
+  } else if (filter === 'expired') {
+    whereExtra = "AND status = 'expired'";
+  } else if (filter === 'inactive') {
+    whereExtra = "AND status = 'active' AND id NOT IN (SELECT DISTINCT customer_id FROM attendance WHERE gym_id = ? AND check_in::date >= CURRENT_DATE - INTERVAL '14 days')";
     extraParam = true;
   }
   return { whereExtra, extraParam };
