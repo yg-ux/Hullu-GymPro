@@ -110,6 +110,7 @@ export default function AdminDashboard() {
   const [expenses, setExpenses]             = useState([]);
   const [planPrices, setPlanPrices]         = useState({ starter: 1499, pro: 3499 });
   const [finLoading, setFinLoading]         = useState(false);
+  const [finError, setFinError]             = useState(null);
   const [expModal, setExpModal]             = useState(null); // null | 'add' | expense object
   const [expForm, setExpForm]               = useState({ name: '', category: 'infrastructure', amount: '', frequency: 'monthly', notes: '' });
   const [expSaving, setExpSaving]           = useState(false);
@@ -156,6 +157,7 @@ export default function AdminDashboard() {
 
   const loadFinancials = async () => {
     setFinLoading(true);
+    setFinError(null);
     try {
       const [summary, history, expList, prices] = await Promise.all([
         adminFetch('/financials/summary'),
@@ -167,7 +169,10 @@ export default function AdminDashboard() {
       setFinHistory(history);
       setExpenses(expList);
       setPlanPrices(prices.prices);
-    } catch (e) { console.error('Financials load error', e); }
+    } catch (e) {
+      console.error('Financials load error', e);
+      setFinError(e.message || 'Unknown error');
+    }
     finally { setFinLoading(false); }
   };
   useEffect(() => { if (activeTab === 'financials') loadFinancials(); }, [activeTab]);
@@ -1014,7 +1019,12 @@ export default function AdminDashboard() {
             ) : (
               <div className="card p-12 text-center text-gray-500">
                 <Wallet className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                <p>Could not load financials</p>
+                <p className="font-medium text-gray-300 mb-1">Could not load financials</p>
+                {finError && (
+                  <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 mt-2 mb-3 max-w-sm mx-auto font-mono break-all">
+                    {finError}
+                  </p>
+                )}
                 <button onClick={loadFinancials} className="mt-3 px-4 py-2 bg-dark-200 rounded-lg text-sm text-gray-400 hover:text-white">Retry</button>
               </div>
             )}

@@ -78,6 +78,7 @@ app.use('/api/staff', staffRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/qr', qrRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/admin/financials', adminFinancialsRouter);
 app.use('/api/admin', adminLimiter, adminRoutes);
 app.use('/api/sms', smsRoutes);
 app.use('/api/expenses', expensesRoutes);
@@ -90,7 +91,6 @@ app.use('/api/push', pushRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/employees', employeesRoutes);
 app.use('/api/notifications', notificationsRouter);
-app.use('/api/admin/financials', adminFinancialsRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

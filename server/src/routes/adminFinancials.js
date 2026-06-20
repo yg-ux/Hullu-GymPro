@@ -31,8 +31,11 @@ async function getCurrentPrices() {
 
 async function buildPnL(monthStr) {
   // monthStr = 'YYYY-MM'
+  const [y, m] = monthStr.split('-').map(Number);
   const monthStart = `${monthStr}-01`;
-  const monthEnd   = `${monthStr}-31`; // safe upper bound for any month
+  // Last day of the month — use day-0 of next month trick (works for all months)
+  const lastDay = new Date(y, m, 0).getDate();
+  const monthEnd = `${monthStr}-${String(lastDay).padStart(2, '0')}`;
 
   // Active expenses for this month
   const expenses = await getAll(
@@ -101,6 +104,11 @@ async function buildPnL(monthStr) {
     expenses, // full list for the current summary
   };
 }
+
+// ── GET /api/admin/financials/ping ───────────────────────────────────────────
+router.get('/ping', (req, res) => {
+  res.json({ ok: true, user: req.user?.email, role: req.user?.role });
+});
 
 // ── GET /api/admin/financials/summary ────────────────────────────────────────
 router.get('/summary', async (req, res) => {
