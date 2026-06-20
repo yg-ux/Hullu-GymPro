@@ -127,18 +127,31 @@ router.post('/send-test', authenticateToken, async (req, res) => {
 });
 
 // ── Helper: build recipient query for a given filter ─────────────────────────
-// Uses PostgreSQL date syntax (CURRENT_DATE, INTERVAL, ::date cast)
+// Uses PostgreSQL syntax. Matches the definitions used by the Retention page.
+//
+// "inactive" = active membership but no check-in in the last 14 days
+//   (includes members who have never checked in at all — they're in the gym
+//    as paying members but haven't visited, so they're worth reaching out to)
 function buildRecipientQuery(filter) {
   let whereExtra = '';
   let extraParam = false;
   if (filter === 'active') {
     whereExtra = "AND status = 'active'";
   } else if (filter === 'expiring') {
+    // Membership ends within the next 7 days (inclusive of today)
     whereExtra = "AND status = 'active' AND membership_end::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'";
   } else if (filter === 'expired') {
     whereExtra = "AND status = 'expired'";
   } else if (filter === 'inactive') {
-    whereExtra = "AND status = 'active' AND id NOT IN (SELECT DISTINCT customer_id FROM attendance WHERE gym_id = ? AND check_in::date >= CURRENT_DATE - INTERVAL '14 days')";
+    // Active members whose most recent check-in is older than 14 days,
+    // OR who have never checked in at this gym at all.
+    // Uses the same timestamp comparison as the Retention page (MAX(check_in) < NOW() - INTERVAL '14 days').
+    whereExtra = `AND status = 'active' AND id NOT IN (
+      SELECT DISTINCT customer_id
+      FROM attendance
+      WHERE gym_id = ?
+        AND check_in >= NOW() - INTERVAL '14 days'
+    )`;
     extraParam = true;
   }
   return { whereExtra, extraParam };
