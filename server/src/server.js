@@ -26,6 +26,7 @@ import pushRoutes from './routes/push.js';
 import progressRoutes from './routes/progress.js';
 import employeesRoutes from './routes/employees.js';
 import notificationsRouter from './routes/notifications.js';
+import adminFinancialsRouter from './routes/adminFinancials.js';
 import { reminderService } from './services/reminderService.js';
 
 const app = express();
@@ -89,6 +90,7 @@ app.use('/api/push', pushRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/employees', employeesRoutes);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/admin/financials', adminFinancialsRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

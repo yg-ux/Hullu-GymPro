@@ -6,7 +6,8 @@ import {
   CheckCircle, XCircle, Phone, Mail, Calendar, Hash,
   Search, Eye, Shield, Trash2, MessageSquare, Play, Bell,
   ChevronUp, ChevronDown, Download, Crown, Megaphone,
-  Activity, BarChart3, Zap, CalendarClock, Edit3, Save
+  Activity, BarChart3, Zap, CalendarClock, Edit3, Save,
+  Wallet, Receipt, Plus
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -103,6 +104,20 @@ export default function AdminDashboard() {
   const [cronSecret, setCronSecret] = useState('');
   const [smsTest, setSmsTest] = useState({ loading: false, result: null, error: null });
 
+  // Financials
+  const [financials, setFinancials]         = useState(null);
+  const [finHistory, setFinHistory]         = useState([]);
+  const [expenses, setExpenses]             = useState([]);
+  const [planPrices, setPlanPrices]         = useState({ starter: 1499, pro: 3499 });
+  const [finLoading, setFinLoading]         = useState(false);
+  const [expModal, setExpModal]             = useState(null); // null | 'add' | expense object
+  const [expForm, setExpForm]               = useState({ name: '', category: 'infrastructure', amount: '', frequency: 'monthly', notes: '' });
+  const [expSaving, setExpSaving]           = useState(false);
+  const [priceEdit, setPriceEdit]           = useState(null); // null | 'starter' | 'pro'
+  const [priceValue, setPriceValue]         = useState('');
+  const [snapshotting, setSnapshotting]     = useState(false);
+  const [finView, setFinView]               = useState('monthly'); // 'monthly' | 'annual'
+
   // ── Auth check ──────────────────────────────────────────────────────────────
   useEffect(() => {
     const token = localStorage.getItem('adminToken');
@@ -138,6 +153,24 @@ export default function AdminDashboard() {
     try { setActivityLog(await adminFetch('/activity-log')); } catch {}
   };
   useEffect(() => { if (activeTab === 'activity') loadActivityLog(); }, [activeTab]);
+
+  const loadFinancials = async () => {
+    setFinLoading(true);
+    try {
+      const [summary, history, expList, prices] = await Promise.all([
+        adminFetch('/financials/summary'),
+        adminFetch('/financials/history'),
+        adminFetch('/financials/expenses'),
+        adminFetch('/financials/plan-prices'),
+      ]);
+      setFinancials(summary);
+      setFinHistory(history);
+      setExpenses(expList);
+      setPlanPrices(prices.prices);
+    } catch (e) { console.error('Financials load error', e); }
+    finally { setFinLoading(false); }
+  };
+  useEffect(() => { if (activeTab === 'financials') loadFinancials(); }, [activeTab]);
 
   // ── Gym sort + filter ───────────────────────────────────────────────────────
   const sortedGyms = useMemo(() => {
@@ -291,11 +324,12 @@ export default function AdminDashboard() {
   );
 
   const tabs = [
-    { key: 'overview',  label: 'Overview',  icon: TrendingUp },
-    { key: 'gyms',      label: `Gyms (${gyms.length})`, icon: Building2 },
-    { key: 'requests',  label: 'Requests',  icon: Clock, badge: pendingCount },
-    { key: 'revenue',   label: 'Revenue',   icon: BarChart3 },
-    { key: 'activity',  label: 'Activity',  icon: Activity },
+    { key: 'overview',    label: 'Overview',    icon: TrendingUp },
+    { key: 'gyms',        label: `Gyms (${gyms.length})`, icon: Building2 },
+    { key: 'requests',    label: 'Requests',    icon: Clock, badge: pendingCount },
+    { key: 'revenue',     label: 'Revenue',     icon: BarChart3 },
+    { key: 'activity',    label: 'Activity',    icon: Activity },
+    { key: 'financials',  label: 'Financials',  icon: Wallet },
   ];
 
   return (
@@ -759,6 +793,298 @@ export default function AdminDashboard() {
                   ))}
                 </div>
               </div>
+            )}
+          </div>
+        )}
+
+        {/* ══ FINANCIALS ════════════════════════════════════════════════════════ */}
+        {activeTab === 'financials' && (
+          <div className="space-y-6 animate-fade-in">
+            {finLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[1,2,3].map(i => <div key={i} className="h-32 bg-dark-200 rounded-2xl animate-pulse" />)}
+              </div>
+            ) : financials ? (
+              <>
+                {/* View toggle + Snapshot button */}
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex bg-dark-200 rounded-xl p-1 border border-gray-800">
+                    {['monthly','annual'].map(v => (
+                      <button key={v} onClick={() => setFinView(v)}
+                        className={clsx('px-4 py-1.5 rounded-lg text-sm font-medium transition-all capitalize',
+                          finView === v ? 'bg-gym-600 text-white' : 'text-gray-400 hover:text-white')}>
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setSnapshotting(true);
+                      try { await adminFetch('/financials/snapshot', { method: 'POST' }); await loadFinancials(); }
+                      catch (e) { alert(e.message); }
+                      finally { setSnapshotting(false); }
+                    }}
+                    disabled={snapshotting}
+                    className="flex items-center gap-2 px-4 py-2 bg-dark-200 border border-gray-700 hover:border-gray-500 text-gray-300 text-sm rounded-xl transition-all">
+                    {snapshotting ? <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Download className="w-4 h-4" />}
+                    Lock this month
+                  </button>
+                </div>
+
+                {/* P&L Summary cards */}
+                {(() => {
+                  const mul = finView === 'annual' ? 12 : 1;
+                  const mrr = (financials.mrr || 0) * mul;
+                  const expenses_total = (financials.total_expenses || 0) * mul;
+                  const profit = mrr - expenses_total;
+                  return (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="card p-5 border border-green-500/20 bg-green-500/5">
+                        <p className="text-xs text-gray-500 mb-1">{finView === 'annual' ? 'Annual' : 'Monthly'} Revenue (MRR)</p>
+                        <p className="text-3xl font-bold text-green-400">ETB {mrr.toLocaleString()}</p>
+                        <p className="text-xs text-gray-500 mt-2">
+                          {financials.starter_count} Starter × ETB {planPrices.starter?.toLocaleString()} +{' '}
+                          {financials.pro_count} Pro × ETB {planPrices.pro?.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="card p-5 border border-red-500/20 bg-red-500/5">
+                        <p className="text-xs text-gray-500 mb-1">{finView === 'annual' ? 'Annual' : 'Monthly'} Expenses</p>
+                        <p className="text-3xl font-bold text-red-400">ETB {Math.round(expenses_total).toLocaleString()}</p>
+                        <p className="text-xs text-gray-500 mt-2">
+                          Monthly: ETB {Math.round(financials.monthly_expenses * mul).toLocaleString()} ·{' '}
+                          Yearly ÷12: ETB {Math.round(financials.yearly_expenses_monthly * mul).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className={clsx('card p-5', profit >= 0 ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-red-500/20 bg-red-500/5')}>
+                        <p className="text-xs text-gray-500 mb-1">Net Profit</p>
+                        <p className={clsx('text-3xl font-bold', profit >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                          ETB {Math.round(profit).toLocaleString()}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-2">
+                          Margin: {mrr > 0 ? Math.round((profit / mrr) * 100) : 0}%
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Expense breakdown by category */}
+                <div className="card p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-base font-semibold text-white">Expense Breakdown</h3>
+                    <button onClick={() => { setExpForm({ name: '', category: 'infrastructure', amount: '', frequency: 'monthly', notes: '' }); setExpModal('add'); }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-gym-500/20 hover:bg-gym-500/30 text-gym-400 text-sm rounded-lg transition-all">
+                      <Plus className="w-4 h-4" /> Add Expense
+                    </button>
+                  </div>
+                  {expenses.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <Receipt className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                      <p className="text-sm">No expenses tracked yet</p>
+                      <p className="text-xs mt-1">Add your server, SMS, and other costs</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {expenses.map(exp => (
+                        <div key={exp.id} className="flex items-center gap-3 p-3 bg-dark-200/60 rounded-xl border border-gray-800/50">
+                          <div className={clsx('w-2 h-2 rounded-full flex-shrink-0', {
+                            'bg-blue-400': exp.category === 'infrastructure',
+                            'bg-green-400': exp.category === 'sms',
+                            'bg-purple-400': exp.category === 'marketing',
+                            'bg-amber-400': exp.category === 'software',
+                            'bg-gray-400': exp.category === 'other',
+                          })} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-white">{exp.name}</span>
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-dark-300 text-gray-400 capitalize">{exp.category}</span>
+                              <span className={clsx('text-xs px-2 py-0.5 rounded-full',
+                                exp.frequency === 'yearly' ? 'bg-amber-500/15 text-amber-400' : 'bg-blue-500/15 text-blue-400')}>
+                                {exp.frequency}
+                              </span>
+                            </div>
+                            {exp.notes && <p className="text-xs text-gray-500 mt-0.5 truncate">{exp.notes}</p>}
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-sm font-bold text-white">ETB {parseFloat(exp.amount).toLocaleString()}</p>
+                            {exp.frequency === 'yearly' && (
+                              <p className="text-xs text-gray-500">≈ ETB {Math.round(exp.amount/12).toLocaleString()}/mo</p>
+                            )}
+                          </div>
+                          <div className="flex gap-1 flex-shrink-0">
+                            <button onClick={() => { setExpForm({ name: exp.name, category: exp.category, amount: String(exp.amount), frequency: exp.frequency, notes: exp.notes || '' }); setExpModal(exp); }}
+                              className="p-1.5 text-gray-400 hover:text-white hover:bg-dark-300 rounded-lg transition-colors">
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={async () => {
+                              if (!confirm(`Remove "${exp.name}"?`)) return;
+                              await adminFetch(`/financials/expenses/${exp.id}`, { method: 'DELETE' });
+                              await loadFinancials();
+                            }}
+                              className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {/* Category totals */}
+                      <div className="mt-3 pt-3 border-t border-gray-800 grid grid-cols-2 sm:grid-cols-5 gap-2">
+                        {['infrastructure','sms','marketing','software','other'].map(cat => {
+                          const amt = financials.expense_breakdown?.[cat] || 0;
+                          return amt > 0 ? (
+                            <div key={cat} className="p-2 bg-dark-200 rounded-lg text-center">
+                              <p className="text-xs text-gray-500 capitalize">{cat}</p>
+                              <p className="text-sm font-semibold text-white mt-0.5">ETB {Math.round(amt).toLocaleString()}/mo</p>
+                            </div>
+                          ) : null;
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Plan Pricing */}
+                <div className="card p-6">
+                  <h3 className="text-base font-semibold text-white mb-4">Plan Pricing</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {['starter','pro'].map(plan => (
+                      <div key={plan} className="p-4 bg-dark-200/60 rounded-xl border border-gray-800/50">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="font-medium text-white capitalize">{plan} Plan</span>
+                          <button onClick={() => { setPriceEdit(plan); setPriceValue(String(planPrices[plan])); }}
+                            className="p-1.5 text-gray-400 hover:text-white hover:bg-dark-300 rounded-lg transition-colors">
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        {priceEdit === plan ? (
+                          <div className="flex gap-2">
+                            <input type="number" value={priceValue} onChange={e => setPriceValue(e.target.value)}
+                              className="input-field flex-1 text-sm" placeholder="Price in ETB" autoFocus />
+                            <button onClick={async () => {
+                              try {
+                                await adminFetch(`/financials/plan-prices/${plan}`, { method: 'PUT', body: JSON.stringify({ price: parseFloat(priceValue) }) });
+                                setPriceEdit(null); loadFinancials();
+                              } catch (e) { alert(e.message); }
+                            }} className="px-3 py-2 bg-gym-600 text-white rounded-lg text-sm hover:bg-gym-500 transition-colors">
+                              Save
+                            </button>
+                            <button onClick={() => setPriceEdit(null)} className="px-3 py-2 bg-dark-300 text-gray-400 rounded-lg text-sm">✕</button>
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="text-2xl font-bold text-gym-400">ETB {planPrices[plan]?.toLocaleString()}<span className="text-sm font-normal text-gray-500">/mo</span></p>
+                            <p className="text-xs text-gray-500 mt-1">{financials[plan + '_count']} active gyms · ETB {((financials[plan + '_count'] || 0) * (planPrices[plan] || 0)).toLocaleString()}/mo revenue</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* History chart */}
+                {finHistory.length > 0 && (
+                  <div className="card p-6">
+                    <h3 className="text-base font-semibold text-white mb-4">Monthly P&L History</h3>
+                    <div className="overflow-x-auto">
+                      <div className="flex items-end gap-2 min-w-[400px]" style={{ height: 160 }}>
+                        {finHistory.map(snap => {
+                          const maxVal = Math.max(...finHistory.map(s => Math.max(s.mrr || 0, s.total_expenses || 0)), 1);
+                          const revenueH = Math.round(((snap.mrr || 0) / maxVal) * 140);
+                          const expenseH = Math.round(((snap.total_expenses || 0) / maxVal) * 140);
+                          const profit = (snap.net_profit || 0);
+                          return (
+                            <div key={snap.month} className="flex-1 flex flex-col items-center gap-1 group" title={`${snap.month}: MRR ETB ${snap.mrr?.toLocaleString()}, Expenses ETB ${Math.round(snap.total_expenses)?.toLocaleString()}, Profit ETB ${Math.round(profit)?.toLocaleString()}`}>
+                              <div className="w-full flex items-end gap-0.5" style={{ height: 140 }}>
+                                <div className="flex-1 bg-green-500/70 rounded-t-sm transition-all group-hover:bg-green-400" style={{ height: revenueH }} />
+                                <div className="flex-1 bg-red-500/60 rounded-t-sm transition-all group-hover:bg-red-400" style={{ height: expenseH }} />
+                              </div>
+                              <p className="text-[9px] text-gray-600">{snap.month.slice(5)}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
+                        <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500/70 rounded-sm inline-block" /> Revenue</span>
+                        <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-500/60 rounded-sm inline-block" /> Expenses</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="card p-12 text-center text-gray-500">
+                <Wallet className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p>Could not load financials</p>
+                <button onClick={loadFinancials} className="mt-3 px-4 py-2 bg-dark-200 rounded-lg text-sm text-gray-400 hover:text-white">Retry</button>
+              </div>
+            )}
+
+            {/* Add / Edit Expense Modal */}
+            {expModal && (
+              <Modal onClose={() => setExpModal(null)}>
+                <h3 className="text-lg font-semibold text-white mb-4">{expModal === 'add' ? 'Add Expense' : 'Edit Expense'}</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Name *</label>
+                    <input value={expForm.name} onChange={e => setExpForm(p => ({...p, name: e.target.value}))}
+                      className="input-field w-full" placeholder="e.g. Railway hosting" autoFocus />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-400 mb-1 block">Category</label>
+                      <select value={expForm.category} onChange={e => setExpForm(p => ({...p, category: e.target.value}))} className="input-field w-full [&>option]:bg-gray-900">
+                        <option value="infrastructure">Infrastructure</option>
+                        <option value="sms">SMS / Comms</option>
+                        <option value="marketing">Marketing</option>
+                        <option value="software">Software</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-400 mb-1 block">Frequency</label>
+                      <select value={expForm.frequency} onChange={e => setExpForm(p => ({...p, frequency: e.target.value}))} className="input-field w-full [&>option]:bg-gray-900">
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Amount (ETB) *</label>
+                    <input type="number" value={expForm.amount} onChange={e => setExpForm(p => ({...p, amount: e.target.value}))}
+                      className="input-field w-full" placeholder="0" min="0" />
+                    {expForm.frequency === 'yearly' && expForm.amount && (
+                      <p className="text-xs text-gray-500 mt-1">≈ ETB {Math.round(parseFloat(expForm.amount)/12).toLocaleString()}/month</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Notes (optional)</label>
+                    <input value={expForm.notes} onChange={e => setExpForm(p => ({...p, notes: e.target.value}))}
+                      className="input-field w-full" placeholder="e.g. GeezSMS API plan" />
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-5">
+                  <button onClick={() => setExpModal(null)} className="flex-1 px-4 py-2.5 bg-dark-200 text-white rounded-xl hover:bg-dark-300 transition-all">Cancel</button>
+                  <button
+                    disabled={expSaving}
+                    onClick={async () => {
+                      if (!expForm.name.trim() || !expForm.amount) return alert('Name and amount required');
+                      setExpSaving(true);
+                      try {
+                        if (expModal === 'add') {
+                          await adminFetch('/financials/expenses', { method: 'POST', body: JSON.stringify(expForm) });
+                        } else {
+                          await adminFetch(`/financials/expenses/${expModal.id}`, { method: 'PUT', body: JSON.stringify(expForm) });
+                        }
+                        setExpModal(null);
+                        loadFinancials();
+                      } catch (e) { alert(e.message); }
+                      finally { setExpSaving(false); }
+                    }}
+                    className="flex-1 px-4 py-2.5 bg-gym-600 hover:bg-gym-500 text-white rounded-xl transition-all disabled:opacity-50">
+                    {expSaving ? 'Saving...' : expModal === 'add' ? 'Add Expense' : 'Update Expense'}
+                  </button>
+                </div>
+              </Modal>
             )}
           </div>
         )}

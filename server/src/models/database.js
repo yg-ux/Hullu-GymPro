@@ -405,11 +405,58 @@ export async function initDatabase() {
       UNIQUE(gym_id, user_id, endpoint),
       FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
     )`,
+
+    // ── Admin Financials / P&L ─────────────────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS admin_expenses (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'other',
+      amount NUMERIC NOT NULL DEFAULT 0,
+      frequency TEXT NOT NULL DEFAULT 'monthly',
+      notes TEXT,
+      started_at DATE NOT NULL DEFAULT CURRENT_DATE,
+      ended_at DATE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS admin_plan_prices (
+      id TEXT PRIMARY KEY,
+      plan TEXT NOT NULL,
+      price NUMERIC NOT NULL,
+      effective_from DATE NOT NULL DEFAULT CURRENT_DATE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS admin_pl_snapshots (
+      id TEXT PRIMARY KEY,
+      month TEXT NOT NULL UNIQUE,
+      starter_count INTEGER DEFAULT 0,
+      pro_count INTEGER DEFAULT 0,
+      free_count INTEGER DEFAULT 0,
+      mrr NUMERIC DEFAULT 0,
+      monthly_expenses NUMERIC DEFAULT 0,
+      yearly_expenses_monthly NUMERIC DEFAULT 0,
+      total_expenses NUMERIC DEFAULT 0,
+      net_profit NUMERIC DEFAULT 0,
+      expense_breakdown JSONB DEFAULT '{}',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )`,
   ];
 
   for (const sql of tables) {
     await p.query(sql);
   }
+
+  // Seed default plan prices for admin financials
+  await p.query(`
+    INSERT INTO admin_plan_prices (id, plan, price, effective_from)
+    SELECT gen_random_uuid()::text, 'starter', 1499, CURRENT_DATE
+    WHERE NOT EXISTS (SELECT 1 FROM admin_plan_prices WHERE plan = 'starter')
+  `);
+  await p.query(`
+    INSERT INTO admin_plan_prices (id, plan, price, effective_from)
+    SELECT gen_random_uuid()::text, 'pro', 3499, CURRENT_DATE
+    WHERE NOT EXISTS (SELECT 1 FROM admin_plan_prices WHERE plan = 'pro')
+  `);
 
   // Add session columns to existing customers table (safe no-op if they already exist)
   await p.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS total_sessions INTEGER DEFAULT 0');
