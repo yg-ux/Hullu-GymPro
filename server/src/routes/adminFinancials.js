@@ -1,10 +1,17 @@
 import express from 'express';
 import { getAll, getOne, runQuery } from '../models/database.js';
-import { authenticateAdmin } from './adminAuth.js';
+import { authenticateToken } from './auth.js';
 import { randomUUID } from 'crypto';
 
 const router = express.Router();
-router.use(authenticateAdmin);
+
+// Admin-only guard (same pattern as admin.js)
+router.use((req, res, next) => {
+  authenticateToken(req, res, () => {
+    if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+    next();
+  });
+});
 
 const CATEGORIES = ['infrastructure', 'sms', 'marketing', 'software', 'other'];
 

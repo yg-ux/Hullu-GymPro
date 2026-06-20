@@ -446,17 +446,19 @@ export async function initDatabase() {
     await p.query(sql);
   }
 
-  // Seed default plan prices for admin financials
-  await p.query(`
-    INSERT INTO admin_plan_prices (id, plan, price, effective_from)
-    SELECT gen_random_uuid()::text, 'starter', 1499, CURRENT_DATE
-    WHERE NOT EXISTS (SELECT 1 FROM admin_plan_prices WHERE plan = 'starter')
-  `);
-  await p.query(`
-    INSERT INTO admin_plan_prices (id, plan, price, effective_from)
-    SELECT gen_random_uuid()::text, 'pro', 3499, CURRENT_DATE
-    WHERE NOT EXISTS (SELECT 1 FROM admin_plan_prices WHERE plan = 'pro')
-  `);
+  // Seed default plan prices for admin financials (use JS uuid to avoid pgcrypto dependency)
+  await p.query(
+    `INSERT INTO admin_plan_prices (id, plan, price, effective_from)
+     SELECT $1, 'starter', 1499, CURRENT_DATE
+     WHERE NOT EXISTS (SELECT 1 FROM admin_plan_prices WHERE plan = 'starter')`,
+    [uuidv4()]
+  );
+  await p.query(
+    `INSERT INTO admin_plan_prices (id, plan, price, effective_from)
+     SELECT $1, 'pro', 3499, CURRENT_DATE
+     WHERE NOT EXISTS (SELECT 1 FROM admin_plan_prices WHERE plan = 'pro')`,
+    [uuidv4()]
+  );
 
   // Add session columns to existing customers table (safe no-op if they already exist)
   await p.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS total_sessions INTEGER DEFAULT 0');
