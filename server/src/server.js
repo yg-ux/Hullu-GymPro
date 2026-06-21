@@ -4,6 +4,12 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import cron from 'node-cron';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { existsSync } from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = path.dirname(__filename);
 import { initDatabase } from './models/database.js';
 import authRoutes from './routes/auth.js';
 import customerRoutes from './routes/customers.js';
@@ -263,6 +269,17 @@ app.post('/api/seed-demo', async (req, res) => {
     res.status(500).json({ error: 'Failed to seed demo data: ' + error.message });
   }
 });
+
+// ── Serve React frontend (production) ────────────────────────────────────────
+const clientDist = path.join(__dirname, '../../client/dist');
+if (existsSync(clientDist)) {
+  app.use(express.static(clientDist));
+  // SPA catch-all — serve index.html for any non-API route
+  app.get(/^(?!\/api).*/, (req, res) => {
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+  console.log('🌐 Serving React frontend from', clientDist);
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {
