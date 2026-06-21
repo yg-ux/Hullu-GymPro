@@ -6,7 +6,7 @@ server/node_modules/
 # Build outputs
 dist/
 build/
-client/dist/
+# client/dist/ — committed so Render can serve the frontend without a separate build step
 
 # Environment files
 .env

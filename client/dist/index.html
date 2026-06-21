@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hullu Gyms - Customer Management</title>
+
+    <!-- PWA manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#1e293b" />
+
+    <!-- iOS / Safari home screen support -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Hullu Gyms" />
+    <link rel="apple-touch-icon" href="/logo.svg" />
+
+    <!-- Android -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <!-- Apply color theme and dark/light mode SYNCHRONOUSLY before React mounts to prevent flash -->
+    <script>
+      (function () {
+        try {
+          // Color theme
+          var themeScales = {
+            default:   { r300:'125 211 252', r400:'56 189 248',  r500:'14 165 233',  r600:'2 132 199',   r700:'3 105 161'  },
+            indigo:    { r300:'165 180 252', r400:'129 140 248', r500:'99 102 241',  r600:'79 70 229',   r700:'67 56 202'  },
+            purple:    { r300:'216 180 254', r400:'192 132 252', r500:'168 85 247',  r600:'147 51 234',  r700:'126 34 206' },
+            rose:      { r300:'253 164 175', r400:'251 113 133', r500:'244 63 94',   r600:'225 29 72',   r700:'190 18 60'  },
+            red:       { r300:'252 165 165', r400:'248 113 113', r500:'239 68 68',   r600:'220 38 38',   r700:'185 28 28'  },
+            amber:     { r300:'252 211 77',  r400:'251 191 36',  r500:'245 158 11',  r600:'217 119 6',   r700:'180 83 9'   },
+            lime:      { r300:'190 242 100', r400:'163 230 53',  r500:'132 204 22',  r600:'101 163 13',  r700:'77 124 15'  },
+            emerald:   { r300:'110 231 183', r400:'52 211 153',  r500:'16 185 129',  r600:'5 150 105',   r700:'4 120 87'   },
+            teal:      { r300:'94 234 212',  r400:'45 212 191',  r500:'20 184 166',  r600:'13 148 136',  r700:'15 118 110' },
+            gold:      { r300:'253 224 71',  r400:'250 204 21',  r500:'234 179 8',   r600:'161 98 7',    r700:'133 77 14'  },
+            chocolate: { r300:'214 162 101', r400:'180 120 60',  r500:'146 64 14',   r600:'120 53 15',   r700:'92 40 10'   },
+            slate:     { r300:'148 163 184', r400:'100 116 139', r500:'71 85 105',   r600:'51 65 85',    r700:'30 41 59'   },
+          };
+          var gym = JSON.parse(localStorage.getItem('gym') || 'null');
+          var colorTheme = (gym && gym.color_theme) || 'default';
+          var s = themeScales[colorTheme] || themeScales.default;
+          var el = document.documentElement;
+          el.style.setProperty('--gym-300-rgb', s.r300);
+          el.style.setProperty('--gym-400-rgb', s.r400);
+          el.style.setProperty('--gym-500-rgb', s.r500);
+          el.style.setProperty('--gym-600-rgb', s.r600);
+          el.style.setProperty('--gym-700-rgb', s.r700);
+        } catch (e) {}
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-6NtmYSTe.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BZcbjz3z.css">
+  </head>
+  <body class="bg-dark-200 text-gray-100">
+    <div id="root"></div>
+  </body>
+</html>
