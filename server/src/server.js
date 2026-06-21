@@ -103,6 +103,12 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', version: 'v3', timestamp: new Date().toISOString() });
 });
 
+// Debug: reveal resolved client/dist path (remove after confirming)
+app.get('/api/debug-dist', (req, res) => {
+  const p = path.join(__dirname, '../../client/dist');
+  res.json({ clientDist: p, exists: existsSync(p), cwd: process.cwd(), dirname: __dirname });
+});
+
 // Direct SMS update endpoint - for updating demo gym
 app.post('/api/update-demo-sms', async (req, res) => {
   const { secret } = req.body;
