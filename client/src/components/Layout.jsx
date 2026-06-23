@@ -922,9 +922,11 @@ function SidebarContent({ onNavigate, recentActivity = [], getTimeAgo, gymCount 
   const currentPlan = gym?.subscription_plan?.toLowerCase() || 'free';
   const currentPlanIndex = PLAN_ORDER.indexOf(currentPlan);
   const userRole = user?.role || 'owner';
+  const isOnTrial = subscription?.status === 'trial';
 
   const hasPlanAccess = (requiredPlan) => {
     if (!requiredPlan) return true;
+    if (isOnTrial) return true; // Full pro access during trial
     return currentPlanIndex >= PLAN_ORDER.indexOf(requiredPlan);
   };
 
@@ -1000,7 +1002,7 @@ function SidebarContent({ onNavigate, recentActivity = [], getTimeAgo, gymCount 
                     {gymCount > 99 ? '99+' : gymCount}
                   </span>
                 )}
-                {item.requiresPlan && !hasPlanAccess(item.requiresPlan) && (
+                {item.requiresPlan && !hasPlanAccess(item.requiresPlan) && !isOnTrial && (
                   <span className="text-xs px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full">{t('layout.locked')}</span>
                 )}
                 {isActive && (

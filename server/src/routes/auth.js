@@ -253,7 +253,8 @@ router.post('/login', validateLogin, async (req, res) => {
     }
 
     const subscription = checkSubscription(gym);
-    const features = getFeatures(gym.subscription_plan);
+    const effectivePlan = subscription.status === 'trial' ? 'pro' : gym.subscription_plan;
+    const features = getFeatures(effectivePlan);
 
     const token = jwt.sign(
       { id: user.id, gym_id: user.gym_id, username: user.username, role: user.role },
@@ -304,7 +305,8 @@ router.get('/me', authenticateToken, async (req, res) => {
     }
 
     const subscription = checkSubscription(gym);
-    const features = getFeatures(gym.subscription_plan);
+    const effectivePlan = subscription.status === 'trial' ? 'pro' : gym.subscription_plan;
+    const features = getFeatures(effectivePlan);
 
     res.json({
       token: req.headers['authorization']?.split(' ')[1],
