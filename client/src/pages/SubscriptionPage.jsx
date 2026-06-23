@@ -26,7 +26,6 @@ const PLANS = [
       'subscription.feature.sms',
       'subscription.feature.staffAccounts',
       'subscription.feature.reports',
-      'subscription.feature.expenseTracking',
       'subscription.feature.pricingPackages',
     ],
   },
