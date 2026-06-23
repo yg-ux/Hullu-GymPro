@@ -266,7 +266,7 @@ export default function Landing() {
                 </button>
               </div>
 
-              <p className="text-xs text-gray-600 mb-10">No credit card · No signup required for demo · Free plan forever</p>
+              <p className="text-xs text-gray-600 mb-10">No signup required for demo · 14-day free trial</p>
 
               <div className="grid grid-cols-3 gap-6">
                 {[
@@ -368,7 +368,7 @@ export default function Landing() {
 
               {/* Trust strip */}
               <div className="flex flex-wrap gap-4 text-xs text-gray-500 mb-8">
-                {['No signup', 'No credit card', 'Full Pro features', '3-hour session', 'Fresh data every time'].map(t => (
+                {['No signup', 'No commitment', 'Full Pro features', '3-hour session', 'Fresh data every time'].map(t => (
                   <span key={t} className="flex items-center gap-1.5">
                     <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
                     {t}
@@ -685,7 +685,7 @@ export default function Landing() {
           <div className="flex items-center justify-center gap-2 mb-6 px-4 py-3 bg-green-500/10 border border-green-500/20 rounded-xl max-w-lg mx-auto">
             <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
             <p className="text-sm text-green-300 font-medium">
-              Every plan starts with a <strong>14-day free trial</strong> — no credit card required.
+              Every plan starts with a <strong>14-day free trial</strong> — no commitment required.
             </p>
           </div>
 
@@ -836,7 +836,7 @@ export default function Landing() {
                 {demoLoading ? 'Starting demo…' : 'Or try the live demo first'}
               </button>
             </div>
-            <p className="text-gray-600 text-sm mt-5">No credit card required for either option</p>
+            <p className="text-gray-600 text-sm mt-5">Start your free trial — no commitment required</p>
           </div>
         </div>
       </section>
