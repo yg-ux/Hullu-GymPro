@@ -203,9 +203,10 @@ export default function Layout() {
   const statusColor = (s) => s === 'active' ? 'bg-green-500' : s === 'expiring' ? 'bg-yellow-500' : 'bg-red-500';
 
   const isFreePlan = !gym?.subscription_plan || gym?.subscription_plan === 'free';
+  const showTrialBanner      = subscription?.status === 'trial' && (subscription?.daysLeft ?? 0) > 0;
   const showGraceBanner      = subscription?.status === 'grace';
   const showSubscriptionAlert = subscription && !subscription.valid && !isFreePlan;
-  const showFreePlanBanner = isFreePlan && !showGraceBanner && !showSubscriptionAlert;
+  const showFreePlanBanner = isFreePlan && !showGraceBanner && !showSubscriptionAlert && !showTrialBanner;
 
   // ── Admin broadcast banner ───────────────────────────────────────────────────
   const [broadcast, setBroadcast] = useState(null);
@@ -424,22 +425,60 @@ export default function Layout() {
         </div>
       )}
 
-      {/* Free Plan Info Banner */}
-      {showFreePlanBanner && (
-        <div className="bg-gradient-to-r from-blue-500/8 to-indigo-500/8 border-b border-blue-500/20 px-4 py-2">
+      {/* Trial Countdown Banner — shown on every page when in trial */}
+      {showTrialBanner && (
+        <div
+          className={clsx(
+            'border-b px-4 py-2 cursor-pointer',
+            subscription.daysLeft <= 3
+              ? 'bg-red-500/10 border-red-500/30'
+              : subscription.daysLeft <= 7
+              ? 'bg-amber-500/10 border-amber-500/30'
+              : 'bg-gym-500/10 border-gym-500/25'
+          )}
+          onClick={() => navigate('/subscription')}
+        >
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-blue-300 text-sm">
-              <Zap className="w-4 h-4 text-blue-400 flex-shrink-0" />
-              <span dangerouslySetInnerHTML={{ __html: t('layout.freePlanBanner', {
-                plan: `<span class="font-semibold text-white">${t('layout.freePlan')}</span>`,
-                limit: `<span class="font-semibold text-white">${t('layout.tenMembers')}</span>`,
-              }) }} />
+            <div className={clsx('flex items-center gap-2 text-sm',
+              subscription.daysLeft <= 3 ? 'text-red-300'
+              : subscription.daysLeft <= 7 ? 'text-amber-300'
+              : 'text-gym-300'
+            )}>
+              <Crown className="w-4 h-4 flex-shrink-0" />
+              <span>
+                {subscription.daysLeft <= 1
+                  ? 'Last day of your free trial — subscribe now to keep access'
+                  : `Free trial: ${subscription.daysLeft} day${subscription.daysLeft !== 1 ? 's' : ''} remaining`}
+              </span>
+            </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); navigate('/subscription'); }}
+              className={clsx(
+                'flex-shrink-0 px-3 py-1 text-white text-xs font-semibold rounded-lg transition-all shadow-md',
+                subscription.daysLeft <= 3 ? 'bg-red-500 hover:bg-red-400'
+                : subscription.daysLeft <= 7 ? 'bg-amber-500 hover:bg-amber-400'
+                : 'bg-gym-500 hover:bg-gym-400'
+              )}
+            >
+              Choose a Plan
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Upgrade Banner — for legacy accounts without a paid plan */}
+      {showFreePlanBanner && (
+        <div className="bg-gradient-to-r from-gym-500/8 to-purple-500/8 border-b border-gym-500/20 px-4 py-2">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-gym-300 text-sm">
+              <Crown className="w-4 h-4 text-gym-400 flex-shrink-0" />
+              <span>Unlock unlimited members, SMS, reports &amp; more — upgrade to a paid plan</span>
             </div>
             <button
               onClick={() => navigate('/subscription')}
-              className="flex-shrink-0 px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-semibold rounded-lg hover:from-blue-400 hover:to-indigo-400 transition-all shadow-md"
+              className="flex-shrink-0 px-3 py-1 bg-gradient-to-r from-gym-500 to-purple-600 text-white text-xs font-semibold rounded-lg hover:from-gym-400 hover:to-purple-500 transition-all shadow-md"
             >
-              {t('layout.upgradePlan')}
+              View Plans
             </button>
           </div>
         </div>
