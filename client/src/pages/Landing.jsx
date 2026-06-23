@@ -23,26 +23,14 @@ const COLOR_THEMES = [
 
 const PLANS = [
   {
-    id: 'free',
-    nameKey: 'landing.plan.free.name',
-    price: 0,
-    description: 'Get started at no cost',
-    features: [
-      'Up to 10 members',
-      'Check-in & check-out with live gym view',
-      'Payment recording & member history',
-      'Dashboard with daily activity summary',
-    ],
-  },
-  {
     id: 'starter',
     nameKey: 'landing.plan.starter.name',
     price: 1499,
     description: 'For gyms ready to grow',
     popular: true,
+    trial: true,
     features: [
       'Up to 100 members',
-      'Everything in Free',
       'Automated SMS — welcome, payment & expiry alerts',
       'Up to 3 staff accounts with role-based access',
       'Attendance analytics — visit trends & peak hours',
@@ -75,15 +63,15 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Can I cancel my subscription anytime?',
-    a: 'Yes. You can cancel or downgrade at any time from the Settings page. Your data is never deleted — you just move to the free plan limits.',
+    a: 'Yes. You can cancel at any time from the Settings page. Your data is never deleted — it stays in your account if you decide to come back.',
   },
   {
     q: 'Is my members\' data safe?',
     a: 'All data is stored securely. Each gym\'s data is completely isolated — no other gym can see your members or payments.',
   },
   {
-    q: 'How does the free plan work?',
-    a: 'The free plan is permanent — not a trial. You can manage up to 10 members, track payments, and use check-in/out forever at no cost. Upgrade when you need more.',
+    q: 'What happens after the 14-day trial?',
+    a: 'After 14 days, write features (adding members, recording payments, etc.) are locked. Your data stays safe. You can subscribe to any plan and pick up right where you left off.',
   },
   {
     q: 'Can multiple staff use the same account?',
@@ -693,7 +681,15 @@ export default function Landing() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-5 items-start">
+          {/* 14-day trial banner */}
+          <div className="flex items-center justify-center gap-2 mb-6 px-4 py-3 bg-green-500/10 border border-green-500/20 rounded-xl max-w-lg mx-auto">
+            <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+            <p className="text-sm text-green-300 font-medium">
+              Every plan starts with a <strong>14-day free trial</strong> — no credit card required.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-5 items-start max-w-3xl mx-auto">
             {PLANS.map((plan) => (
               <div key={plan.id} className={clsx(
                 'relative flex flex-col rounded-2xl border bg-gray-800/60 transition-all',
@@ -712,15 +708,12 @@ export default function Landing() {
                 <div className="p-6 pb-5">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">{t(plan.nameKey)}</p>
                   <div className="flex items-baseline gap-1 mb-1">
-                    {plan.price === 0 ? (
-                      <span className="text-3xl font-bold text-white">Free</span>
-                    ) : (
-                      <>
-                        <span className="text-3xl font-bold text-white">ETB {plan.price.toLocaleString()}</span>
-                        <span className="text-gray-400 text-sm">/mo</span>
-                      </>
-                    )}
+                    <span className="text-3xl font-bold text-white">ETB {plan.price.toLocaleString()}</span>
+                    <span className="text-gray-400 text-sm">/mo</span>
                   </div>
+                  {plan.trial && (
+                    <p className="text-xs text-green-400 font-medium mb-1">✓ 14 days free, then ETB {plan.price.toLocaleString()}/mo</p>
+                  )}
                   <p className="text-sm text-gray-400">{plan.description}</p>
                 </div>
 
@@ -745,7 +738,7 @@ export default function Landing() {
                         : 'bg-gray-700 text-white hover:bg-gray-600 border border-gray-600'
                     )}
                   >
-                    {plan.price === 0 ? 'Get started free' : 'Start free trial'}
+                    Start free trial
                   </button>
                 </div>
               </div>

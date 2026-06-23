@@ -176,7 +176,7 @@ export default function Onboarding() {
               <div className="bg-gym-500/10 border border-gym-500/20 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Clock className="w-4 h-4 text-gym-400" />
-                  <span className="text-sm font-semibold text-gym-300">Your 14-day free trial is active</span>
+                  <span className="text-sm font-semibold text-gym-300">14-day free trial — full Starter access</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {[

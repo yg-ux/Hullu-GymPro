@@ -21,6 +21,7 @@ import {
   CheckCircle,
   Dumbbell,
   Radio,
+  Sparkles,
 } from 'lucide-react';
 import clsx from 'clsx';
 import PageHint from '../components/PageHint';
@@ -82,7 +83,7 @@ function useAnimatedCounter(endValue, duration = 1000, delay = 0) {
 }
 
 export default function Dashboard() {
-  const { gym, user } = useAuth();
+  const { gym, user, subscription } = useAuth();
   const userRole = user?.role || 'owner';
   const canSeeRevenue = ['owner', 'admin', 'manager'].includes(userRole);
   const { t, lang } = useLanguage();
@@ -228,6 +229,44 @@ export default function Dashboard() {
       <PageHint id="dashboard">
         Stat cards show today's check-ins, active members, expiring memberships, and this month's revenue. If any memberships expire within 7 days an alert appears — click it to go to the Follow Up page and send renewal reminders. The revenue chart tracks your last 6 months of income so you can spot trends at a glance. The activity feed at the bottom shows the latest check-ins, new members, and payments — use it as your daily opening routine.
       </PageHint>
+      {/* Trial countdown banner */}
+      {subscription?.status === 'trial' && subscription?.daysLeft > 0 && (
+        <Link to="/subscription" className="block">
+          <div className={clsx(
+            'flex items-center justify-between gap-3 px-4 py-3 rounded-xl border transition-all hover:brightness-110',
+            subscription.daysLeft <= 3
+              ? 'bg-red-500/10 border-red-500/30'
+              : subscription.daysLeft <= 7
+                ? 'bg-amber-500/10 border-amber-500/30'
+                : 'bg-gym-500/10 border-gym-500/25'
+          )}>
+            <div className="flex items-center gap-2.5">
+              <Sparkles className={clsx('w-4 h-4 flex-shrink-0',
+                subscription.daysLeft <= 3 ? 'text-red-400'
+                : subscription.daysLeft <= 7 ? 'text-amber-400'
+                : 'text-gym-400'
+              )} />
+              <span className={clsx('text-sm font-medium',
+                subscription.daysLeft <= 3 ? 'text-red-300'
+                : subscription.daysLeft <= 7 ? 'text-amber-300'
+                : 'text-gym-300'
+              )}>
+                {subscription.daysLeft <= 1
+                  ? '⚠️ Last day of your free trial — upgrade now to keep access'
+                  : `Your free trial ends in ${subscription.daysLeft} day${subscription.daysLeft !== 1 ? 's' : ''}`}
+              </span>
+            </div>
+            <span className={clsx('text-xs font-semibold whitespace-nowrap flex items-center gap-1',
+              subscription.daysLeft <= 3 ? 'text-red-400'
+              : subscription.daysLeft <= 7 ? 'text-amber-400'
+              : 'text-gym-400'
+            )}>
+              Upgrade <ArrowRight className="w-3 h-3" />
+            </span>
+          </div>
+        </Link>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">

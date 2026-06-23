@@ -341,32 +341,20 @@ router.get('/plans', (req, res) => {
   try {
     const plans = [
       {
-        id: 'free',
-        name: 'Free',
-        price: 0,
-        currency: 'ETB',
-        period: 'forever',
-        max_members: 10,
-        features: [
-          'Up to 10 members',
-          'Basic customer management',
-          'Payment tracking',
-          'Check-in/out system'
-        ]
-      },
-      {
         id: 'starter',
         name: 'Starter',
         price: 1499,
         currency: 'ETB',
         period: 'month',
         max_members: 100,
+        trial_days: 14,
         features: [
           'Up to 100 members',
-          'Everything in Free',
-          'Staff management',
-          'SMS reminders',
-          'Reports & analytics'
+          'Automated SMS — welcome, payment & expiry alerts',
+          'Up to 3 staff accounts with role-based access',
+          'Attendance analytics — visit trends & peak hours',
+          'Monthly expense & recurring bill tracking',
+          'Pricing packages for faster registration',
         ]
       },
       {
@@ -375,14 +363,16 @@ router.get('/plans', (req, res) => {
         price: 3499,
         currency: 'ETB',
         period: 'month',
-        max_members: -1, // unlimited
+        max_members: -1,
         features: [
           'Unlimited members',
           'Everything in Starter',
-          'Revenue analytics',
-          'CSV export',
+          'Revenue analytics — income, plan breakdown & trends',
+          'Retention insights — spot members at risk of leaving',
+          'Equipment tracker — maintenance & condition logs',
+          'CSV export & reports for any date range',
+          'Unlimited staff accounts',
           'Priority support',
-          'QR code check-in'
         ]
       }
     ];

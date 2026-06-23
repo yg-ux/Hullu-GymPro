@@ -14,21 +14,6 @@ import clsx from 'clsx';
 // Static plan metadata — display strings are resolved via t() at render time
 const PLANS = [
   {
-    id: 'free',
-    nameKey: 'subscription.plan.free',
-    price: 0,
-    description: 'Get started at no cost',
-    icon: Lock,
-    color: 'from-gray-500 to-gray-600',
-    featureKeys: [
-      'subscription.feature.upTo10',
-      'subscription.feature.customerMgmt',
-      'subscription.feature.checkInOut',
-      'subscription.feature.attendance',
-      'subscription.feature.basicDashboard',
-    ],
-  },
-  {
     id: 'starter',
     nameKey: 'subscription.plan.starter',
     price: 1499,
@@ -38,7 +23,6 @@ const PLANS = [
     color: 'from-blue-500 to-cyan-600',
     featureKeys: [
       'subscription.feature.upTo100',
-      'subscription.feature.everythingFree',
       'subscription.feature.sms',
       'subscription.feature.staffAccounts',
       'subscription.feature.reports',
@@ -193,8 +177,7 @@ export default function SubscriptionPage() {
   }
 
   const isCurrentPlan = (planId) => {
-    if (planId === 'free') return !gym?.subscription_plan || gym?.subscription_plan === 'free';
-    // In renewal mode, don't mark the plan as "current" so the "Choose" button shows
+    // In renewal/trial-expired mode, don't mark as current so the Choose button shows
     if (isRenewal) return false;
     return gym?.subscription_plan === planId && subscription?.valid;
   };
@@ -311,7 +294,7 @@ export default function SubscriptionPage() {
           </div>
 
           {/* Plan Cards */}
-          <div className="grid md:grid-cols-3 gap-5 pt-4 items-start">
+          <div className="grid md:grid-cols-2 gap-5 pt-4 items-start max-w-3xl mx-auto">
             {PLANS.map((plan) => {
               const isCurrent = isCurrentPlan(plan.id);
               const isPrevious = isPreviousPlan(plan.id);

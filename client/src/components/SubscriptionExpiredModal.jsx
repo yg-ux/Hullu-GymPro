@@ -70,9 +70,15 @@ export default function SubscriptionExpiredModal() {
               <AlertCircle className="w-7 h-7 text-amber-400" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">{t('gate.title')}</h2>
+              <h2 className="text-lg font-bold text-white">
+                {subscription?.status === 'trial_expired'
+                  ? 'Your free trial has ended'
+                  : t('gate.title')}
+              </h2>
               <p className="text-sm text-gray-400 mt-0.5">
-                {t('gate.subtitle', { plan: planLabel })}
+                {subscription?.status === 'trial_expired'
+                  ? 'Subscribe to keep your data and continue managing your gym.'
+                  : t('gate.subtitle', { plan: planLabel })}
               </p>
             </div>
           </div>
@@ -104,7 +110,7 @@ export default function SubscriptionExpiredModal() {
             className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-semibold rounded-xl transition-all shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 mb-3"
           >
             <Crown className="w-4 h-4" />
-            {t('gate.renewBtn', { plan: planLabel })}
+            {subscription?.status === 'trial_expired' ? 'Choose a Plan' : t('gate.renewBtn', { plan: planLabel })}
             <ArrowRight className="w-4 h-4" />
           </button>
 
