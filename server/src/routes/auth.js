@@ -732,8 +732,18 @@ router.post('/change-password', authenticateToken, validateChangePassword, async
 // Demo gyms are silently purged after 3 hours.
 router.post('/demo', async (req, res) => {
   try {
-    // Fire-and-forget cleanup of demo gyms older than 3 hours
-    runQuery(`DELETE FROM gyms WHERE slug LIKE 'demo-%' AND created_at < NOW() - INTERVAL '3 hours'`)
+    // Fire-and-forget cleanup of demo gyms older than 3 hours (all related tables)
+    getAll(`SELECT id FROM gyms WHERE slug LIKE 'demo-%' AND created_at < NOW() - INTERVAL '3 hours'`)
+      .then(async (stale) => {
+        for (const { id } of stale) {
+          await runQuery('DELETE FROM attendance WHERE gym_id = ?', [id]).catch(() => {});
+          await runQuery('DELETE FROM payments WHERE gym_id = ?', [id]).catch(() => {});
+          await runQuery('DELETE FROM customers WHERE gym_id = ?', [id]).catch(() => {});
+          await runQuery('DELETE FROM gym_users WHERE gym_id = ?', [id]).catch(() => {});
+          await runQuery('DELETE FROM sms_logs WHERE gym_id = ?', [id]).catch(() => {});
+          await runQuery('DELETE FROM gyms WHERE id = ?', [id]).catch(() => {});
+        }
+      })
       .catch(() => {});
 
     const gymId  = uuidv4();

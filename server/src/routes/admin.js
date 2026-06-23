@@ -71,6 +71,7 @@ router.get('/gyms', authenticateToken, async (req, res) => {
         (SELECT COUNT(*) FROM payments WHERE gym_id = g.id) as payment_count,
         (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE gym_id = g.id) as total_revenue
       FROM gyms g
+      WHERE g.slug NOT LIKE 'demo-%'
       ORDER BY g.created_at DESC
     `);
 
@@ -318,13 +319,26 @@ router.get('/stats', authenticateToken, async (req, res) => {
   }
 
   try {
-    const totalGymsRow = await getOne('SELECT COUNT(*) as count FROM gyms');
+    // Purge stale demo gyms (fire-and-forget) on every admin stats load
+    getAll(`SELECT id FROM gyms WHERE slug LIKE 'demo-%' AND created_at < NOW() - INTERVAL '3 hours'`)
+      .then(async (stale) => {
+        for (const { id } of stale) {
+          await runQuery('DELETE FROM attendance WHERE gym_id = ?', [id]).catch(() => {});
+          await runQuery('DELETE FROM payments WHERE gym_id = ?', [id]).catch(() => {});
+          await runQuery('DELETE FROM customers WHERE gym_id = ?', [id]).catch(() => {});
+          await runQuery('DELETE FROM gym_users WHERE gym_id = ?', [id]).catch(() => {});
+          await runQuery('DELETE FROM sms_logs WHERE gym_id = ?', [id]).catch(() => {});
+          await runQuery('DELETE FROM gyms WHERE id = ?', [id]).catch(() => {});
+        }
+      }).catch(() => {});
+
+    const totalGymsRow = await getOne("SELECT COUNT(*) as count FROM gyms WHERE slug NOT LIKE 'demo-%'");
     const totalGyms = totalGymsRow?.count || 0;
 
-    const activeGymsRow = await getOne("SELECT COUNT(*) as count FROM gyms WHERE subscription_status = 'active'");
+    const activeGymsRow = await getOne("SELECT COUNT(*) as count FROM gyms WHERE subscription_status = 'active' AND slug NOT LIKE 'demo-%'");
     const activeGyms = activeGymsRow?.count || 0;
 
-    const trialGymsRow = await getOne("SELECT COUNT(*) as count FROM gyms WHERE subscription_status = 'trial'");
+    const trialGymsRow = await getOne("SELECT COUNT(*) as count FROM gyms WHERE subscription_status = 'trial' AND slug NOT LIKE 'demo-%'");
     const trialGyms = trialGymsRow?.count || 0;
 
     const pendingRequestsRow = await getOne("SELECT COUNT(*) as count FROM subscription_requests WHERE status = 'pending'");
