@@ -1,7 +1,7 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { runQuery, getOne, getAll } from '../models/database.js';
-import { authenticateToken } from './auth.js';
+import { authenticateToken, requireActiveSubscription } from './auth.js';
 
 const router = express.Router();
 
@@ -54,7 +54,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // POST / — create equipment
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', authenticateToken, requireActiveSubscription, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
     const {
@@ -85,7 +85,7 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 // POST /:id/service — log a service event (before PUT /:id)
-router.post('/:id/service', authenticateToken, async (req, res) => {
+router.post('/:id/service', authenticateToken, requireActiveSubscription, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
     const { id } = req.params;
@@ -114,7 +114,7 @@ router.post('/:id/service', authenticateToken, async (req, res) => {
 });
 
 // PUT /:id — update equipment
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', authenticateToken, requireActiveSubscription, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
     const { id } = req.params;
@@ -155,7 +155,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 });
 
 // DELETE /:id
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', authenticateToken, requireActiveSubscription, async (req, res) => {
   try {
     const gymId = req.user.gym_id;
     const { id } = req.params;
