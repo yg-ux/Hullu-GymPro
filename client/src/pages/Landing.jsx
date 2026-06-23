@@ -144,7 +144,7 @@ export default function Landing() {
     setError('');
     try {
       await register(registerForm);
-      navigate('/dashboard');
+      navigate('/onboarding');
     } catch (err) {
       setError(err.message);
     } finally {

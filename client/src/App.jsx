@@ -31,6 +31,7 @@ import Expenses from './pages/Expenses';
 import Equipment from './pages/Equipment';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
+import Onboarding from './pages/Onboarding';
 
 // Pages each role can access (must match Layout.jsx nav roles)
 const ROLE_PAGES = {
@@ -106,6 +107,7 @@ function App() {
       <Route path="/" element={user ? <Navigate to={ROLE_HOME[user.role] || '/dashboard'} replace /> : <Landing />} />
       <Route path="/login" element={user ? <Navigate to={ROLE_HOME[user.role] || '/dashboard'} replace /> : <Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
       <Route path="/admin-login" element={<AdminLogin />} />
       <Route path="/admin-dashboard" element={<AdminDashboard />} />
       <Route path="/portal/:token" element={<MemberPortal />} />
