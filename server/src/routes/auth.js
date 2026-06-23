@@ -36,7 +36,21 @@ function authenticateToken(req, res, next) {
 
 // Check subscription status
 function checkSubscription(gym) {
-  // Free plan is always valid — just member-count limited, never "expired"
+  // Trial must be checked FIRST — a gym can have subscription_plan='free' while still on trial
+  if (gym.subscription_status === 'trial') {
+    const startDate = new Date(gym.subscription_start);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + TRIAL_DAYS);
+    const today = new Date();
+    const daysLeft = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+
+    if (daysLeft <= 0) {
+      return { valid: false, status: 'trial_expired', daysLeft: 0, plan: gym.subscription_plan || 'free' };
+    }
+    return { valid: true, status: 'trial', daysLeft, plan: gym.subscription_plan || 'starter' };
+  }
+
+  // Legacy free plan — always valid, just member-count limited
   if (!gym.subscription_plan || gym.subscription_plan === 'free') {
     return { valid: true, status: 'free', daysLeft: -1, plan: 'free', maxMembers: gym.max_members || 10 };
   }
@@ -68,19 +82,6 @@ function checkSubscription(gym) {
 
     // Past grace period — full lock-out (reads still work via route design)
     return { valid: false, status: 'expired', daysLeft: 0, plan: gym.subscription_plan };
-  }
-
-  if (gym.subscription_status === 'trial') {
-    const startDate = new Date(gym.subscription_start);
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + TRIAL_DAYS);
-    const today = new Date();
-    const daysLeft = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
-
-    if (daysLeft <= 0) {
-      return { valid: false, status: 'trial_expired', daysLeft: 0, plan: 'free' };
-    }
-    return { valid: true, status: 'trial', daysLeft, plan: gym.subscription_plan };
   }
 
   return { valid: false, status: gym.subscription_status, daysLeft: 0, plan: gym.subscription_plan };
@@ -178,8 +179,10 @@ router.post('/register', validateRegister, async (req, res) => {
         email,
         color_theme: colorTheme || 'default',
         logo: logo || null,
-        subscription_status: 'active',
+        subscription_status: 'trial',
         subscription_plan: 'free',
+        subscription_start: today.toISOString().split('T')[0],
+        subscription_end: trialEnd.toISOString().split('T')[0],
         max_members: 10
       },
       user: {
@@ -188,7 +191,7 @@ router.post('/register', validateRegister, async (req, res) => {
         role: 'owner'
       },
       subscription,
-      message: `Welcome! Your free plan includes up to 10 members.`
+      message: `Welcome! Your 14-day free trial has started.`
     });
   } catch (error) {
     console.error('Registration error:', error.message);
