@@ -34,7 +34,7 @@ const PLANS = [
       'Automated SMS — welcome, payment & expiry alerts',
       'Up to 3 staff accounts with role-based access',
       'Attendance analytics — visit trends & peak hours',
-      'Monthly expense & recurring bill tracking',
+
       'Pricing packages for faster member registration',
     ],
   },
