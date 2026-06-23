@@ -374,6 +374,25 @@ router.get('/stats', authenticateToken, async (req, res) => {
         AND subscription_status = 'active'
     `);
 
+    // Demo session analytics (from permanent log, not live gym rows)
+    const demoStats = await getOne(`
+      SELECT
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE) as today,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days') as this_week,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') as this_month
+      FROM demo_sessions
+    `);
+
+    // Daily demo counts for the last 30 days (for sparkline)
+    const demoDailyRows = await getAll(`
+      SELECT TO_CHAR(created_at::date, 'YYYY-MM-DD') as date, COUNT(*) as count
+      FROM demo_sessions
+      WHERE created_at >= NOW() - INTERVAL '30 days'
+      GROUP BY created_at::date
+      ORDER BY created_at::date ASC
+    `);
+
     res.json({
       total_gyms: totalGyms,
       active_gyms: activeGyms,
@@ -383,7 +402,14 @@ router.get('/stats', authenticateToken, async (req, res) => {
       this_month_revenue: thisMonthRevenue,
       expiring_soon: expiringRow?.count || 0,
       plan_distribution: planDistribution,
-      recent_registrations: recentRegistrations
+      recent_registrations: recentRegistrations,
+      demo: {
+        total: parseInt(demoStats?.total || 0),
+        today: parseInt(demoStats?.today || 0),
+        this_week: parseInt(demoStats?.this_week || 0),
+        this_month: parseInt(demoStats?.this_month || 0),
+        daily: demoDailyRows.map(r => ({ date: r.date, count: parseInt(r.count) })),
+      }
     });
   } catch (error) {
     console.error('Admin stats error:', error);

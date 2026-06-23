@@ -747,6 +747,9 @@ router.post('/demo', async (req, res) => {
       .catch(() => {});
 
     const gymId  = uuidv4();
+    // Log this demo session for analytics (permanent — gym data cleaned up after 3h)
+    runQuery('INSERT INTO demo_sessions (id) VALUES (?)', [uuidv4()]).catch(() => {});
+
     const userId = uuidv4();
     const tag    = gymId.slice(0, 8);
     const slug   = `demo-${tag}`;

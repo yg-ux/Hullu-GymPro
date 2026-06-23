@@ -451,6 +451,54 @@ export default function AdminDashboard() {
               <StatCard title="Total Revenue"  value={`ETB ${(stats?.total_revenue || 0).toLocaleString()}`} icon={DollarSign} color="purple" />
             </div>
 
+            {/* Demo Session Analytics */}
+            <div className="card p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                    <Activity className="w-4 h-4 text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white text-sm">Demo Sessions</h3>
+                    <p className="text-xs text-gray-500">People who clicked "Try Demo" on your site</p>
+                  </div>
+                </div>
+                <span className="text-2xl font-bold text-purple-400">{stats?.demo?.total || 0}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="bg-dark-200 rounded-xl p-3 text-center">
+                  <p className="text-xl font-bold text-white">{stats?.demo?.today || 0}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Today</p>
+                </div>
+                <div className="bg-dark-200 rounded-xl p-3 text-center">
+                  <p className="text-xl font-bold text-white">{stats?.demo?.this_week || 0}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">This Week</p>
+                </div>
+                <div className="bg-dark-200 rounded-xl p-3 text-center">
+                  <p className="text-xl font-bold text-white">{stats?.demo?.this_month || 0}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">This Month</p>
+                </div>
+              </div>
+              {/* Sparkline — last 30 days */}
+              {(stats?.demo?.daily?.length || 0) > 0 && (() => {
+                const daily = stats.demo.daily;
+                const max = Math.max(...daily.map(d => d.count), 1);
+                return (
+                  <div className="flex items-end gap-0.5 h-10">
+                    {daily.map((d, i) => (
+                      <div key={i} title={`${d.date}: ${d.count}`}
+                        className="flex-1 bg-purple-500/60 hover:bg-purple-400 rounded-sm transition-colors cursor-default"
+                        style={{ height: `${Math.max(10, (d.count / max) * 100)}%` }}
+                      />
+                    ))}
+                  </div>
+                );
+              })()}
+              {(stats?.demo?.daily?.length || 0) === 0 && (
+                <p className="text-xs text-gray-600 text-center py-2">No demo sessions in the last 30 days</p>
+              )}
+            </div>
+
             {/* Alerts row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {pendingCount > 0 && (

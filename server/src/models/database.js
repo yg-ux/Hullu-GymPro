@@ -425,6 +425,10 @@ export async function initDatabase() {
       effective_from DATE NOT NULL DEFAULT CURRENT_DATE,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )`,
+    `CREATE TABLE IF NOT EXISTS demo_sessions (
+      id TEXT PRIMARY KEY,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`,
     `CREATE TABLE IF NOT EXISTS admin_pl_snapshots (
       id TEXT PRIMARY KEY,
       month TEXT NOT NULL UNIQUE,
