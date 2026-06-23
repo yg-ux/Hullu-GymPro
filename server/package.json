@@ -11,7 +11,6 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "build": "cd ../client && npm ci && npm run build",
-    "postinstall": "cd ../client && npm ci && npm run build",
     "backup": "node backup.js",
     "restore": "node restore.js"
   },
