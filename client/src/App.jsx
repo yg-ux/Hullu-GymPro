@@ -70,9 +70,11 @@ const PLAN_REQUIRED = {
 };
 
 function PlanRoute({ path, children }) {
-  const { gym } = useAuth();
+  const { gym, subscription } = useAuth();
   const required = PLAN_REQUIRED[path];
   if (!required) return children;
+  // Trial users get full access to all features
+  if (subscription?.status === 'trial') return children;
   const current = gym?.subscription_plan || 'free';
   if (PLAN_ORDER.indexOf(current) < PLAN_ORDER.indexOf(required)) {
     return <Navigate to="/subscription" replace />;
