@@ -1,37 +1,41 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
-import Landing from './pages/Landing';
-import Login from './pages/Login';
-import ForgotPassword from './pages/ForgotPassword';
-import Dashboard from './pages/Dashboard';
-import Customers from './pages/Customers';
-import CustomerDetail from './pages/CustomerDetail';
-import AddCustomer from './pages/AddCustomer';
 import Layout from './components/Layout';
 import LoadingScreen from './components/LoadingScreen';
-import SubscriptionPage from './pages/SubscriptionPage';
-import CheckIn from './pages/CheckIn';
-import CheckOut from './pages/CheckOut';
-import Reports from './pages/Reports';
-import Revenue from './pages/Revenue';
-import Staff from './pages/Staff';
-import AddStaff from './pages/AddStaff';
-import AdminLogin from './pages/AdminLogin';
-import AdminDashboard from './pages/AdminDashboard';
-import Settings from './pages/Settings';
-import Receipt from './pages/Receipt';
-import Kiosk from './pages/Kiosk';
-import ImportCustomers from './pages/ImportCustomers';
-import AttendanceAnalytics from './pages/AttendanceAnalytics';
-import MemberPortal from './pages/MemberPortal';
-import PortalRedirect from './pages/PortalRedirect';
-import Retention from './pages/Retention';
-import Expenses from './pages/Expenses';
-import Equipment from './pages/Equipment';
-import Privacy from './pages/Privacy';
-import Terms from './pages/Terms';
-import Onboarding from './pages/Onboarding';
+
+// Lazy-load all pages so Vite splits them into separate chunks.
+// Only Layout and LoadingScreen are kept eager since they're used immediately.
+const Landing            = lazy(() => import('./pages/Landing'));
+const Login              = lazy(() => import('./pages/Login'));
+const ForgotPassword     = lazy(() => import('./pages/ForgotPassword'));
+const Dashboard          = lazy(() => import('./pages/Dashboard'));
+const Customers          = lazy(() => import('./pages/Customers'));
+const CustomerDetail     = lazy(() => import('./pages/CustomerDetail'));
+const AddCustomer        = lazy(() => import('./pages/AddCustomer'));
+const SubscriptionPage   = lazy(() => import('./pages/SubscriptionPage'));
+const CheckIn            = lazy(() => import('./pages/CheckIn'));
+const CheckOut           = lazy(() => import('./pages/CheckOut'));
+const Reports            = lazy(() => import('./pages/Reports'));
+const Revenue            = lazy(() => import('./pages/Revenue'));
+const Staff              = lazy(() => import('./pages/Staff'));
+const AddStaff           = lazy(() => import('./pages/AddStaff'));
+const AdminLogin         = lazy(() => import('./pages/AdminLogin'));
+const AdminDashboard     = lazy(() => import('./pages/AdminDashboard'));
+const Settings           = lazy(() => import('./pages/Settings'));
+const Receipt            = lazy(() => import('./pages/Receipt'));
+const Kiosk              = lazy(() => import('./pages/Kiosk'));
+const ImportCustomers    = lazy(() => import('./pages/ImportCustomers'));
+const AttendanceAnalytics = lazy(() => import('./pages/AttendanceAnalytics'));
+const MemberPortal       = lazy(() => import('./pages/MemberPortal'));
+const PortalRedirect     = lazy(() => import('./pages/PortalRedirect'));
+const Retention          = lazy(() => import('./pages/Retention'));
+const Expenses           = lazy(() => import('./pages/Expenses'));
+const Equipment          = lazy(() => import('./pages/Equipment'));
+const Privacy            = lazy(() => import('./pages/Privacy'));
+const Terms              = lazy(() => import('./pages/Terms'));
+const Onboarding         = lazy(() => import('./pages/Onboarding'));
 
 // Pages each role can access (must match Layout.jsx nav roles)
 const ROLE_PAGES = {
@@ -104,6 +108,7 @@ function App() {
   // If user is logged in, show dashboard. Otherwise show landing
   return (
     <ToastProvider>
+    <Suspense fallback={<LoadingScreen />}>
     <Routes>
       {/* Public routes */}
       <Route path="/" element={user ? <Navigate to={ROLE_HOME[user.role] || '/dashboard'} replace /> : <Landing />} />
@@ -148,6 +153,7 @@ function App() {
         <Route path="equipment"  element={<RoleRoute path="/equipment"> <PlanRoute path="/equipment"> <Equipment />  </PlanRoute></RoleRoute>} />
       </Route>
     </Routes>
+    </Suspense>
     </ToastProvider>
   );
 }

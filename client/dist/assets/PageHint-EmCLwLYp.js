@@ -1,0 +1,6 @@
+import{c as x,r as i,j as e,k as m}from"./index-Dd5rTsm0.js";import{C as g}from"./chevron-up-DoZANVwI.js";/**
+ * @license lucide-react v0.303.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const a=x("Info",[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["path",{d:"M12 16v-4",key:"1dtifu"}],["path",{d:"M12 8h.01",key:"e9boi3"}]]);function h({id:o,children:r}){const t=`hint_v1_${o}`,[l,s]=i.useState(()=>localStorage.getItem(t)==="collapsed"),c=()=>{localStorage.setItem(t,"collapsed"),s(!0)},n=()=>{localStorage.removeItem(t),s(!1)};return l?e.jsxs("button",{onClick:n,className:"flex items-center gap-2 text-xs text-gray-500 hover:text-gym-400 transition-colors mb-1",children:[e.jsx(a,{className:"w-3.5 h-3.5"}),"Show page guide",e.jsx(m,{className:"w-3 h-3"})]}):e.jsxs("div",{className:"flex items-start gap-3 bg-gym-500/8 border border-gym-500/20 rounded-2xl px-5 py-4 mb-2",children:[e.jsx(a,{className:"w-4 h-4 text-gym-400 flex-shrink-0 mt-0.5"}),e.jsx("p",{className:"flex-1 text-sm text-gray-300 leading-relaxed",children:r}),e.jsx("button",{onClick:c,title:"Collapse hint",className:"p-1 text-gray-500 hover:text-gray-300 transition-colors rounded-lg hover:bg-white/5 flex-shrink-0",children:e.jsx(g,{className:"w-4 h-4"})})]})}export{h as P};
