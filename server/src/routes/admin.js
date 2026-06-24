@@ -602,21 +602,145 @@ router.get('/revenue-analytics', authenticateToken, async (req, res) => {
   }
 });
 
-// Activity log — recent admin + system actions
+// Activity log — recent admin + system actions (optionally filtered by gym_id)
 router.get('/activity-log', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  const { gym_id } = req.query;
   try {
-    const logs = await getAll(`
-      SELECT al.*, g.name as gym_name
-      FROM activity_log al
-      LEFT JOIN gyms g ON al.gym_id = g.id
-      ORDER BY al.created_at DESC
-      LIMIT 100
-    `);
+    const logs = gym_id
+      ? await getAll(`SELECT al.*, g.name as gym_name FROM activity_log al LEFT JOIN gyms g ON al.gym_id = g.id WHERE al.gym_id = ? ORDER BY al.created_at DESC LIMIT 50`, [gym_id])
+      : await getAll(`SELECT al.*, g.name as gym_name FROM activity_log al LEFT JOIN gyms g ON al.gym_id = g.id ORDER BY al.created_at DESC LIMIT 100`);
     res.json(logs);
   } catch (error) {
     console.error('Activity log error:', error);
     res.status(500).json({ error: 'Failed to get activity log' });
+  }
+});
+
+// Churn stats — expired gyms + plan downgrades
+router.get('/churn', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  try {
+    const expired = await getAll(`
+      SELECT id, name, email, phone, subscription_plan, subscription_end, subscription_status, updated_at
+      FROM gyms WHERE subscription_status IN ('expired', 'trial_expired') AND slug NOT LIKE 'demo-%'
+      ORDER BY updated_at DESC LIMIT 20
+    `);
+    const downgrades = await getAll(`
+      SELECT al.id, al.gym_id, al.details, al.created_at, g.name as gym_name, g.email as gym_email
+      FROM activity_log al LEFT JOIN gyms g ON al.gym_id = g.id
+      WHERE al.action_type = 'admin_plan_change' AND al.details LIKE '%"plan":"free"%'
+      ORDER BY al.created_at DESC LIMIT 20
+    `);
+    const totalRow = await getOne(`SELECT COUNT(*) as count FROM gyms WHERE slug NOT LIKE 'demo-%'`);
+    const total = parseInt(totalRow?.count || 0);
+    const churnRate = total > 0 ? Math.round((expired.length / total) * 100) : 0;
+    res.json({ expired, downgrades, churn_rate: churnRate, total_gyms: total });
+  } catch (error) {
+    console.error('Churn error:', error);
+    res.status(500).json({ error: 'Failed to get churn data' });
+  }
+});
+
+// Support tickets — gym owner submits
+router.post('/support-ticket', authenticateToken, async (req, res) => {
+  const { subject, message, priority = 'normal' } = req.body;
+  if (!subject || !message) return res.status(400).json({ error: 'Subject and message required' });
+  const gymId = req.user.gym_id;
+  if (!gymId) return res.status(403).json({ error: 'Gym account required' });
+  try {
+    const id = uuidv4();
+    await runQuery(`INSERT INTO support_tickets (id, gym_id, subject, message, priority, status) VALUES (?, ?, ?, ?, ?, 'open')`,
+      [id, gymId, subject, message, priority]);
+    res.status(201).json({ id, message: 'Ticket submitted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to submit ticket' });
+  }
+});
+
+// Support tickets — admin gets all tickets
+router.get('/support-tickets', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  const { status } = req.query;
+  try {
+    const tickets = await getAll(
+      status && status !== 'all'
+        ? `SELECT st.*, g.name as gym_name, g.email as gym_email, g.phone as gym_phone FROM support_tickets st LEFT JOIN gyms g ON st.gym_id = g.id WHERE st.status = ? ORDER BY st.created_at DESC`
+        : `SELECT st.*, g.name as gym_name, g.email as gym_email, g.phone as gym_phone FROM support_tickets st LEFT JOIN gyms g ON st.gym_id = g.id ORDER BY st.created_at DESC`,
+      status && status !== 'all' ? [status] : []
+    );
+    res.json(tickets);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get tickets' });
+  }
+});
+
+// Support tickets — admin creates ticket for a gym
+router.post('/support-tickets', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  const { gym_id, subject, message, priority = 'normal' } = req.body;
+  if (!gym_id || !subject || !message) return res.status(400).json({ error: 'gym_id, subject and message required' });
+  try {
+    const id = uuidv4();
+    await runQuery(`INSERT INTO support_tickets (id, gym_id, subject, message, priority, status) VALUES (?, ?, ?, ?, ?, 'open')`,
+      [id, gym_id, subject, message, priority]);
+    res.status(201).json({ id });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create ticket' });
+  }
+});
+
+// Support tickets — admin updates ticket (reply + status)
+router.patch('/support-tickets/:id', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  const { status, admin_reply } = req.body;
+  try {
+    const parts = ['updated_at = NOW()'];
+    const params = [];
+    if (status) { parts.push('status = ?'); params.push(status); }
+    if (admin_reply !== undefined) { parts.push('admin_reply = ?'); parts.push('replied_at = NOW()'); params.push(admin_reply); }
+    params.push(req.params.id);
+    await runQuery(`UPDATE support_tickets SET ${parts.join(', ')} WHERE id = ?`, params);
+    res.json({ message: 'Ticket updated' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update ticket' });
+  }
+});
+
+// Bulk action — change plan or extend subscription for multiple gyms at once
+router.post('/gyms/bulk-action', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  const { gym_ids, action, plan, months = 1, end_date, notes } = req.body;
+  if (!gym_ids?.length || !action) return res.status(400).json({ error: 'gym_ids and action required' });
+  const planLimits = { free: 10, starter: 100, pro: -1, enterprise: -1 };
+  try {
+    for (const gymId of gym_ids) {
+      if (action === 'set-plan' && plan) {
+        const gym = await getOne('SELECT * FROM gyms WHERE id = ?', [gymId]);
+        if (!gym) continue;
+        let endDate = null;
+        if (plan !== 'free') {
+          const today = new Date();
+          const existing = gym.subscription_end ? new Date(gym.subscription_end) : null;
+          const base = (existing && existing > today) ? existing : today;
+          const end = new Date(base);
+          end.setMonth(end.getMonth() + parseInt(months));
+          endDate = end.toISOString().split('T')[0];
+        }
+        await runQuery(`UPDATE gyms SET subscription_plan = ?, subscription_status = 'active', subscription_start = NOW()::date, subscription_end = ?, max_members = ?, updated_at = NOW() WHERE id = ?`,
+          [plan, endDate, planLimits[plan] ?? 10, gymId]);
+        await runQuery(`INSERT INTO activity_log (id, gym_id, user_id, action_type, details, created_at) VALUES (?, ?, ?, 'admin_plan_change', ?, NOW())`,
+          [uuidv4(), gymId, req.user.id, JSON.stringify({ plan, months, notes: notes || 'Bulk action', by: req.user.email })]);
+      } else if (action === 'extend' && end_date) {
+        await runQuery(`UPDATE gyms SET subscription_end = ?, subscription_status = 'active', updated_at = NOW() WHERE id = ?`, [end_date, gymId]);
+        await runQuery(`INSERT INTO activity_log (id, gym_id, user_id, action_type, details, created_at) VALUES (?, ?, ?, 'admin_extend', ?, NOW())`,
+          [uuidv4(), gymId, req.user.id, JSON.stringify({ end_date, notes: notes || 'Bulk action', by: req.user.email })]);
+      }
+    }
+    res.json({ message: `Bulk ${action} applied to ${gym_ids.length} gyms` });
+  } catch (error) {
+    console.error('Bulk action error:', error);
+    res.status(500).json({ error: 'Failed to execute bulk action' });
   }
 });
 

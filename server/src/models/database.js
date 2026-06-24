@@ -228,6 +228,21 @@ export async function initDatabase() {
   FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
 )`,
     `CREATE INDEX IF NOT EXISTS idx_membership_freezes_customer ON membership_freezes(customer_id)`,
+    `CREATE TABLE IF NOT EXISTS support_tickets (
+      id TEXT PRIMARY KEY,
+      gym_id TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      message TEXT NOT NULL,
+      status TEXT DEFAULT 'open',
+      priority TEXT DEFAULT 'normal',
+      admin_reply TEXT,
+      replied_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      FOREIGN KEY (gym_id) REFERENCES gyms(id) ON DELETE CASCADE
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_support_tickets_gym_id ON support_tickets(gym_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_support_tickets_status ON support_tickets(status)`,
     // Indexes
     `CREATE INDEX IF NOT EXISTS idx_customers_gym_id ON customers(gym_id)`,
     `CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone)`,

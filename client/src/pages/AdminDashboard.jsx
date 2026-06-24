@@ -7,7 +7,8 @@ import {
   Search, Eye, Shield, Trash2, MessageSquare, Play, Bell,
   ChevronUp, ChevronDown, Download, Crown, Megaphone,
   Activity, BarChart3, Zap, CalendarClock, Edit3, Save,
-  Wallet, Receipt, Plus
+  Wallet, Receipt, Plus, TrendingDown, LifeBuoy, CheckSquare,
+  Square, Target, Gauge, Send, Filter, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -136,6 +137,35 @@ export default function AdminDashboard() {
   const [cronSecret, setCronSecret] = useState('');
   const [smsTest, setSmsTest] = useState({ loading: false, result: null, error: null });
 
+  // Bulk actions
+  const [selectedGymIds, setSelectedGymIds] = useState(new Set());
+  const [bulkActionModal, setBulkActionModal] = useState(null); // null | 'plan' | 'extend'
+  const [bulkPlanForm, setBulkPlanForm] = useState({ plan: 'starter', months: 1 });
+  const [bulkExtendDate, setBulkExtendDate] = useState('');
+  const [bulkSaving, setBulkSaving] = useState(false);
+
+  // Expiring soon filter
+  const [expiringSoonDays, setExpiringSoonDays] = useState(14);
+
+  // Churn
+  const [churn, setChurn] = useState(null);
+  const [churnLoading, setChurnLoading] = useState(false);
+
+  // Support tickets
+  const [tickets, setTickets] = useState([]);
+  const [ticketsLoading, setTicketsLoading] = useState(false);
+  const [ticketFilter, setTicketFilter] = useState('open');
+  const [ticketDetail, setTicketDetail] = useState(null);
+  const [ticketReply, setTicketReply] = useState('');
+  const [ticketSaving, setTicketSaving] = useState(false);
+  const [newTicketModal, setNewTicketModal] = useState(null);
+  const [newTicketForm, setNewTicketForm] = useState({ subject: '', message: '', priority: 'normal' });
+
+  // Gym audit log (inside gym detail modal)
+  const [gymAuditLog, setGymAuditLog] = useState([]);
+  const [gymAuditLoading, setGymAuditLoading] = useState(false);
+  const [gymDetailTab, setGymDetailTab] = useState('info'); // 'info' | 'audit'
+
   // Financials
   const [financials, setFinancials]         = useState(null);
   const [finHistory, setFinHistory]         = useState([]);
@@ -214,6 +244,28 @@ export default function AdminDashboard() {
   };
   useEffect(() => { if (activeTab === 'financials') loadFinancials(); }, [activeTab]);
 
+  const loadChurn = async () => {
+    setChurnLoading(true);
+    try { setChurn(await adminFetch('/churn')); } catch {}
+    finally { setChurnLoading(false); }
+  };
+  useEffect(() => { if (activeTab === 'revenue') loadChurn(); }, [activeTab]);
+
+  const loadTickets = async () => {
+    setTicketsLoading(true);
+    try { setTickets(await adminFetch(`/support-tickets${ticketFilter !== 'all' ? `?status=${ticketFilter}` : ''}`)); }
+    catch {}
+    finally { setTicketsLoading(false); }
+  };
+  useEffect(() => { if (activeTab === 'support') loadTickets(); }, [activeTab, ticketFilter]);
+
+  const loadGymAuditLog = async (gymId) => {
+    setGymAuditLoading(true); setGymAuditLog([]);
+    try { setGymAuditLog(await adminFetch(`/activity-log?gym_id=${gymId}`)); }
+    catch {}
+    finally { setGymAuditLoading(false); }
+  };
+
   // ── Gym sort + filter ───────────────────────────────────────────────────────
   const sortedGyms = useMemo(() => {
     const filtered = gyms.filter(g =>
@@ -250,6 +302,52 @@ export default function AdminDashboard() {
     ), [requests, requestFilter, requestSearch]);
 
   const pendingCount = requests.filter(r => r.status === 'pending').length;
+
+  // Expiring soon breakdown computed from gym data
+  const expiringSoonByDays = useMemo(() => {
+    const now = new Date();
+    const make = (days) => gyms.filter(g => {
+      if (!g.subscription_end || g.subscription_status !== 'active') return false;
+      const end = new Date(g.subscription_end);
+      const diff = (end - now) / (1000 * 60 * 60 * 24);
+      return diff >= 0 && diff <= days;
+    }).sort((a, b) => new Date(a.subscription_end) - new Date(b.subscription_end));
+    return { 7: make(7), 14: make(14), 30: make(30) };
+  }, [gyms]);
+
+  // Bulk actions handler
+  const handleBulkAction = async () => {
+    if (!selectedGymIds.size) return;
+    setBulkSaving(true);
+    try {
+      const gym_ids = Array.from(selectedGymIds);
+      if (bulkActionModal === 'plan') {
+        await adminFetch('/gyms/bulk-action', { method: 'POST', body: JSON.stringify({ gym_ids, action: 'set-plan', ...bulkPlanForm }) });
+      } else if (bulkActionModal === 'extend') {
+        await adminFetch('/gyms/bulk-action', { method: 'POST', body: JSON.stringify({ gym_ids, action: 'extend', end_date: bulkExtendDate }) });
+      }
+      setBulkActionModal(null); setSelectedGymIds(new Set()); loadAll();
+    } catch (e) { alert(e.message); }
+    finally { setBulkSaving(false); }
+  };
+
+  const openTicketReply = (ticket) => { setTicketDetail(ticket); setTicketReply(ticket.admin_reply || ''); };
+  const handleTicketUpdate = async (id, status, reply) => {
+    setTicketSaving(true);
+    try {
+      await adminFetch(`/support-tickets/${id}`, { method: 'PATCH', body: JSON.stringify({ status, admin_reply: reply }) });
+      setTicketDetail(null); loadTickets();
+    } catch (e) { alert(e.message); }
+    finally { setTicketSaving(false); }
+  };
+  const handleNewTicket = async () => {
+    if (!newTicketModal || !newTicketForm.subject || !newTicketForm.message) return;
+    try {
+      await adminFetch('/support-tickets', { method: 'POST', body: JSON.stringify({ gym_id: newTicketModal.id, ...newTicketForm }) });
+      setNewTicketModal(null); setNewTicketForm({ subject: '', message: '', priority: 'normal' });
+      if (activeTab === 'support') loadTickets();
+    } catch (e) { alert(e.message); }
+  };
 
   // ── Actions ─────────────────────────────────────────────────────────────────
   const handleReview = async () => {
@@ -365,6 +463,7 @@ export default function AdminDashboard() {
     </div>
   );
 
+  const openTicketCount = tickets.filter(t => t.status === 'open').length;
   const tabs = [
     { key: 'overview',    label: 'Overview',    icon: TrendingUp },
     { key: 'gyms',        label: `Gyms (${gyms.length})`, icon: Building2 },
@@ -372,6 +471,7 @@ export default function AdminDashboard() {
     { key: 'revenue',     label: 'Revenue',     icon: BarChart3 },
     { key: 'activity',    label: 'Activity',    icon: Activity },
     { key: 'financials',  label: 'Financials',  icon: Wallet },
+    { key: 'support',     label: 'Support',     icon: LifeBuoy, badge: openTicketCount },
   ];
 
   return (
@@ -515,18 +615,43 @@ export default function AdminDashboard() {
                   </button>
                 </div>
               )}
-              {(stats?.expiring_soon || 0) > 0 && (
-                <div className="card p-5 border-orange-500/30 bg-orange-500/5 flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center flex-shrink-0">
-                    <CalendarClock className="w-6 h-6 text-orange-400" />
+              {expiringSoonByDays[30].length > 0 && (
+                <div className="card p-5 border-orange-500/30 bg-orange-500/5 space-y-3">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center flex-shrink-0">
+                      <CalendarClock className="w-6 h-6 text-orange-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-white">Expiring Soon</p>
+                      <div className="flex gap-3 mt-1">
+                        {[7, 14, 30].map(d => (
+                          <button key={d} onClick={() => setExpiringSoonDays(d)}
+                            className={clsx('px-2 py-0.5 rounded text-xs font-medium transition-all',
+                              expiringSoonDays === d ? 'bg-orange-500/40 text-orange-200' : 'text-orange-400 hover:bg-orange-500/20')}>
+                            {expiringSoonByDays[d].length} in {d}d
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <button onClick={() => setActiveTab('revenue')} className="px-3 py-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
+                      View <ChevronRight className="w-4 h-4 inline" />
+                    </button>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-white">{stats.expiring_soon} Expiring in 14 days</p>
-                    <p className="text-gray-400 text-sm">Subscriptions need renewal</p>
-                  </div>
-                  <button onClick={() => setActiveTab('revenue')} className="px-3 py-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
-                    View <ChevronRight className="w-4 h-4 inline" />
-                  </button>
+                  {expiringSoonByDays[expiringSoonDays].length > 0 && (
+                    <div className="space-y-1.5 pt-1 border-t border-orange-500/20">
+                      {expiringSoonByDays[expiringSoonDays].slice(0, 4).map(g => (
+                        <div key={g.id} className="flex items-center justify-between text-sm">
+                          <span className="text-white font-medium">{g.name}</span>
+                          <span className="text-orange-400 text-xs">
+                            {Math.ceil((new Date(g.subscription_end) - new Date()) / 86400000)}d left
+                          </span>
+                        </div>
+                      ))}
+                      {expiringSoonByDays[expiringSoonDays].length > 4 && (
+                        <p className="text-xs text-orange-400/60">+{expiringSoonByDays[expiringSoonDays].length - 4} more</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -643,10 +768,47 @@ export default function AdminDashboard() {
               </button>
             </div>
 
+            {/* Bulk action bar */}
+            {selectedGymIds.size > 0 && (
+              <div className="flex items-center gap-3 p-3 bg-gym-500/10 border border-gym-500/30 rounded-xl">
+                <span className="text-sm text-gym-400 font-medium">{selectedGymIds.size} selected</span>
+                <div className="flex gap-2 ml-auto">
+                  <button onClick={() => { setBulkPlanForm({ plan: 'starter', months: 1 }); setBulkActionModal('plan'); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm font-medium transition-colors">
+                    <Crown className="w-3.5 h-3.5" /> Change Plan
+                  </button>
+                  <button onClick={() => { setBulkExtendDate(''); setBulkActionModal('extend'); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-lg text-sm font-medium transition-colors">
+                    <CalendarClock className="w-3.5 h-3.5" /> Extend All
+                  </button>
+                  <button onClick={() => {
+                    const emails = Array.from(selectedGymIds).map(id => gyms.find(g => g.id === id)?.email).filter(Boolean).join(',');
+                    window.location.href = `mailto:${emails}`;
+                  }} className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg text-sm font-medium transition-colors">
+                    <Mail className="w-3.5 h-3.5" /> Email All
+                  </button>
+                  <button onClick={() => setSelectedGymIds(new Set())}
+                    className="px-3 py-1.5 bg-dark-200 text-gray-400 rounded-lg text-sm transition-colors hover:text-white">
+                    Clear
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="card overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-gray-400 border-b border-gray-800 text-xs uppercase tracking-wider">
+                    <th className="p-4 w-10">
+                      <button onClick={() => {
+                        if (selectedGymIds.size === sortedGyms.length) setSelectedGymIds(new Set());
+                        else setSelectedGymIds(new Set(sortedGyms.map(g => g.id)));
+                      }} className="text-gray-500 hover:text-white transition-colors">
+                        {selectedGymIds.size === sortedGyms.length && sortedGyms.length > 0
+                          ? <CheckSquare className="w-4 h-4 text-gym-400" />
+                          : <Square className="w-4 h-4" />}
+                      </button>
+                    </th>
                     <th className="p-4">Gym</th>
                     <th className="p-4">Contact</th>
                     <th className="p-4 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('subscription_plan')}>
@@ -662,12 +824,24 @@ export default function AdminDashboard() {
                     <th className="p-4 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('subscription_end')}>
                       <span className="flex items-center gap-1">Expires <SortIcon field="subscription_end" /></span>
                     </th>
+                    <th className="p-4">Health</th>
                     <th className="p-4"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800/50">
-                  {sortedGyms.map(gym => (
-                    <tr key={gym.id} className="hover:bg-dark-200/40 transition-colors">
+                  {sortedGyms.map(gym => {
+                    const hs = gymHealthScore(gym);
+                    return (
+                    <tr key={gym.id} className={clsx('hover:bg-dark-200/40 transition-colors', selectedGymIds.has(gym.id) && 'bg-gym-500/5')}>
+                      <td className="p-4">
+                        <button onClick={() => {
+                          const next = new Set(selectedGymIds);
+                          next.has(gym.id) ? next.delete(gym.id) : next.add(gym.id);
+                          setSelectedGymIds(next);
+                        }} className="text-gray-500 hover:text-gym-400 transition-colors">
+                          {selectedGymIds.has(gym.id) ? <CheckSquare className="w-4 h-4 text-gym-400" /> : <Square className="w-4 h-4" />}
+                        </button>
+                      </td>
                       <td className="p-4">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-gym-500 to-purple-600 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
@@ -691,15 +865,22 @@ export default function AdminDashboard() {
                         {gym.subscription_end ? new Date(gym.subscription_end).toLocaleDateString() : '—'}
                       </td>
                       <td className="p-4">
+                        <span className={clsx('px-2 py-0.5 rounded-full text-xs font-semibold border', hs.bg, hs.color)}>
+                          {hs.score} {hs.label}
+                        </span>
+                      </td>
+                      <td className="p-4">
                         <div className="flex items-center gap-1">
-                          <button onClick={() => setGymDetail(gym)} className="p-1.5 text-gray-400 hover:text-white hover:bg-dark-300 rounded-lg transition-colors" title="View details"><Eye className="w-4 h-4" /></button>
+                          <button onClick={() => { setGymDetail(gym); setGymDetailTab('info'); }} className="p-1.5 text-gray-400 hover:text-white hover:bg-dark-300 rounded-lg transition-colors" title="View details"><Eye className="w-4 h-4" /></button>
+                          <a href={`mailto:${gym.email}`} className="p-1.5 text-gray-400 hover:text-purple-400 hover:bg-purple-500/10 rounded-lg transition-colors" title="Email owner"><Mail className="w-4 h-4" /></a>
                           <button onClick={() => { setSetPlanModal(gym); setPlanForm({ plan: gym.subscription_plan || 'starter', months: 1, notes: '' }); }} className="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors" title="Change plan"><Crown className="w-4 h-4" /></button>
                           <button onClick={() => { setExtendModal(gym); setExtendDate(gym.subscription_end?.slice(0,10) || ''); setExtendNotes(''); }} className="p-1.5 text-gray-400 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-colors" title="Extend subscription"><CalendarClock className="w-4 h-4" /></button>
                           <button onClick={() => setDeleteConfirm(gym)} className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                   {sortedGyms.length === 0 && (
                     <tr><td colSpan={8} className="p-12 text-center text-gray-500">No gyms found</td></tr>
                   )}
@@ -884,6 +1065,114 @@ export default function AdminDashboard() {
                 </div>
               </div>
             )}
+
+            {/* ── Revenue Forecast ──────────────────────────────── */}
+            {(() => {
+              const PRICES = { starter: 1499, pro: 3499, enterprise: 5999 };
+              const now = new Date();
+              const months = [0, 1, 2].map(offset => {
+                const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+                return { label: d.toLocaleString('default', { month: 'short', year: 'numeric' }), start: d, end: new Date(d.getFullYear(), d.getMonth() + 1, 0) };
+              });
+              const forecast = months.map(m => {
+                const active = gyms.filter(g => {
+                  if (!g.subscription_end || g.subscription_plan === 'free') return false;
+                  const end = new Date(g.subscription_end);
+                  return end >= m.start;
+                });
+                const revenue_est = active.reduce((s, g) => s + (PRICES[g.subscription_plan] || 0), 0);
+                const atRisk = gyms.filter(g => {
+                  if (!g.subscription_end || g.subscription_plan === 'free') return false;
+                  const end = new Date(g.subscription_end);
+                  return end >= m.start && end <= m.end;
+                }).length;
+                return { ...m, gyms: active.length, revenue_est, atRisk };
+              });
+              const maxRev = Math.max(...forecast.map(f => f.revenue_est), 1);
+              return (
+                <div className="card p-6 border border-blue-500/20">
+                  <h2 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
+                    <Target className="w-5 h-5 text-blue-400" /> Revenue Forecast (Next 3 Months)
+                  </h2>
+                  <p className="text-xs text-gray-500 mb-4">Based on current active subscriptions</p>
+                  <div className="grid grid-cols-3 gap-4">
+                    {forecast.map((f, i) => (
+                      <div key={f.label} className={clsx('p-4 rounded-xl border', i === 0 ? 'border-blue-500/30 bg-blue-500/5' : 'border-gray-800 bg-dark-200/40')}>
+                        <p className="text-xs text-gray-500 mb-1">{f.label}{i === 0 ? ' (now)' : ''}</p>
+                        <p className="text-xl font-bold text-blue-400">ETB {f.revenue_est.toLocaleString()}</p>
+                        <div className="mt-2 h-1.5 bg-dark-300 rounded-full overflow-hidden">
+                          <div className="h-full bg-blue-500/60 rounded-full" style={{ width: `${(f.revenue_est / maxRev) * 100}%` }} />
+                        </div>
+                        <div className="flex justify-between mt-2 text-xs text-gray-500">
+                          <span>{f.gyms} paying gyms</span>
+                          {f.atRisk > 0 && <span className="text-orange-400">{f.atRisk} expiring</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-600 mt-3">* Assumes 100% renewal. Actual may vary based on churn.</p>
+                </div>
+              );
+            })()}
+
+            {/* ── Churn Tracking ────────────────────────────────── */}
+            <div className="card p-6 border border-red-500/20">
+              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <TrendingDown className="w-5 h-5 text-red-400" /> Churn Tracking
+                {churn && <span className="ml-auto text-sm font-normal text-red-400">{churn.churn_rate}% churn rate</span>}
+              </h2>
+              {churnLoading ? (
+                <div className="flex items-center gap-2 text-gray-500 text-sm py-4">
+                  <RefreshCw className="w-4 h-4 animate-spin" /> Loading…
+                </div>
+              ) : churn ? (
+                <div className="space-y-4">
+                  {churn.expired.length > 0 ? (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Expired Gyms ({churn.expired.length})</p>
+                      <div className="space-y-2">
+                        {churn.expired.map(g => (
+                          <div key={g.id} className="flex items-center justify-between p-3 bg-red-500/5 border border-red-500/10 rounded-xl">
+                            <div>
+                              <p className="font-medium text-white text-sm">{g.name}</p>
+                              <p className="text-xs text-gray-500">{g.email}</p>
+                            </div>
+                            <div className="text-right">
+                              <PlanBadge plan={g.subscription_plan} />
+                              <p className="text-xs text-red-400 mt-1">
+                                {g.subscription_end ? `Expired ${new Date(g.subscription_end).toLocaleDateString()}` : 'No subscription'}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-4 flex items-center justify-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-400" /> No expired gyms — great retention!
+                    </p>
+                  )}
+                  {churn.downgrades.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Recent Downgrades to Free ({churn.downgrades.length})</p>
+                      <div className="space-y-2">
+                        {churn.downgrades.map(d => (
+                          <div key={d.id} className="flex items-center justify-between p-3 bg-orange-500/5 border border-orange-500/10 rounded-xl">
+                            <div>
+                              <p className="font-medium text-white text-sm">{d.gym_name || '—'}</p>
+                              <p className="text-xs text-gray-500">{d.gym_email}</p>
+                            </div>
+                            <p className="text-xs text-gray-500">{new Date(d.created_at).toLocaleDateString()}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 text-center py-4">No churn data available</p>
+              )}
+            </div>
           </div>
         )}
 
@@ -1323,6 +1612,87 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* ══ SUPPORT TICKETS ═══════════════════════════════════════════════════ */}
+        {activeTab === 'support' && (
+          <div className="space-y-4 animate-fade-in">
+            <div className="flex flex-wrap gap-3 items-center">
+              <div className="flex gap-2">
+                {['open', 'in_progress', 'resolved', 'all'].map(f => {
+                  const cnt = f === 'all' ? tickets.length : tickets.filter(t => t.status === f).length;
+                  return (
+                    <button key={f} onClick={() => setTicketFilter(f)}
+                      className={clsx('px-4 py-2 rounded-lg text-sm font-medium capitalize transition-all',
+                        ticketFilter === f ? 'bg-gym-600 text-white' : 'bg-dark-200 text-gray-400 hover:text-white')}>
+                      {f.replace('_', ' ')} {`(${cnt})`}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {ticketsLoading ? (
+              <div className="card p-12 text-center"><RefreshCw className="w-6 h-6 animate-spin mx-auto text-gray-500" /></div>
+            ) : tickets.length === 0 ? (
+              <div className="card p-12 text-center">
+                <LifeBuoy className="w-12 h-12 mx-auto mb-4 text-gray-600" />
+                <p className="text-gray-400">No {ticketFilter === 'all' ? '' : ticketFilter} tickets</p>
+                <p className="text-xs text-gray-600 mt-1">Gym owners can submit tickets from their dashboard</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {tickets.map(t => (
+                  <div key={t.id} className="card p-5">
+                    <div className="flex items-start gap-4 justify-between flex-wrap">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className={clsx('w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0',
+                          t.status === 'open' ? 'bg-red-500/20' : t.status === 'in_progress' ? 'bg-yellow-500/20' : 'bg-green-500/20')}>
+                          <LifeBuoy className={clsx('w-5 h-5', t.status === 'open' ? 'text-red-400' : t.status === 'in_progress' ? 'text-yellow-400' : 'text-green-400')} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold text-white">{t.subject}</p>
+                            <span className={clsx('text-xs px-2 py-0.5 rounded-full font-medium capitalize',
+                              t.priority === 'high' ? 'bg-red-500/20 text-red-400' :
+                              t.priority === 'normal' ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-500/20 text-gray-400')}>
+                              {t.priority}
+                            </span>
+                            <span className={clsx('text-xs px-2 py-0.5 rounded-full font-medium capitalize',
+                              t.status === 'open' ? 'bg-red-500/20 text-red-400' :
+                              t.status === 'in_progress' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400')}>
+                              {t.status?.replace('_', ' ')}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-400 mt-1">{t.gym_name} · {t.gym_email}</p>
+                          <p className="text-sm text-gray-300 mt-2 line-clamp-2">{t.message}</p>
+                          {t.admin_reply && (
+                            <div className="mt-2 p-3 bg-gym-500/10 border border-gym-500/20 rounded-lg">
+                              <p className="text-xs text-gym-400 font-semibold mb-1">Admin Reply:</p>
+                              <p className="text-xs text-gray-300">{t.admin_reply}</p>
+                            </div>
+                          )}
+                          <p className="text-xs text-gray-600 mt-2">{new Date(t.created_at).toLocaleDateString('en', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button onClick={() => openTicketReply(t)}
+                          className="flex items-center gap-1.5 px-3 py-2 bg-gym-500/20 hover:bg-gym-500/30 text-gym-400 rounded-xl text-sm font-medium transition-colors">
+                          <MessageSquare className="w-3.5 h-3.5" /> Reply
+                        </button>
+                        {t.status !== 'resolved' && (
+                          <button onClick={() => handleTicketUpdate(t.id, 'resolved', t.admin_reply)}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-xl text-sm font-medium transition-colors">
+                            <Check className="w-3.5 h-3.5" /> Resolve
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ══ ACTIVITY LOG ══════════════════════════════════════════════════════ */}
         {activeTab === 'activity' && (
           <div className="space-y-4 animate-fade-in">
@@ -1434,7 +1804,7 @@ export default function AdminDashboard() {
       {/* ══ GYM DETAIL MODAL ════════════════════════════════════════════════════ */}
       {gymDetail && (
         <Modal onClose={() => setGymDetail(null)} wide>
-          <div className="flex items-start justify-between mb-5">
+          <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-gym-500 to-purple-600 flex items-center justify-center text-2xl font-bold text-white">
                 {gymDetail.name?.charAt(0)}
@@ -1442,31 +1812,98 @@ export default function AdminDashboard() {
               <div>
                 <h3 className="text-xl font-bold text-white">{gymDetail.name}</h3>
                 <p className="text-gray-400 text-sm">{gymDetail.slug}</p>
+                {(() => { const hs = gymHealthScore(gymDetail); return (
+                  <span className={clsx('inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border mt-1', hs.bg, hs.color)}>
+                    <Gauge className="w-3 h-3" /> {hs.score}/100 · {hs.label}
+                  </span>
+                ); })()}
               </div>
             </div>
             <button onClick={() => setGymDetail(null)} className="p-1 text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
           </div>
-          <div className="space-y-4">
-            <Section title="Contact">
-              <Row label="Email"   value={gymDetail.email} />
-              <Row label="Phone"   value={gymDetail.phone || '—'} />
-              <Row label="Address" value={gymDetail.address || '—'} />
-            </Section>
-            <Section title="Subscription">
-              <Row label="Plan"        value={<PlanBadge plan={gymDetail.subscription_plan} />} />
-              <Row label="Status"      value={<StatusBadge status={gymDetail.subscription_status} />} />
-              <Row label="Started"     value={gymDetail.subscription_start || '—'} />
-              <Row label="Expires"     value={gymDetail.subscription_end || '—'} />
-              <Row label="Max Members" value={gymDetail.max_members === -1 ? 'Unlimited' : gymDetail.max_members} />
-            </Section>
-            <Section title="Activity">
-              <Row label="Total Members" value={gymDetail.member_count || 0} />
-              <Row label="Payments"      value={gymDetail.payment_count || 0} />
-              <Row label="Total Revenue" value={`ETB ${(gymDetail.total_revenue || 0).toLocaleString()}`} />
-              <Row label="Registered"    value={gymDetail.created_at ? new Date(gymDetail.created_at).toLocaleDateString() : '—'} />
-            </Section>
+
+          {/* Tabs inside modal */}
+          <div className="flex gap-1 bg-dark-200 rounded-xl p-1 mb-4">
+            {[['info','Info'],['audit','History']].map(([k,l]) => (
+              <button key={k} onClick={() => { setGymDetailTab(k); if (k === 'audit') loadGymAuditLog(gymDetail.id); }}
+                className={clsx('flex-1 py-1.5 rounded-lg text-sm font-medium transition-all',
+                  gymDetailTab === k ? 'bg-gym-600 text-white' : 'text-gray-400 hover:text-white')}>
+                {l}
+              </button>
+            ))}
           </div>
-          <div className="flex gap-3 mt-5">
+
+          {gymDetailTab === 'info' && (
+            <div className="space-y-4">
+              <Section title="Contact">
+                <Row label="Email"   value={gymDetail.email} />
+                <Row label="Phone"   value={gymDetail.phone || '—'} />
+                <Row label="Address" value={gymDetail.address || '—'} />
+              </Section>
+              <Section title="Subscription">
+                <Row label="Plan"        value={<PlanBadge plan={gymDetail.subscription_plan} />} />
+                <Row label="Status"      value={<StatusBadge status={gymDetail.subscription_status} />} />
+                <Row label="Started"     value={gymDetail.subscription_start || '—'} />
+                <Row label="Expires"     value={gymDetail.subscription_end || '—'} />
+                <Row label="Max Members" value={gymDetail.max_members === -1 ? 'Unlimited' : gymDetail.max_members} />
+              </Section>
+              <Section title="Activity">
+                <Row label="Total Members" value={gymDetail.member_count || 0} />
+                <Row label="Payments"      value={gymDetail.payment_count || 0} />
+                <Row label="Total Revenue" value={`ETB ${(gymDetail.total_revenue || 0).toLocaleString()}`} />
+                <Row label="Registered"    value={gymDetail.created_at ? new Date(gymDetail.created_at).toLocaleDateString() : '—'} />
+              </Section>
+            </div>
+          )}
+
+          {gymDetailTab === 'audit' && (
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {gymAuditLoading ? (
+                <div className="text-center py-6"><RefreshCw className="w-5 h-5 animate-spin mx-auto text-gray-500" /></div>
+              ) : gymAuditLog.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-6">No activity recorded for this gym</p>
+              ) : gymAuditLog.map((log, i) => {
+                let details = {};
+                try { details = JSON.parse(log.details || '{}'); } catch {}
+                const ACTION_LABELS = {
+                  admin_plan_change: 'Plan changed',
+                  admin_extend: 'Subscription extended',
+                  customer_added: 'Member added',
+                  customer_deleted: 'Member deleted',
+                  payment_added: 'Payment recorded',
+                  check_in: 'Check-in',
+                };
+                const action = log.action_type || log.action || '';
+                return (
+                  <div key={i} className="flex items-start gap-3 p-3 bg-dark-200/40 rounded-xl">
+                    <div className="w-6 h-6 rounded bg-dark-300 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Activity className="w-3 h-3 text-gray-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white font-medium">{ACTION_LABELS[action] || action}</p>
+                      {Object.keys(details).length > 0 && (
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {Object.entries(details).filter(([k]) => k !== 'by').map(([k, v]) => `${k}: ${v}`).join(' · ')}
+                          {details.by && <span className="ml-2 text-gray-600">by {details.by}</span>}
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-xs text-gray-600 flex-shrink-0">{new Date(log.created_at).toLocaleDateString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex gap-2 mt-5 flex-wrap">
+            <a href={`mailto:${gymDetail.email}`}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-xl text-sm font-medium transition-colors">
+              <Mail className="w-4 h-4" /> Email Owner
+            </a>
+            <button onClick={() => { setNewTicketModal(gymDetail); setNewTicketForm({ subject: '', message: '', priority: 'normal' }); }}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 rounded-xl text-sm font-medium transition-colors">
+              <LifeBuoy className="w-4 h-4" /> Add Ticket
+            </button>
             <button onClick={() => { setGymDetail(null); setSetPlanModal(gymDetail); setPlanForm({ plan: gymDetail.subscription_plan || 'starter', months: 1, notes: '' }); }}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-xl text-sm font-medium transition-colors">
               <Crown className="w-4 h-4" /> Change Plan
@@ -1609,6 +2046,153 @@ export default function AdminDashboard() {
         </Modal>
       )}
 
+      {/* ══ BULK PLAN MODAL ═════════════════════════════════════════════════════ */}
+      {bulkActionModal === 'plan' && (
+        <Modal onClose={() => setBulkActionModal(null)}>
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center"><Crown className="w-6 h-6 text-blue-400" /></div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Bulk Change Plan</h3>
+              <p className="text-sm text-gray-400">{selectedGymIds.size} gyms selected</p>
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">New Plan</label>
+              <div className="grid grid-cols-2 gap-2">
+                {['free','starter','pro','enterprise'].map(p => (
+                  <button key={p} type="button" onClick={() => setBulkPlanForm(f => ({...f, plan: p}))}
+                    className={clsx('px-4 py-3 rounded-xl text-sm font-medium capitalize border-2 transition-all',
+                      bulkPlanForm.plan === p ? 'border-gym-500 bg-gym-500/10 text-white' : 'border-gray-700 text-gray-400 hover:border-gray-600')}>
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {bulkPlanForm.plan !== 'free' && (
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Duration (months)</label>
+                <input type="number" min={1} max={24} value={bulkPlanForm.months}
+                  onChange={e => setBulkPlanForm(f => ({...f, months: parseInt(e.target.value) || 1}))}
+                  className="input-field" />
+              </div>
+            )}
+          </div>
+          <div className="flex gap-3 mt-5">
+            <button onClick={() => setBulkActionModal(null)} className="flex-1 px-4 py-2.5 bg-dark-200 text-white rounded-xl hover:bg-dark-300">Cancel</button>
+            <button onClick={handleBulkAction} disabled={bulkSaving}
+              className="flex-1 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium disabled:opacity-50 flex items-center justify-center gap-2">
+              {bulkSaving ? <Spinner /> : <><Save className="w-4 h-4" /> Apply to {selectedGymIds.size} gyms</>}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ══ BULK EXTEND MODAL ═══════════════════════════════════════════════════ */}
+      {bulkActionModal === 'extend' && (
+        <Modal onClose={() => setBulkActionModal(null)}>
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center"><CalendarClock className="w-6 h-6 text-green-400" /></div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Bulk Extend Subscription</h3>
+              <p className="text-sm text-gray-400">{selectedGymIds.size} gyms selected</p>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">New end date for all selected <span className="text-red-400">*</span></label>
+            <input type="date" value={bulkExtendDate} onChange={e => setBulkExtendDate(e.target.value)} className="input-field" />
+          </div>
+          <div className="flex gap-3 mt-5">
+            <button onClick={() => setBulkActionModal(null)} className="flex-1 px-4 py-2.5 bg-dark-200 text-white rounded-xl hover:bg-dark-300">Cancel</button>
+            <button onClick={handleBulkAction} disabled={bulkSaving || !bulkExtendDate}
+              className="flex-1 px-4 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium disabled:opacity-50 flex items-center justify-center gap-2">
+              {bulkSaving ? <Spinner /> : <><Save className="w-4 h-4" /> Apply to {selectedGymIds.size} gyms</>}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ══ TICKET REPLY MODAL ══════════════════════════════════════════════════ */}
+      {ticketDetail && (
+        <Modal onClose={() => setTicketDetail(null)}>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 rounded-xl bg-gym-500/20 flex items-center justify-center"><LifeBuoy className="w-6 h-6 text-gym-400" /></div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Reply to Ticket</h3>
+              <p className="text-sm text-gray-400">{ticketDetail.gym_name}</p>
+            </div>
+          </div>
+          <div className="p-4 bg-dark-200 rounded-xl mb-4 space-y-2 text-sm">
+            <p className="font-medium text-white">{ticketDetail.subject}</p>
+            <p className="text-gray-400">{ticketDetail.message}</p>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-gray-400 mb-1 block">Status</label>
+              <select value={ticketDetail.status} onChange={e => setTicketDetail(t => ({...t, status: e.target.value}))}
+                className="input-field w-full [&>option]:bg-gray-900">
+                <option value="open">Open</option>
+                <option value="in_progress">In Progress</option>
+                <option value="resolved">Resolved</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-400 mb-1 block">Reply Message</label>
+              <textarea value={ticketReply} onChange={e => setTicketReply(e.target.value)}
+                className="input-field h-24 resize-none w-full" placeholder="Type your reply…" />
+            </div>
+          </div>
+          <div className="flex gap-3 mt-5">
+            <button onClick={() => setTicketDetail(null)} className="flex-1 px-4 py-2.5 bg-dark-200 text-white rounded-xl hover:bg-dark-300">Cancel</button>
+            <button onClick={() => handleTicketUpdate(ticketDetail.id, ticketDetail.status, ticketReply)} disabled={ticketSaving}
+              className="flex-1 px-4 py-2.5 bg-gym-600 hover:bg-gym-500 text-white rounded-xl font-medium disabled:opacity-50 flex items-center justify-center gap-2">
+              {ticketSaving ? <Spinner /> : <><Send className="w-4 h-4" /> Send Reply</>}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ══ NEW TICKET MODAL (admin creates for gym) ════════════════════════════ */}
+      {newTicketModal && (
+        <Modal onClose={() => setNewTicketModal(null)}>
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center"><LifeBuoy className="w-6 h-6 text-yellow-400" /></div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Add Support Ticket</h3>
+              <p className="text-sm text-gray-400">{newTicketModal.name}</p>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-gray-400 mb-1 block">Subject *</label>
+              <input value={newTicketForm.subject} onChange={e => setNewTicketForm(f => ({...f, subject: e.target.value}))}
+                className="input-field w-full" placeholder="e.g. Billing issue" autoFocus />
+            </div>
+            <div>
+              <label className="text-xs text-gray-400 mb-1 block">Priority</label>
+              <select value={newTicketForm.priority} onChange={e => setNewTicketForm(f => ({...f, priority: e.target.value}))}
+                className="input-field w-full [&>option]:bg-gray-900">
+                <option value="low">Low</option>
+                <option value="normal">Normal</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-400 mb-1 block">Message *</label>
+              <textarea value={newTicketForm.message} onChange={e => setNewTicketForm(f => ({...f, message: e.target.value}))}
+                className="input-field h-24 resize-none w-full" placeholder="Describe the issue…" />
+            </div>
+          </div>
+          <div className="flex gap-3 mt-5">
+            <button onClick={() => setNewTicketModal(null)} className="flex-1 px-4 py-2.5 bg-dark-200 text-white rounded-xl hover:bg-dark-300">Cancel</button>
+            <button onClick={handleNewTicket} disabled={!newTicketForm.subject || !newTicketForm.message}
+              className="flex-1 px-4 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-black rounded-xl font-medium disabled:opacity-50 flex items-center justify-center gap-2">
+              <Plus className="w-4 h-4" /> Create Ticket
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {/* ══ DELETE CONFIRM ══════════════════════════════════════════════════════ */}
       {deleteConfirm && (
         <Modal onClose={() => !deleting && setDeleteConfirm(null)} danger>
@@ -1693,6 +2277,24 @@ function StatusBadge({ status }) {
       {status?.replace('_', ' ')}
     </span>
   );
+}
+
+function gymHealthScore(gym) {
+  let score = 0;
+  const planLimit = { free: 10, starter: 100, pro: 500, enterprise: 1000 }[gym.subscription_plan] || 10;
+  // Status (40 pts)
+  if (gym.subscription_status === 'active') score += 40;
+  else if (gym.subscription_status === 'trial') score += 20;
+  // Member utilization (30 pts)
+  const memberRatio = planLimit > 0 ? Math.min((gym.member_count || 0) / planLimit, 1) : Math.min((gym.member_count || 0) / 50, 1);
+  score += Math.round(memberRatio * 30);
+  // Revenue engagement (30 pts)
+  const revScore = Math.min((gym.total_revenue || 0) / 3000, 1);
+  score += Math.round(revScore * 30);
+  if (score >= 70) return { score, label: 'Healthy', color: 'text-green-400', bg: 'bg-green-500/15 border-green-500/20' };
+  if (score >= 45) return { score, label: 'Fair', color: 'text-yellow-400', bg: 'bg-yellow-500/15 border-yellow-500/20' };
+  if (score >= 20) return { score, label: 'At Risk', color: 'text-orange-400', bg: 'bg-orange-500/15 border-orange-500/20' };
+  return { score, label: 'Critical', color: 'text-red-400', bg: 'bg-red-500/15 border-red-500/20' };
 }
 
 function StatCard({ title, value, icon: Icon, color }) {
