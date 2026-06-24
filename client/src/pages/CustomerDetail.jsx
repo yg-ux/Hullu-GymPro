@@ -18,6 +18,7 @@ import {
   Clock,
   User,
   AlertTriangle,
+  AlertCircle,
   LogIn,
   LogOut,
   FileText,
@@ -77,6 +78,7 @@ export default function CustomerDetail() {
   const [customAmount, setCustomAmount] = useState('');
   const [totalDue, setTotalDue] = useState('');
   const [extendMode, setExtendMode] = useState('daily'); // 'daily' | 'upgrade' — only used for daily members
+  const [extendErrors, setExtendErrors] = useState({});
 
   const THREE_DAYS_DURATIONS = [
     { value: '1_month',  label: t('membership.monthly'),    sessions: 12  },
@@ -230,6 +232,15 @@ export default function CustomerDetail() {
   const handleExtend = async (e) => {
     e.preventDefault();
     if (!gate()) return;
+
+    const errs = {};
+    const parsedAmount = parseFloat(customAmount);
+    if (!customAmount || isNaN(parsedAmount) || parsedAmount <= 0) {
+      errs.customAmount = 'Enter a valid payment amount greater than 0';
+    }
+    if (Object.keys(errs).length > 0) { setExtendErrors(errs); return; }
+    setExtendErrors({});
+
     try {
       setActionLoading(true);
       const amount = parseInt(customAmount) || 0;
@@ -1239,11 +1250,16 @@ export default function CustomerDetail() {
               <input
                 type="number"
                 value={customAmount}
-                onChange={(e) => setCustomAmount(e.target.value)}
+                onChange={(e) => { setCustomAmount(e.target.value); if (extendErrors.customAmount) setExtendErrors(p => ({ ...p, customAmount: '' })); }}
                 placeholder={t('customers.enterAmount')}
-                className="input-field"
+                className={`input-field ${extendErrors.customAmount ? 'border-red-500 focus:border-red-500' : ''}`}
                 min="0"
               />
+              {extendErrors.customAmount && (
+                <p className="mt-1.5 text-sm text-red-400 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />{extendErrors.customAmount}
+                </p>
+              )}
               {/* Debt summary */}
               {totalDue && customAmount && parseFloat(totalDue) > parseFloat(customAmount) && (
                 <div className="mt-2 flex items-center gap-2 p-2.5 bg-orange-500/10 border border-orange-500/25 rounded-lg">

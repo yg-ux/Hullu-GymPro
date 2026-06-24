@@ -10,15 +10,32 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  const handleEmailChange = (e) => {
+    setEmail(e.target.value);
+    if (fieldErrors.email) setFieldErrors(prev => ({ ...prev, email: '' }));
+  };
+
+  const handlePasswordChange = (e) => {
+    setPassword(e.target.value);
+    if (fieldErrors.password) setFieldErrors(prev => ({ ...prev, password: '' }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
+    const errs = {};
+    if (!email.trim()) errs.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errs.email = 'Enter a valid email address';
+    if (!password) errs.password = 'Password is required';
+    if (Object.keys(errs).length > 0) { setFieldErrors(errs); return; }
+
+    setLoading(true);
     try {
       await login({ email, password });
       navigate('/');
@@ -64,12 +81,16 @@ export default function Login() {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={handleEmailChange}
+                className={`w-full px-4 py-3 rounded-lg bg-gray-100 dark:bg-gray-900 border text-gray-900 dark:text-white focus:outline-none focus:ring-2 ${fieldErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'}`}
                 placeholder={t('login.emailPlaceholder')}
-                required
                 autoComplete="email"
               />
+              {fieldErrors.email && (
+                <p className="mt-1.5 text-sm text-red-500 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />{fieldErrors.email}
+                </p>
+              )}
             </div>
 
             <div>
@@ -81,10 +102,9 @@ export default function Login() {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={handlePasswordChange}
+                  className={`w-full px-4 py-3 rounded-lg bg-gray-100 dark:bg-gray-900 border text-gray-900 dark:text-white pr-12 focus:outline-none focus:ring-2 ${fieldErrors.password ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'}`}
                   placeholder={t('login.passwordPlaceholder')}
-                  required
                   autoComplete="current-password"
                 />
                 <button
@@ -95,6 +115,11 @@ export default function Login() {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              {fieldErrors.password && (
+                <p className="mt-1.5 text-sm text-red-500 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />{fieldErrors.password}
+                </p>
+              )}
             </div>
 
             <button
