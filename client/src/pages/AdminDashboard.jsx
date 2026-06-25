@@ -824,7 +824,19 @@ export default function AdminDashboard() {
                     <th className="p-4 cursor-pointer hover:text-white select-none" onClick={() => toggleSort('subscription_end')}>
                       <span className="flex items-center gap-1">Expires <SortIcon field="subscription_end" /></span>
                     </th>
-                    <th className="p-4">Health</th>
+                    <th className="p-4">
+                      <span className="flex items-center gap-1 group relative cursor-default">
+                        Health
+                        <span className="w-3.5 h-3.5 rounded-full bg-gray-700 text-gray-400 text-[9px] flex items-center justify-center font-bold select-none">?</span>
+                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-52 p-2.5 bg-gray-900 border border-gray-700 rounded-lg text-xs text-gray-300 shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 leading-relaxed">
+                          <span className="block font-semibold text-white mb-1">Score out of 100</span>
+                          <span className="block">• <b>40 pts</b> — Active subscription</span>
+                          <span className="block">• <b>30 pts</b> — Member utilization vs plan limit</span>
+                          <span className="block">• <b>30 pts</b> — Revenue generated (ETB 3k = max)</span>
+                          <span className="block mt-1.5 text-gray-500">70+ Healthy · 45–69 Fair · 20–44 At Risk · &lt;20 Critical</span>
+                        </span>
+                      </span>
+                    </th>
                     <th className="p-4"></th>
                   </tr>
                 </thead>
