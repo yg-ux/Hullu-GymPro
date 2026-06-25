@@ -829,7 +829,7 @@ export default function AdminDashboard() {
                       <span className="flex items-center gap-1 group relative cursor-default">
                         Health
                         <span className="w-3.5 h-3.5 rounded-full bg-gray-700 text-gray-400 text-[9px] flex items-center justify-center font-bold select-none">?</span>
-                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-52 p-2.5 bg-gray-900 border border-gray-700 rounded-lg text-xs text-gray-300 shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 leading-relaxed">
+                        <span className="absolute top-full right-0 mt-2 w-52 p-2.5 bg-gray-900 border border-gray-700 rounded-lg text-xs text-gray-300 shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 leading-relaxed">
                           <span className="block font-semibold text-white mb-1">Score out of 100</span>
                           <span className="block">• <b>40 pts</b> — Active subscription</span>
                           <span className="block">• <b>30 pts</b> — Member utilization vs plan limit</span>
