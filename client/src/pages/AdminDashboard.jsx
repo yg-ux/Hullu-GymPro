@@ -795,7 +795,8 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            <div className="card overflow-x-auto">
+            <div className="card overflow-visible">
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-gray-400 border-b border-gray-800 text-xs uppercase tracking-wider">
@@ -898,6 +899,7 @@ export default function AdminDashboard() {
                   )}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         )}
